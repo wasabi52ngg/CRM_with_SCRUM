@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}CRM{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+    <link rel="stylesheet" href="{% static 'crm/css/base_extra.css' %}">
     {% block head %}{% endblock %}
  </head>
 <body>
@@ -15,12 +16,12 @@
     <nav aria-label="Main navigation">
       <ul class="styles_list__z_6uf ev-menu-list" data-orientation="horizontal" dir="ltr">
         <li><a href="/" class="styles_navLink___VcW8" data-radix-collection-item><span>Главная</span></a></li>
-        <li><button class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="products-menu"><span>Услуги</span></button></li>
-        <li><button class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="solutions-menu"><span>Решения</span></button></li>
+        <li class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="products-menu"><span>Услуги</span></li>
+        <li class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="solutions-menu"><span>Решения</span></li>
         <li><a href="/customers/" class="styles_navLink___VcW8" data-radix-collection-item><span>Клиенты</span></a></li>
         <li><a href="/pricing/" class="styles_navLink___VcW8" data-radix-collection-item><span>Цены</span></a></li>
         <li><a href="/docs/" class="styles_navLink___VcW8" data-radix-collection-item><span>Документация</span></a></li>
-        <li><button class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="resources-menu"><span>Ресурсы</span></button></li>
+        <li class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="resources-menu"><span>Ресурсы</span></li>
         <li><a class="styles_cta__ieC_s" href="/request/">Обсудить проект<svg width="10" height="10" viewBox="0 0 10 10" class="styles_arrow__fxWHa" aria-hidden="true"><path d="M0 5h7" class="styles_line___qSr7"></path><path d="M1 1l4 4-4 4" class="styles_chevron__pzecF"></path></svg></a></li>
       </ul>
     </nav>
@@ -41,34 +42,6 @@
 
 <script src="{% static 'crm/js/app.js' %}"></script>
 {% block scripts %}{% endblock %}
-<style>
-.site-header {
-  width: 100vw;
-  top: 0;
-  left: 0;
-  position: fixed;
-  z-index: 99;
-  background: rgba(17, 24, 39, 0.81); /* Evervault-like dark blur */
-  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.06); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255,255,255,.08);
-  min-height: 66px;
-}
-.header-flex {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 36px;
-  width: min(1100px, 93vw);
-  margin: 0 auto;
-  min-height: 66px;
-  padding: 8px 0;
-}
-.site-header .logo {font-size: 1.19rem; font-weight: bold; color: #fff; text-decoration: none; letter-spacing: .03em;}
-.site-header .header-actions {display:flex; gap:12px; align-items:center;}
-.styles_list__z_6uf.ev-menu-list { margin: 0; box-shadow: none; min-width: 670px; font-size:13.6px; border-radius: 20px; border: 0.5px solid rgba(255,255,255,0.08); background: rgba(23,24,37, 0.89);}
-.container { width: min(1100px,92vw); margin: 0 auto; }
-footer { width:100%; margin:0; padding: 24px 0 0; text-align:center; color:#a0aec0; letter-spacing:.01em; background:none; }
-</style>
 </body>
 </html>
 

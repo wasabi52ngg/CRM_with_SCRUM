@@ -1,0 +1,27 @@
+.site-header {
+  width: 100vw;
+  top: 0;
+  left: 0;
+  position: fixed;
+  z-index: 99;
+  background: rgba(17, 24, 39, 0.81); /* Evervault-like dark blur */
+  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.06); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  min-height: 66px;
+}
+.header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  width: min(1100px, 93vw);
+  margin: 0 auto;
+  min-height: 66px;
+  padding: 8px 0;
+}
+.site-header .logo {font-size: 1.19rem; font-weight: bold; color: #fff; text-decoration: none; letter-spacing: .03em;}
+.site-header .header-actions {display:flex; gap:12px; align-items:center;}
+.styles_list__z_6uf.ev-menu-list { margin: 0; box-shadow: none; min-width: 670px; font-size:13.6px; border-radius: 20px; border: 0.5px solid rgba(255,255,255,0.08); background: rgba(23,24,37, 0.89);}
+.container { width: min(1100px,92vw); margin: 0 auto; }
+footer { width:100%; margin:0; padding: 24px 0 0; text-align:center; color:#a0aec0; letter-spacing:.01em; background:none; }
+

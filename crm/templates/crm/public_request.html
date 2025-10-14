@@ -1,0 +1,35 @@
+{% extends 'crm/base.html' %}
+{% block title %}Заявка на проект{% endblock %}
+{% block content %}
+<h1 class="page-title">Оставить заявку</h1>
+<form method="post" class="form">
+    {% csrf_token %}
+    <label>Тип проекта
+        <select name="project_type" required>
+            <option value="website">Сайт</option>
+            <option value="bot">Бот</option>
+            <option value="mobile">Мобильное приложение</option>
+        </select>
+    </label>
+    <br>
+    <label>Заголовок
+        <input type="text" name="title" required>
+    </label>
+    <br>
+    <label>Email
+        <input type="email" name="contact_email" required>
+    </label>
+    <br>
+    <label>Telegram
+        <input type="text" name="contact_telegram">
+    </label>
+    <br>
+    <label>Описание
+        <textarea name="description" rows="6"></textarea>
+    </label>
+    <br>
+    <button type="submit">Отправить</button>
+ </form>
+{% endblock %}
+
+

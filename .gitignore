@@ -1,0 +1,6 @@
+venv/
+db.sqlite3
+wget-log
+staticfiles
+evervault.com
+__pycache__/

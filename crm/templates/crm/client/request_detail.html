@@ -1,0 +1,27 @@
+{% extends 'crm/base.html' %}
+{% block title %}Заявка — {{ object.title }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ object.title }}</h1>
+<p class="muted">Тип: {{ object.get_project_type_display }} | Статус: {{ object.get_status_display }}</p>
+<p>{{ object.description }}</p>
+
+<h3>Диалог с менеджером</h3>
+<div class="col" style="max-height:260px;overflow:auto;">
+  {% for m in object.messages.all %}
+    <div class="task" style="margin-bottom:8px;">
+      <div><strong>{{ m.author.username }}</strong> <span class="muted" style="font-size:12px;">{{ m.created_at }}</span></div>
+      <div>{{ m.text }}</div>
+    </div>
+  {% empty %}
+    <p class="muted">Пока нет сообщений</p>
+  {% endfor %}
+</div>
+
+<form method="post" style="margin-top:10px;">
+  {% csrf_token %}
+  <textarea name="text" rows="3" placeholder="Напишите сообщение менеджеру"></textarea>
+  <br>
+  <button type="submit">Отправить</button>
+</form>
+{% endblock %}
+

@@ -1,0 +1,55 @@
+{% extends 'crm/base.html' %}
+{% block title %}Доска — {{ object.name }}{% endblock %}
+{% block content %}
+<h1 class="page-title">Доска проекта: {{ object.name }}</h1>
+
+<div class="kanban">
+  <div class="col" data-col="todo">
+    <h3>К выполнению</h3>
+    <div data-list>
+      {% for t in todo %}
+        <div class="task" data-task="{{ t.id }}">
+          <div>{{ t.title }}</div>
+          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col" data-col="in_progress">
+    <h3>В работе</h3>
+    <div data-list>
+      {% for t in in_progress %}
+        <div class="task" data-task="{{ t.id }}">
+          <div>{{ t.title }}</div>
+          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col" data-col="review">
+    <h3>К проверке</h3>
+    <div data-list>
+      {% for t in review %}
+        <div class="task" data-task="{{ t.id }}">
+          <div>{{ t.title }}</div>
+          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col" data-col="done">
+    <h3>Готово</h3>
+    <div data-list>
+      {% for t in done %}
+        <div class="task" data-task="{{ t.id }}">
+          <div>{{ t.title }}</div>
+          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<p class="muted" style="margin-top:14px">Подсказка: перетащите карточку в нужную колонку.</p>
+{% endblock %}
+

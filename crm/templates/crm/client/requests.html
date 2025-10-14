@@ -1,0 +1,23 @@
+{% extends 'crm/base.html' %}
+{% block title %}Мои заявки{% endblock %}
+{% block content %}
+<h1 class="page-title">Мои заявки</h1>
+<table>
+  <thead>
+    <tr><th>Дата</th><th>Название</th><th>Тип</th><th>Статус</th></tr>
+  </thead>
+  <tbody>
+    {% for r in object_list %}
+      <tr>
+        <td>{{ r.created_at }}</td>
+        <td><a href="{% url 'crm:client_request_detail' r.pk %}">{{ r.title }}</a></td>
+        <td>{{ r.get_project_type_display }}</td>
+        <td>{{ r.get_status_display }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4">Заявок пока нет</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

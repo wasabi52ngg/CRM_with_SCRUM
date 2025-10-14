@@ -1,0 +1,19 @@
+{% extends 'crm/base.html' %}
+{% block title %}Свободные задачи{% endblock %}
+{% block content %}
+<h1 class="page-title">Свободные задачи для вас</h1>
+<ul>
+    {% for t in object_list %}
+        <li>
+            [{{ t.get_task_type_display }}] {{ t.title }} — {{ t.project.name }}
+            <form method="post" action="{% url 'crm:dev_take_task' t.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit">Взять</button>
+            </form>
+        </li>
+    {% empty %}
+        <li>Нет доступных задач</li>
+    {% endfor %}
+ </ul>
+{% endblock %}
+

@@ -1,0 +1,223 @@
+from django.shortcuts import render, get_object_or_404, redirect
+from django.views import View
+from django.views.generic import ListView, DetailView
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.urls import reverse
+from django.views.decorators.http import require_POST
+from django.utils.decorators import method_decorator
+from django.contrib.auth import login
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+
+from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
+from accounts.models import User
+from .models import ClientRequest, Project, Task
+from .models import Message
+
+
+class PublicRequestView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(request, "crm/public_request.html")
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        data = request.POST
+        ClientRequest.objects.create(
+            project_type=data.get("project_type"),
+            title=data.get("title", ""),
+            description=data.get("description", ""),
+            contact_email=data.get("contact_email", ""),
+            contact_telegram=data.get("contact_telegram", ""),
+        )
+        return render(request, "crm/public_request_success.html")
+
+
+class ManagerRequestListView(ManagerRequiredMixin, ListView):
+    model = ClientRequest
+    template_name = "crm/manager/request_list.html"
+    paginate_by = 20
+    ordering = ["-created_at"]
+
+
+class ManagerRequestDetailView(ManagerRequiredMixin, DetailView):
+    model = ClientRequest
+    template_name = "crm/manager/request_detail.html"
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        client_request = self.get_object()
+        action = request.POST.get("action")
+        if action == "to_discuss":
+            client_request.status = ClientRequest.Status.DISCUSS
+            client_request.manager = request.user
+            client_request.save()
+        elif action == "to_work":
+            client_request.status = ClientRequest.Status.IN_PROGRESS
+            client_request.manager = request.user
+            client_request.save()
+            Project.objects.get_or_create(
+                client_request=client_request,
+                defaults={"name": client_request.title, "description": client_request.description},
+            )
+        return redirect("crm:manager_request_detail", pk=client_request.pk)
+
+
+class ManagerProjectDetailView(ManagerRequiredMixin, DetailView):
+    model = Project
+    template_name = "crm/manager/project_detail.html"
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        project = self.get_object()
+        title = request.POST.get("title", "").strip()
+        description = request.POST.get("description", "").strip()
+        task_type = request.POST.get("task_type")
+        if title and task_type in dict(Task.TaskType.choices):
+            Task.objects.create(project=project, title=title, description=description, task_type=task_type)
+        return redirect("crm:manager_project_detail", pk=project.pk)
+
+
+class DeveloperOpenTasksView(DeveloperRequiredMixin, ListView):
+    model = Task
+    template_name = "crm/dev/open_tasks.html"
+
+    def get_queryset(self):
+        user: User = self.request.user
+        dev_types = []
+        if user.developer_type == User.DeveloperType.FULLSTACK:
+            dev_types = [User.DeveloperType.FRONTEND, User.DeveloperType.BACKEND, User.DeveloperType.FULLSTACK]
+        else:
+            dev_types = [user.developer_type]
+        return (
+            Task.objects.filter(status=Task.Status.TODO, assignee__isnull=True, task_type__in=dev_types)
+            .select_related("project")
+            .order_by("project__created_at")
+        )
+
+
+class DeveloperTakeTaskView(DeveloperRequiredMixin, View):
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        task = get_object_or_404(Task, pk=pk, assignee__isnull=True, status=Task.Status.TODO)
+        # Ограничение: один исполнитель — одна активная задача
+        has_active = Task.objects.filter(assignee=request.user).exclude(status=Task.Status.DONE).exists()
+        if not has_active:
+            task.assignee = request.user
+            task.status = Task.Status.IN_PROGRESS
+            task.save()
+        return redirect("crm:dev_open_tasks")
+
+
+class DashboardRedirectView(LoginRequiredMixin, View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        user: User = request.user
+        if user.is_manager():
+            return redirect("crm:manager_request_list")
+        if user.is_developer():
+            return redirect("crm:dev_open_tasks")
+        return redirect("crm:client_requests")
+
+
+class LandingView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(request, "crm/landing.html")
+
+
+class ClientRequestListView(ClientRequiredMixin, ListView):
+    model = ClientRequest
+    template_name = "crm/client/requests.html"
+
+    def get_queryset(self):
+        return ClientRequest.objects.filter(client=self.request.user).order_by("-created_at")
+
+
+class ClientRequestDetailView(ClientRequiredMixin, DetailView):
+    model = ClientRequest
+    template_name = "crm/client/request_detail.html"
+
+    def get_queryset(self):
+        return ClientRequest.objects.filter(client=self.request.user)
+
+    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
+        obj = self.get_object()
+        text = request.POST.get("text", "").strip()
+        if text:
+            Message.objects.create(request=obj, author=request.user, text=text)
+        return redirect("crm:client_request_detail", pk=obj.pk)
+
+
+class SignupView(View):
+    def get(self, request: HttpRequest) -> HttpResponse:
+        return render(request, "registration/signup.html")
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password1 = request.POST.get("password1", "")
+        password2 = request.POST.get("password2", "")
+
+        context = {}
+        if not username or password1 != password2:
+            context["error"] = "Проверьте имя пользователя и совпадение паролей"
+            return render(request, "registration/signup.html", context)
+        try:
+            validate_password(password1)
+        except ValidationError as e:
+            context["error"] = " ".join(e)
+            return render(request, "registration/signup.html", context)
+
+        if User.objects.filter(username=username).exists():
+            context["error"] = "Имя пользователя уже занято"
+            return render(request, "registration/signup.html", context)
+
+        user = User.objects.create_user(
+            username=username,
+            email=email or "",
+            password=password1,
+            role=User.Role.CLIENT,
+            developer_type=User.DeveloperType.NONE,
+        )
+        login(request, user)
+        return redirect("crm:dashboard")
+
+
+class KanbanBoardView(ManagerRequiredMixin, DetailView):
+    model = Project
+    template_name = "crm/kanban.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        project: Project = self.object
+        ctx["todo"] = project.tasks.filter(status=Task.Status.TODO).order_by("order", "created_at")
+        ctx["in_progress"] = project.tasks.filter(status=Task.Status.IN_PROGRESS).order_by("order", "created_at")
+        ctx["review"] = project.tasks.filter(status=Task.Status.REVIEW).order_by("order", "created_at")
+        ctx["done"] = project.tasks.filter(status=Task.Status.DONE).order_by("order", "created_at")
+        return ctx
+
+
+@method_decorator(require_POST, name='dispatch')
+class KanbanMoveApiView(ManagerRequiredMixin, View):
+    def post(self, request: HttpRequest) -> JsonResponse:
+        try:
+            import json
+            payload = json.loads(request.body.decode("utf-8"))
+            task_id = int(payload.get("id"))
+            new_status = payload.get("status")
+        except Exception:
+            return JsonResponse({"ok": False, "error": "invalid_payload"}, status=400)
+
+        if new_status not in dict(Task.Status.choices):
+            return JsonResponse({"ok": False, "error": "bad_status"}, status=400)
+
+        task = get_object_or_404(Task, pk=task_id)
+        task.status = new_status
+        # Простое переупорядочивание: помещаем в конец колонки
+        last_order = (
+            Task.objects.filter(project=task.project, status=new_status)
+            .exclude(pk=task.pk)
+            .order_by("-order")
+            .values_list("order", flat=True)
+            .first()
+        ) or 0
+        task.order = last_order + 1
+        task.save(update_fields=["status", "order", "updated_at"])
+        return JsonResponse({"ok": True})
+
+
+# Create your views here.

@@ -1,0 +1,50 @@
+{% extends 'crm/base.html' %}
+{% block title %}Проект — {{ object.name }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ object.name }}</h1>
+<p class="muted">{{ object.description }}</p>
+
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+  <h2>Задачи</h2>
+  <a class="btn" href="{% url 'crm:kanban_board' object.pk %}">Открыть доску</a>
+</div>
+<table>
+    <thead>
+    <tr><th>Название</th><th>Тип</th><th>Статус</th><th>Исполнитель</th></tr>
+    </thead>
+    <tbody>
+    {% for t in object.tasks.all %}
+        <tr>
+            <td>{{ t.title }}</td>
+            <td>{{ t.get_task_type_display }}</td>
+            <td>{{ t.get_status_display }}</td>
+            <td>{{ t.assignee }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="4">Пока нет задач</td></tr>
+    {% endfor %}
+    </tbody>
+ </table>
+
+<h3>Добавить задачу</h3>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="Название" required>
+    <br>
+    <textarea name="description" placeholder="Описание"></textarea>
+    <br>
+    <select name="task_type" required>
+        <option value="frontend">Фронтенд</option>
+        <option value="backend">Бэкенд</option>
+        <option value="fullstack">Фулстек</option>
+        <option value="devops">DevOps</option>
+        <option value="qa">Тестирование</option>
+        <option value="android">Android</option>
+        <option value="db">База данных</option>
+    </select>
+    <br>
+    <button type="submit">Создать</button>
+ </form>
+
+{% endblock %}
+

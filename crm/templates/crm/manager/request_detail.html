@@ -1,0 +1,22 @@
+{% extends 'crm/base.html' %}
+{% block title %}Заявка — {{ object.title }}{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ object.title }}</h1>
+<p>Тип: {{ object.get_project_type_display }}</p>
+<p>Статус: {{ object.get_status_display }}</p>
+<p>Email: {{ object.contact_email }}</p>
+<p>Telegram: {{ object.contact_telegram }}</p>
+<p>{{ object.description }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    <button name="action" value="to_discuss" type="submit">В обсуждение</button>
+    <button name="action" value="to_work" type="submit">В работу (создать проект)</button>
+ </form>
+
+{% if object.project %}
+<p><a href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a></p>
+{% endif %}
+
+{% endblock %}
+

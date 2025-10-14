@@ -809,3 +809,74 @@
     max-width: 300px;
   }
 }
+
+.ornament-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100vw;
+  height: 100vh;
+  background:
+    radial-gradient(ellipse at 10% 30%, #60a5fa50 0, #60a5fa09 58%, transparent 80%),
+    radial-gradient(ellipse at 90% 70%, #a78bfa44 0, #a78bfa06 50%, transparent 92%),
+    url('data:image/svg+xml;utf8,<svg ...>ваш орнамент SVG ...</svg>') center/cover repeat;
+  filter: saturate(150%) blur(2px) brightness(1.06);
+  mix-blend-mode:lighter;
+  animation: ornament-fade 25s linear infinite alternate;
+  opacity: .99;
+}
+@keyframes ornament-fade {
+  0%{opacity:.96;filter:blur(2px) saturate(130%);}
+  100%{opacity:1;filter:blur(6px) saturate(165%);}
+}
+.matrix-dot {
+  position: absolute;
+  width: 18px; height: 18px;
+  background: radial-gradient(circle,#60a5fa 0,#2563eb33 75%,transparent 100%);
+  border-radius: 100%;
+  filter: blur(1.8px) brightness(1.28);
+  animation: float2 9s ease-in-out infinite alternate;
+}
+.matrix-hex {
+  position: absolute;
+  width: 32px; height: 32px;
+  background: repeating-linear-gradient(60deg, #a78bfa55 0 4px, transparent 4px 8px);
+  border-radius: 8px;
+  opacity:.47;
+  filter: blur(2.5px);
+  transform: rotate(20deg);
+  animation: float3 12s ease-in-out infinite alternate;
+}
+@keyframes float2 {0%{transform:scale(.98) translateY(0)}100%{transform:scale(1.05) translateY(-28px)}}
+@keyframes float3 {0%{transform:rotate(16deg) scale(.97)}100%{transform:rotate(-14deg) scale(1.09)}}
+.solutions-section {z-index:2;position:relative;}
+.solutions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 54px 56px;
+  max-width: 1300px;
+  margin: 0 auto;
+  box-sizing:border-box;
+}
+.solution-card {
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--token-32);
+  position: relative;
+  overflow: hidden;
+  z-index:2;
+  box-shadow: 0 14px 60px 0 #141f4380,0 2px 8px rgba(0,0,0,.19); 
+  transition:.2s cubic-bezier(.4,.5,.1,1.1)
+}
+.solution-card:hover {
+  box-shadow: 0 18px 84px 0 #5278ff44,0 6px 22px rgba(0,0,0,.21);
+  border-color:var(--primary-40);
+}
+@media (max-width:1060px){
+  .solutions-grid{grid-template-columns:1fr;gap:36px;margin:0 10px;}
+}

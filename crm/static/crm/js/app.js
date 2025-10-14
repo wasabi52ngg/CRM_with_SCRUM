@@ -47,4 +47,27 @@ function getCsrfToken() {
   return '';
 }
 
+window.addEventListener('DOMContentLoaded', () => {
+  // MATRIX VISUAL ORNAMENTS
+  const matrix = document.querySelector('.matrix-bg');
+  if(matrix) {
+    for(let i=0;i<7;++i){
+      const d = document.createElement('div');
+      d.className = 'matrix-dot';
+      d.style.top = Math.random()*86+6+'%';
+      d.style.left = Math.random()*88+2+'%';
+      d.style.animationDelay = (Math.random()*8)+'s';
+      matrix.appendChild(d);
+    }
+    for(let i=0;i<3;++i){
+      const h = document.createElement('div');
+      h.className = 'matrix-hex';
+      h.style.top = Math.random()*88+1+'%';
+      h.style.left = Math.random()*90+0.5+'%';
+      h.style.animationDelay = (Math.random()*14)+'s';
+      matrix.appendChild(h);
+    }
+  }
+});
+
 

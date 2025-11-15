@@ -5,9 +5,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
-from django.contrib.auth import login
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+# Импорты login, validate_password, ValidationError удалены - больше не используются после удаления SignupView
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
 from accounts.models import User
@@ -142,39 +140,7 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
         return redirect("crm:client_request_detail", pk=obj.pk)
 
 
-class SignupView(View):
-    def get(self, request: HttpRequest) -> HttpResponse:
-        return render(request, "registration/signup.html")
-
-    def post(self, request: HttpRequest) -> HttpResponse:
-        username = request.POST.get("username", "").strip()
-        email = request.POST.get("email", "").strip()
-        password1 = request.POST.get("password1", "")
-        password2 = request.POST.get("password2", "")
-
-        context = {}
-        if not username or password1 != password2:
-            context["error"] = "Проверьте имя пользователя и совпадение паролей"
-            return render(request, "registration/signup.html", context)
-        try:
-            validate_password(password1)
-        except ValidationError as e:
-            context["error"] = " ".join(e)
-            return render(request, "registration/signup.html", context)
-
-        if User.objects.filter(username=username).exists():
-            context["error"] = "Имя пользователя уже занято"
-            return render(request, "registration/signup.html", context)
-
-        user = User.objects.create_user(
-            username=username,
-            email=email or "",
-            password=password1,
-            role=User.Role.CLIENT,
-            developer_type=User.DeveloperType.NONE,
-        )
-        login(request, user)
-        return redirect("crm:dashboard")
+# SignupView удален - теперь используется accounts.views.RegisterUser
 
 
 class KanbanBoardView(ManagerRequiredMixin, DetailView):

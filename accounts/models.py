@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils.text import slugify
+from .validators import validate_email, validate_phone_number
 
 
 class User(AbstractUser):
@@ -18,6 +20,9 @@ class User(AbstractUser):
         ANDROID = "android", "Android"
         DB = "db", "Разработчик БД"
 
+    def user_directory_path(self, filename):
+        return f"users/{slugify(self.username)}/{filename}"
+
     role = models.CharField(
         max_length=20,
         choices=Role.choices,
@@ -30,6 +35,27 @@ class User(AbstractUser):
         choices=DeveloperType.choices,
         default=DeveloperType.NONE,
         help_text="Тип разработчика, актуально для роли 'Разработчик'",
+    )
+
+    phone = models.CharField(
+        verbose_name='Телефон',
+        max_length=20,
+        null=False,
+        blank=False,
+        validators=[validate_phone_number]
+    )
+
+    photo = models.ImageField(
+        verbose_name='Фото',
+        upload_to=user_directory_path,
+        default=None,
+        blank=True,
+        null=True
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Время создания"
     )
 
     def is_manager(self) -> bool:

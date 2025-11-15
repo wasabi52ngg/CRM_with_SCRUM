@@ -13,7 +13,6 @@ from .views import (
     LandingView,
     ClientRequestListView,
     ClientRequestDetailView,
-    SignupView,
 )
 
 
@@ -22,7 +21,6 @@ app_name = "crm"
 urlpatterns = [
     path("", LandingView.as_view(), name="landing"),
     path("request/", PublicRequestView.as_view(), name="public_request"),
-    path("accounts/signup/", SignupView.as_view(), name="signup"),
     # Client portal
     path("client/requests/", ClientRequestListView.as_view(), name="client_requests"),
     path("client/requests/<int:pk>/", ClientRequestDetailView.as_view(), name="client_request_detail"),

@@ -1,0 +1,158 @@
+{% extends 'crm/base.html' %}
+{% load static %}
+{% block title %}Вход - IT CRM{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+<style>
+.auth-container {
+    max-width: 450px;
+    margin: 60px auto;
+    padding: var(--token-32);
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.auth-container h1 {
+    font-size: 2rem;
+    font-weight: var(--fw-bold);
+    color: var(--text);
+    margin-bottom: var(--token-24);
+    text-align: center;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--token-20);
+}
+
+.input-box {
+    position: relative;
+}
+
+.input-box label {
+    display: block;
+    margin-bottom: var(--token-08);
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--fw-medium);
+}
+
+.input-box input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--text);
+    font-size: var(--font-size-base);
+    transition: all 0.3s ease;
+}
+
+.input-box input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.form-error-box {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 8px;
+    padding: var(--token-12);
+    margin-bottom: var(--token-16);
+    color: #fca5a5;
+}
+
+.form-error-box ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.field-errors {
+    margin-top: var(--token-08);
+    color: #fca5a5;
+    font-size: var(--font-size-sm);
+}
+
+.field-errors ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.forgot-link {
+    text-align: right;
+    margin-top: -var(--token-08);
+}
+
+.forgot-link a {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    transition: color 0.3s ease;
+}
+
+.forgot-link a:hover {
+    color: var(--accent);
+}
+
+.auth-form .btn {
+    margin-top: var(--token-08);
+    width: 100%;
+    padding: 14px;
+    font-size: var(--font-size-base);
+    font-weight: var(--fw-semibold);
+}
+
+.auth-form p {
+    text-align: center;
+    color: var(--muted);
+    margin: var(--token-16) 0 var(--token-08);
+    font-size: var(--font-size-sm);
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <h1>Вход</h1>
+    <form action="{% url 'accounts:login' %}" method="post" class="auth-form" autocomplete="on">
+        {% csrf_token %}
+        <input type='hidden' name='next' value='{{next}}'/>
+
+        {% if form.non_field_errors %}
+        <div class="form-error-box">
+            <ul>
+                {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% for field in form %}
+        <div class="input-box">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="forgot-link">
+            <a href="{% url 'accounts:password_reset' %}">Забыли пароль?</a>
+        </div>
+        <button type="submit" class="btn">Войти</button>
+        <p>Нет аккаунта? <a href="{% url 'accounts:register' %}" style="color: var(--primary);">Зарегистрироваться</a></p>
+    </form>
+</div>
+{% endblock %}
+

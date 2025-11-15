@@ -1,0 +1,163 @@
+{% extends 'crm/base.html' %}
+{% load static %}
+{% block title %}Профиль - IT CRM{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+<style>
+.profile-page {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: var(--token-32);
+}
+
+.profile-header {
+    text-align: center;
+    margin-bottom: var(--token-32);
+}
+
+.profile-title {
+    font-size: 2rem;
+    font-weight: var(--fw-bold);
+    color: var(--text);
+    margin-bottom: var(--token-24);
+}
+
+.profile-photo {
+    margin: 0 auto var(--token-24);
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--primary);
+    box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
+}
+
+.profile-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-form {
+    background: var(--card);
+    padding: var(--token-32);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.form-field {
+    margin-bottom: var(--token-20);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: var(--token-08);
+    color: var(--muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--fw-medium);
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--text);
+    font-size: var(--font-size-base);
+    transition: all 0.3s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.form-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.clearable-file-input {
+    margin-top: var(--token-08);
+}
+
+.form-error {
+    margin-top: var(--token-08);
+    color: #fca5a5;
+    font-size: var(--font-size-sm);
+}
+
+.profile-save-button {
+    width: 100%;
+    padding: 14px;
+    margin-top: var(--token-24);
+    font-size: var(--font-size-base);
+    font-weight: var(--fw-semibold);
+}
+
+.password-change-link {
+    display: block;
+    text-align: center;
+    margin-top: var(--token-16);
+    color: var(--primary);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    transition: color 0.3s ease;
+}
+
+.password-change-link:hover {
+    color: var(--accent);
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="profile-page">
+    <div class="profile-header">
+        <h1 class="profile-title">Профиль пользователя</h1>
+        <div class="profile-photo">
+            {% if user.photo %}
+            <img src="{{ user.photo.url }}" alt="Фото профиля" class="profile-avatar">
+            {% else %}
+            <div style="width: 100%; height: 100%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 3rem;">
+                {{ user.first_name.0|default:user.username.0|upper }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="post" class="profile-form" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="form-error">
+            {{ form.non_field_errors }}
+        </div>
+        {% endif %}
+
+        {% for field in form %}
+        <div class="form-field">
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+            {% if field.name == 'photo' %}
+            <div class="clearable-file-input">
+                {{ field }}
+            </div>
+            {% else %}
+            {{ field }}
+            {% endif %}
+            {% if field.errors %}
+            <div class="form-error">
+                {{ field.errors }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn profile-save-button">Сохранить изменения</button>
+    </form>
+
+    <a href="{% url 'accounts:password-change' %}" class="password-change-link">Сменить пароль</a>
+</div>
+{% endblock %}
+

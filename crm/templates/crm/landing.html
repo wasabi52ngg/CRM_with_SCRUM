@@ -149,8 +149,8 @@
       <div class="cta-buttons">
         <a href="/request/" class="cta-button primary">Оставить заявку</a>
         {% if not user.is_authenticated %}
-          <a href="/accounts/login/" class="cta-button secondary">Войти</a>
-          <a href="/accounts/signup/" class="cta-button secondary">Регистрация</a>
+          <a href="{% url 'accounts:login' %}" class="cta-button secondary">Войти</a>
+          <a href="{% url 'accounts:register' %}" class="cta-button secondary">Регистрация</a>
         {% else %}
           <a href="/dashboard/" class="cta-button secondary">Дашборд</a>
         {% endif %}

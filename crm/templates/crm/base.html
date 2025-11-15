@@ -27,11 +27,11 @@
     </nav>
     <div class="header-actions">
       {% if user.is_authenticated %}
-      <span class="nav-link">{{ user.username }}</span> |
-      <a href="/logout/" class="nav-link">Выйти</a>
+      <a href="{% url 'accounts:profile' %}" class="nav-link">{{ user.username }}</a> |
+      <a href="{% url 'accounts:logout' %}" class="nav-link">Выйти</a>
       {% else %}
-      <a href="/accounts/login/" class="nav-link">Вход</a>
-      <a href="/accounts/signup/" class="nav-link">Регистрация</a>
+      <a href="{% url 'accounts:login' %}" class="nav-link">Вход</a>
+      <a href="{% url 'accounts:register' %}" class="nav-link">Регистрация</a>
       {% endif %}
     </div>
   </div>

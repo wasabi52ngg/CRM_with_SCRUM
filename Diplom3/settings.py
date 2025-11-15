@@ -134,3 +134,9 @@ AUTH_USER_MODEL = 'accounts.User'
 # Auth redirects
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'accounts.authentication.EmailAuthBackend',  # Авторизация по email
+    'django.contrib.auth.backends.ModelBackend',  # Стандартная авторизация по username
+]

@@ -72,12 +72,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initRequestTimeline(root) {
   const apiUrl = root.getAttribute('data-api-url');
-  let dataRaw = root.getAttribute('data-checkpoints') || '[]';
-  let checkpoints;
-  try {
-    checkpoints = JSON.parse(dataRaw.replace(/'/g, '"'));
-  } catch (e) {
-    checkpoints = [];
+  const scriptEl = document.getElementById('cp-data');
+  let checkpoints = [];
+  if (scriptEl) {
+    try {
+      checkpoints = JSON.parse(scriptEl.textContent);
+    } catch (e) {
+      checkpoints = [];
+    }
   }
 
   const editor = document.getElementById('cp-editor');
@@ -85,8 +87,16 @@ function initRequestTimeline(root) {
   const addBtn = document.getElementById('cp-add-btn');
   const deleteBtn = document.getElementById('cp-delete-btn');
   const closeBtn = document.getElementById('cp-editor-close');
+  const editToggle = document.getElementById('cp-edit-toggle');
 
-  let activeId = null;
+  let isEditMode = false;
+
+  function applyEditMode() {
+    const actions = document.querySelector('.cp-editor-actions');
+    if (!actions) return;
+    // Поля всегда редактируемые, кнопки сохранения/удаления показываем только в режиме редактирования
+    actions.style.display = isEditMode ? 'flex' : 'none';
+  }
 
   function render() {
     root.innerHTML = '';
@@ -106,9 +116,6 @@ function initRequestTimeline(root) {
 
         const dot = document.createElement('div');
         dot.className = 'cp-dot' + (cp.is_done ? ' cp-dot--done' : '');
-        if (cp.id === activeId) {
-          dot.classList.add('cp-dot--active');
-        }
 
         const label = document.createElement('div');
         label.className = 'cp-label';
@@ -120,6 +127,9 @@ function initRequestTimeline(root) {
 
         item.addEventListener('click', () => {
           openEditor(cp);
+          // подсветка активной точки
+          root.querySelectorAll('.cp-dot').forEach(d => d.classList.remove('cp-dot--active'));
+          dot.classList.add('cp-dot--active');
         });
       });
 
@@ -157,7 +167,6 @@ function initRequestTimeline(root) {
   }
 
   function openEditor(cp) {
-    activeId = cp ? cp.id : null;
     if (!editor) return;
     editor.classList.remove('cp-editor--hidden');
     const idEl = document.getElementById('cp-id');
@@ -169,15 +178,17 @@ function initRequestTimeline(root) {
     titleEl.value = cp ? (cp.title || '') : '';
     commentEl.value = cp ? (cp.comment || '') : '';
     doneEl.checked = cp ? !!cp.is_done : false;
-    render();
+
+    // при открытии существующего чекпоинта по умолчанию режим просмотра (без кнопок),
+    // для нового сразу включаем редактирование
+    isEditMode = !cp;
+    applyEditMode();
   }
 
   function closeEditor() {
-    activeId = null;
     if (editor) {
       editor.classList.add('cp-editor--hidden');
     }
-    render();
   }
 
   function findCheckpoint(id) {
@@ -211,6 +222,7 @@ function initRequestTimeline(root) {
         if (!resp.ok) return;
         if (payload.action === 'create' && resp.checkpoint) {
           checkpoints.push(resp.checkpoint);
+          render();
           openEditor(resp.checkpoint);
         } else if (payload.action === 'update' && id) {
           const cp = findCheckpoint(id);
@@ -219,6 +231,7 @@ function initRequestTimeline(root) {
             cp.comment = comment;
             cp.is_done = isDone;
           }
+          render();
           openEditor(cp || null);
         }
       })
@@ -254,6 +267,7 @@ function initRequestTimeline(root) {
 
   if (addBtn) {
     addBtn.addEventListener('click', () => {
+      render();
       openEditor(null);
     });
   }
@@ -286,6 +300,13 @@ function initRequestTimeline(root) {
           closeEditor();
         })
         .catch(() => {});
+    });
+  }
+
+  if (editToggle) {
+    editToggle.addEventListener('click', () => {
+      isEditMode = !isEditMode;
+      applyEditMode();
     });
   }
 

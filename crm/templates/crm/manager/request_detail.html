@@ -31,12 +31,16 @@
       </div>
       <form method="post" class="request-actions">
         {% csrf_token %}
-        <button name="action" value="to_discuss" type="submit">В обсуждение</button>
-        <button name="action" value="to_work" type="submit">В работу (создать проект)</button>
+        {% if object.status == object.Status.NEW %}
+          <button name="action" value="to_discuss" type="submit">В обсуждение</button>
+        {% endif %}
+        {% if not object.project %}
+          <button name="action" value="to_work" type="submit">В работу (создать проект)</button>
+        {% endif %}
       </form>
       {% if object.project %}
       <div class="request-project-link">
-        <a class="btn-ghost" href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a>
+        <a class="btn" href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a>
       </div>
       {% endif %}
     </div>
@@ -52,20 +56,28 @@
         </div>
       </div>
 
+      {{ checkpoints|json_script:"cp-data" }}
+
       <div
         id="cp-timeline"
         class="cp-timeline"
         data-request-id="{{ object.id }}"
         data-api-url="{% url 'crm:manager_request_checkpoints_api' object.id %}"
-        data-checkpoints='{{ checkpoints|safe }}'
       >
         <!-- JS дорисует точки -->
       </div>
 
       <div id="cp-editor" class="cp-editor cp-editor--hidden">
         <div class="cp-editor-header">
-          <div class="cp-editor-title">Редактирование этапа</div>
-          <button type="button" class="btn-ghost" id="cp-editor-close">Закрыть</button>
+          <div class="cp-editor-title">Этап заявки</div>
+          <div class="cp-editor-header-actions">
+            <button type="button" class="btn-ghost cp-edit-toggle" id="cp-edit-toggle" title="Редактировать">
+              ✎
+            </button>
+            <button type="button" class="btn-ghost cp-editor-close" id="cp-editor-close" title="Закрыть">
+              ✕
+            </button>
+          </div>
         </div>
         <form id="cp-editor-form">
           <input type="hidden" name="id" id="cp-id">

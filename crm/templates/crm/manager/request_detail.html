@@ -1,22 +1,96 @@
 {% extends 'crm/base.html' %}
 {% block title %}Заявка — {{ object.title }}{% endblock %}
 {% block content %}
-<h1 class="page-title">{{ object.title }}</h1>
-<p>Тип: {{ object.get_project_type_display }}</p>
-<p>Статус: {{ object.get_status_display }}</p>
-<p>Email: {{ object.contact_email }}</p>
-<p>Telegram: {{ object.contact_telegram }}</p>
-<p>{{ object.description }}</p>
+<div class="request-layout">
+  <div class="request-main">
+    <h1 class="page-title">{{ object.title }}</h1>
+    <div class="request-meta-card">
+      <div class="request-meta-row">
+        <div>
+          <div class="meta-label">Тип проекта</div>
+          <div class="meta-value">{{ object.get_project_type_display }}</div>
+        </div>
+        <div>
+          <div class="meta-label">Статус заявки</div>
+          <div class="meta-value status-pill status-{{ object.status }}">{{ object.get_status_display }}</div>
+        </div>
+      </div>
+      <div class="request-meta-row">
+        <div>
+          <div class="meta-label">Email</div>
+          <div class="meta-value">{{ object.contact_email }}</div>
+        </div>
+        <div>
+          <div class="meta-label">Telegram</div>
+          <div class="meta-value">{{ object.contact_telegram|default:"—" }}</div>
+        </div>
+      </div>
+      <div class="request-desc">
+        <div class="meta-label">Описание запроса</div>
+        <p class="meta-value">{{ object.description|default:"Клиент не оставил подробного описания." }}</p>
+      </div>
+      <form method="post" class="request-actions">
+        {% csrf_token %}
+        <button name="action" value="to_discuss" type="submit">В обсуждение</button>
+        <button name="action" value="to_work" type="submit">В работу (создать проект)</button>
+      </form>
+      {% if object.project %}
+      <div class="request-project-link">
+        <a class="btn-ghost" href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a>
+      </div>
+      {% endif %}
+    </div>
 
-<form method="post">
-    {% csrf_token %}
-    <button name="action" value="to_discuss" type="submit">В обсуждение</button>
-    <button name="action" value="to_work" type="submit">В работу (создать проект)</button>
- </form>
+    <section class="timeline-card">
+      <div class="timeline-header">
+        <div>
+          <h2>Этапы обработки заявки</h2>
+          <p class="muted">Ведите историю работы по заявке — каждый шаг в виде чекпоинта на линии.</p>
+        </div>
+        <div>
+          <button type="button" class="btn-ghost" id="cp-add-btn">Добавить чекпоинт</button>
+        </div>
+      </div>
 
-{% if object.project %}
-<p><a href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a></p>
-{% endif %}
+      <div
+        id="cp-timeline"
+        class="cp-timeline"
+        data-request-id="{{ object.id }}"
+        data-api-url="{% url 'crm:manager_request_checkpoints_api' object.id %}"
+        data-checkpoints='{{ checkpoints|safe }}'
+      >
+        <!-- JS дорисует точки -->
+      </div>
 
+      <div id="cp-editor" class="cp-editor cp-editor--hidden">
+        <div class="cp-editor-header">
+          <div class="cp-editor-title">Редактирование этапа</div>
+          <button type="button" class="btn-ghost" id="cp-editor-close">Закрыть</button>
+        </div>
+        <form id="cp-editor-form">
+          <input type="hidden" name="id" id="cp-id">
+          <div class="cp-field">
+            <label for="cp-title">Заголовок</label>
+            <input id="cp-title" name="title" placeholder="Например: Принял задачу, связался с клиентом">
+          </div>
+          <div class="cp-field">
+            <label for="cp-comment">Комментарий / детали</label>
+            <textarea id="cp-comment" name="comment" rows="3" placeholder="Кратко, что сделали на этом шаге"></textarea>
+          </div>
+          <div class="cp-field cp-field-inline">
+            <label class="cp-checkbox">
+              <input type="checkbox" id="cp-is-done" name="is_done">
+              <span>Этап выполнен</span>
+            </label>
+          </div>
+          <div class="cp-editor-actions">
+            <button type="submit">Сохранить</button>
+            <button type="button" class="btn-ghost" id="cp-delete-btn">Удалить</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
 {% endblock %}
 

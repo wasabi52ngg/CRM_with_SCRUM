@@ -175,6 +175,18 @@
   color: var(--grey-90);
 }
 
+.hero-buttons {
+  display: flex;
+  gap: var(--token-16);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--token-24);
+}
+
+.hero-buttons .cta-button {
+  margin-top: 0;
+}
+
 .cta-button {
   display: inline-flex;
   align-items: center;

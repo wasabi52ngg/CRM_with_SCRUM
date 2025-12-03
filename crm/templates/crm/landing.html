@@ -32,7 +32,14 @@
     <h1>Гибкая система управления разработкой</h1>
     <p>Максимальная эффективность, минимальные сложности в координации</p>
     <p>Возьмите контроль над вашими IT-проектами — легко управляйте задачами, оптимизируйте процессы, соблюдайте методологии, избегайте блокировок в разработке или запускайте программы управления продуктами.</p>
-    <a href="/request/" class="cta-button">Обсудить проект →</a>
+    <div class="hero-buttons">
+      {% if user.is_authenticated and user.is_client %}
+        <a href="{% url 'crm:client_requests' %}" class="cta-button">Мои заявки →</a>
+        <a href="{% url 'crm:public_request' %}" class="cta-button secondary">Оставить заявку</a>
+      {% else %}
+        <a href="{% url 'crm:public_request' %}" class="cta-button">Обсудить проект →</a>
+      {% endif %}
+    </div>
   </div>
 </section>
 
@@ -144,17 +151,38 @@
 <section class="final-cta">
   <div class="container">
     <div class="cta-content">
-      <h2>Готовы начать?</h2>
-      <p>Обсудим ваш проект и создадим что-то выдающееся вместе</p>
-      <div class="cta-buttons">
-        <a href="/request/" class="cta-button primary">Оставить заявку</a>
-        {% if not user.is_authenticated %}
+      {% if user.is_authenticated %}
+        {% if user.is_manager %}
+          <h2>Управление проектами</h2>
+          <p>Просматривайте заявки, создавайте проекты и управляйте задачами</p>
+          <div class="cta-buttons">
+            <a href="{% url 'crm:manager_request_list' %}" class="cta-button primary">Управление заявками</a>
+            <a href="{% url 'crm:dashboard' %}" class="cta-button secondary">Дашборд</a>
+          </div>
+        {% elif user.is_developer %}
+          <h2>Работа над задачами</h2>
+          <p>Просматривайте доступные задачи и берите их в работу</p>
+          <div class="cta-buttons">
+            <a href="{% url 'crm:dev_open_tasks' %}" class="cta-button primary">Открытые задачи</a>
+            <a href="{% url 'crm:dashboard' %}" class="cta-button secondary">Дашборд</a>
+          </div>
+        {% else %}
+          <h2>Готовы начать?</h2>
+          <p>Обсудим ваш проект и создадим что-то выдающееся вместе</p>
+          <div class="cta-buttons">
+            <a href="{% url 'crm:public_request' %}" class="cta-button primary">Оставить заявку</a>
+            <a href="{% url 'crm:client_requests' %}" class="cta-button secondary">Мои заявки</a>
+          </div>
+        {% endif %}
+      {% else %}
+        <h2>Готовы начать?</h2>
+        <p>Обсудим ваш проект и создадим что-то выдающееся вместе</p>
+        <div class="cta-buttons">
+          <a href="{% url 'crm:public_request' %}" class="cta-button primary">Оставить заявку</a>
           <a href="{% url 'accounts:login' %}" class="cta-button secondary">Войти</a>
           <a href="{% url 'accounts:register' %}" class="cta-button secondary">Регистрация</a>
-        {% else %}
-          <a href="/dashboard/" class="cta-button secondary">Дашборд</a>
-        {% endif %}
-      </div>
+        </div>
+      {% endif %}
     </div>
   </div>
 </section>

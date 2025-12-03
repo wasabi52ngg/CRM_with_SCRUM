@@ -95,27 +95,11 @@
 }
 
 .styles_navLink___VcW8:hover span,
-.styles_navLink___VcW8[data-state=open] span {
+.styles_navLink___VcW8[data-state=open] span,
+.styles_navLink___VcW8.active span {
   transition: background .15s;
   background: rgb(255 255 255 / 12%);
   box-shadow: inset 0 0 0 1px hsla(0,0%,100%,.04);
-}
-
-.styles_cta__ieC_s {
-  gap: .5em;
-  background: #fff;
-  white-space: nowrap;
-  color: var(--primary);
-  padding: 7px 10px;
-  border-radius: 20px;
-  text-overflow: hidden;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
-
-.styles_cta__ieC_s:hover {
-  color: #1a1a2e;
 }
 
 .styles_arrow__fxWHa path {

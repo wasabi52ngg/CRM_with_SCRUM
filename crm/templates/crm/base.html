@@ -15,14 +15,21 @@
     <a class="logo" href="/">IT CRM</a>
     <nav aria-label="Main navigation">
       <ul class="styles_list__z_6uf ev-menu-list" data-orientation="horizontal" dir="ltr">
-        <li><a href="/" class="styles_navLink___VcW8" data-radix-collection-item><span>Главная</span></a></li>
-        <li class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="products-menu"><span>Услуги</span></li>
-        <li class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="solutions-menu"><span>Решения</span></li>
-        <li><a href="/customers/" class="styles_navLink___VcW8" data-radix-collection-item><span>Клиенты</span></a></li>
-        <li><a href="/pricing/" class="styles_navLink___VcW8" data-radix-collection-item><span>Цены</span></a></li>
-        <li><a href="/docs/" class="styles_navLink___VcW8" data-radix-collection-item><span>Документация</span></a></li>
-        <li class="styles_navLink___VcW8" data-state="closed" aria-expanded="false" aria-controls="resources-menu"><span>Ресурсы</span></li>
-        <li><a class="styles_cta__ieC_s" href="/request/">Обсудить проект<svg width="10" height="10" viewBox="0 0 10 10" class="styles_arrow__fxWHa" aria-hidden="true"><path d="M0 5h7" class="styles_line___qSr7"></path><path d="M1 1l4 4-4 4" class="styles_chevron__pzecF"></path></svg></a></li>
+        <li><a href="{% url 'crm:landing' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'landing' %} active{% endif %}" data-radix-collection-item><span>Главная</span></a></li>
+        {% if user.is_authenticated %}
+          {% if user.is_manager %}
+            <li><a href="{% url 'crm:manager_request_list' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'manager_request_list' or request.resolver_match.url_name == 'manager_request_detail' or request.resolver_match.url_name == 'manager_project_detail' or request.resolver_match.url_name == 'kanban_board' %} active{% endif %}" data-radix-collection-item><span>Заявки</span></a></li>
+            <li><a href="{% url 'crm:dashboard' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}" data-radix-collection-item><span>Дашборд</span></a></li>
+          {% elif user.is_developer %}
+            <li><a href="{% url 'crm:dev_open_tasks' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'dev_open_tasks' or request.resolver_match.url_name == 'dev_take_task' %} active{% endif %}" data-radix-collection-item><span>Задачи</span></a></li>
+            <li><a href="{% url 'crm:dashboard' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}" data-radix-collection-item><span>Дашборд</span></a></li>
+          {% else %}
+            <li><a href="{% url 'crm:client_requests' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'client_requests' or request.resolver_match.url_name == 'client_request_detail' %} active{% endif %}" data-radix-collection-item><span>Мои заявки</span></a></li>
+            <li><a href="{% url 'crm:public_request' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'public_request' %} active{% endif %}" data-radix-collection-item><span>Оставить заявку</span></a></li>
+          {% endif %}
+        {% else %}
+          <li><a href="{% url 'crm:public_request' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'public_request' %} active{% endif %}" data-radix-collection-item><span>Оставить заявку</span></a></li>
+        {% endif %}
       </ul>
     </nav>
     <div class="header-actions">

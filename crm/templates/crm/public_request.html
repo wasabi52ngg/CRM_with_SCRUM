@@ -1,35 +1,249 @@
 {% extends 'crm/base.html' %}
-{% block title %}Заявка на проект{% endblock %}
-{% block content %}
-<h1 class="page-title">Оставить заявку</h1>
-<form method="post" class="form">
-    {% csrf_token %}
-    <label>Тип проекта
-        <select name="project_type" required>
-            <option value="website">Сайт</option>
-            <option value="bot">Бот</option>
-            <option value="mobile">Мобильное приложение</option>
-        </select>
-    </label>
-    <br>
-    <label>Заголовок
-        <input type="text" name="title" required>
-    </label>
-    <br>
-    <label>Email
-        <input type="email" name="contact_email" required>
-    </label>
-    <br>
-    <label>Telegram
-        <input type="text" name="contact_telegram">
-    </label>
-    <br>
-    <label>Описание
-        <textarea name="description" rows="6"></textarea>
-    </label>
-    <br>
-    <button type="submit">Отправить</button>
- </form>
+{% load static %}
+{% block title %}Заявка на проект - IT CRM{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+<style>
+.request-page {
+    max-width: 800px;
+    margin: 60px auto;
+    padding: var(--token-32);
+}
+
+.request-header {
+    text-align: center;
+    margin-bottom: var(--token-48);
+}
+
+.request-header h1 {
+    font-size: 2.5rem;
+    font-weight: var(--fw-bold);
+    background: linear-gradient(135deg, #ffffff 0%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--token-16);
+}
+
+.request-header p {
+    color: var(--muted);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+}
+
+.request-form-container {
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    padding: var(--token-40);
+    position: relative;
+    overflow: hidden;
+}
+
+.request-form-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.request-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--token-24);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--token-08);
+}
+
+.form-group label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--fw-semibold);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: var(--token-08);
+}
+
+.form-group label::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: var(--primary);
+    border-radius: 2px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, .1);
+    background: rgba(15, 23, 42, 0.5);
+    color: var(--text);
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+    background: rgba(15, 23, 42, 0.7);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+    line-height: 1.6;
+}
+
+.form-group select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2360a5fa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 40px;
+}
+
+.form-group select option {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.form-submit {
+    margin-top: var(--token-08);
+    padding: 16px 32px;
+    font-size: var(--font-size-base);
+    font-weight: var(--fw-semibold);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(96, 165, 250, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.form-submit::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.form-submit:hover::before {
+    left: 100%;
+}
+
+.form-submit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(96, 165, 250, 0.4);
+}
+
+.form-submit:active {
+    transform: translateY(0);
+}
+
+.form-info {
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--token-16);
+    margin-top: var(--token-24);
+    color: var(--text);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+}
+
+.form-info strong {
+    color: var(--primary);
+    display: block;
+    margin-bottom: var(--token-08);
+}
+
+@media (max-width: 768px) {
+    .request-page {
+        padding: var(--token-16);
+        margin: 40px auto;
+    }
+    
+    .request-form-container {
+        padding: var(--token-24);
+    }
+    
+    .request-header h1 {
+        font-size: 2rem;
+    }
+}
+</style>
 {% endblock %}
-
-
+{% block content %}
+<div class="request-page">
+    <div class="request-header">
+        <h1>Оставить заявку на проект</h1>
+        <p>Заполните форму ниже, и мы свяжемся с вами в ближайшее время для обсуждения деталей проекта</p>
+    </div>
+    
+    <div class="request-form-container">
+        <form method="post" class="request-form">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="project_type">Тип проекта</label>
+                <select name="project_type" id="project_type" required>
+                    <option value="">Выберите тип проекта</option>
+                    <option value="website">Сайт</option>
+                    <option value="bot">Telegram бот</option>
+                    <option value="mobile">Мобильное приложение</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="title">Заголовок заявки</label>
+                <input type="text" name="title" id="title" placeholder="Краткое описание проекта" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="contact_email">Email для связи</label>
+                <input type="email" name="contact_email" id="contact_email" placeholder="your@email.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="contact_telegram">Telegram (необязательно)</label>
+                <input type="text" name="contact_telegram" id="contact_telegram" placeholder="@username">
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Описание проекта</label>
+                <textarea name="description" id="description" rows="6" placeholder="Опишите детали вашего проекта, требования, сроки и другую важную информацию..."></textarea>
+            </div>
+            
+            <button type="submit" class="form-submit">Отправить заявку →</button>
+        </form>
+        
+        <div class="form-info">
+            <strong>💡 Что дальше?</strong>
+            После отправки заявки наш менеджер свяжется с вами по указанным контактам в течение 24 часов для уточнения деталей и обсуждения проекта.
+        </div>
+    </div>
+</div>
+{% endblock %}

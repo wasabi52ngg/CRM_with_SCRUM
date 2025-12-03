@@ -13,6 +13,7 @@ from .views import (
     LandingView,
     ClientRequestListView,
     ClientRequestDetailView,
+    RequestCheckpointApiView,
 )
 
 
@@ -28,6 +29,11 @@ urlpatterns = [
     # Manager area
     path("manager/requests/", ManagerRequestListView.as_view(), name="manager_request_list"),
     path("manager/requests/<int:pk>/", ManagerRequestDetailView.as_view(), name="manager_request_detail"),
+    path(
+        "manager/requests/<int:pk>/checkpoints/",
+        RequestCheckpointApiView.as_view(),
+        name="manager_request_checkpoints_api",
+    ),
     path("manager/projects/<int:pk>/", ManagerProjectDetailView.as_view(), name="manager_project_detail"),
     path("manager/projects/<int:pk>/board/", KanbanBoardView.as_view(), name="kanban_board"),
     path("kanban/move/", KanbanMoveApiView.as_view(), name="kanban_move"),

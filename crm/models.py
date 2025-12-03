@@ -45,6 +45,30 @@ class Project(models.Model):
         return self.name
 
 
+class RequestCheckpoint(models.Model):
+    """
+    Этапы обработки заявки менеджером, отображаются как чекпоинты на таймлайне.
+    """
+
+    request = models.ForeignKey(
+        ClientRequest,
+        on_delete=models.CASCADE,
+        related_name="checkpoints",
+    )
+    title = models.CharField("Заголовок", max_length=255)
+    comment = models.TextField("Комментарий / детали этапа", blank=True)
+    is_done = models.BooleanField("Выполнен", default=False)
+    order = models.PositiveIntegerField("Порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.request_id}: {self.title}"
+
+
 class Sprint(models.Model):
     project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='sprints')
     name = models.CharField(max_length=255)

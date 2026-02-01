@@ -270,12 +270,12 @@ button:hover, .btn:hover {
 }
 
 .timeline-header {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
   margin-bottom: 18px;
-  grid-column: 1 / -1;
 }
 
 .timeline-header h2 {
@@ -283,37 +283,36 @@ button:hover, .btn:hover {
   font-size: 18px;
 }
 
+/* Левая колонка с линией и точками */
 .cp-timeline {
   position: relative;
-  padding: 8px 4px 8px 40px;
-  min-height: 40px;
   grid-column: 1 / 2;
+  padding: 8px 0 8px 40px;
 }
 
-.cp-line {
+.cp-timeline::before {
+  content: "";
   position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 20px;
+  left: 16px;
+  top: 0;
+  bottom: 0;
   width: 3px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(148, 163, 184, .7), rgba(148, 163, 184, .15));
-  box-shadow: 0 0 0 1px rgba(15, 23, 42, .7);
 }
 
 .cp-points {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   position: relative;
   z-index: 1;
 }
 
 .cp-point {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
   cursor: grab;
 }
 
@@ -322,6 +321,7 @@ button:hover, .btn:hover {
 }
 
 .cp-dot {
+  position: relative;
   width: 18px;
   height: 18px;
   border-radius: 999px;
@@ -329,7 +329,30 @@ button:hover, .btn:hover {
   border: 3px solid var(--primary);
   box-shadow: 0 0 0 0 rgba(96, 165, 250, .4);
   transition: .18s;
-  margin-left: -4px; /* слегка заводим точку на линию */
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.cp-dot::before {
+  /* кусок линии между точками — так можно «рвать» цепочку через класс */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  width: 3px;
+  height: 14px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(148, 163, 184, .7), rgba(148, 163, 184, .15));
+}
+
+.cp-point--first .cp-dot::before {
+  display: none;
+}
+
+.cp-point--gap .cp-dot::before {
+  /* визуальный разрыв цепочки */
+  background: transparent;
+  box-shadow: none;
 }
 
 .cp-dot--done {
@@ -345,18 +368,20 @@ button:hover, .btn:hover {
 
 .cp-label {
   font-size: 14px;
-  max-width: 320px;
+  max-width: 380px;
   text-align: left;
   color: var(--text);
+  line-height: 1.4;
 }
 
+/* Правая колонка — редактор чекпоинта */
 .cp-editor {
-  margin-top: 0;
+  grid-column: 2 / 3;
   border-radius: 14px;
-  background: rgba(15, 23, 42, .9);
+  background: rgba(15, 23, 42, .95);
   border: 1px solid rgba(148, 163, 184, .4);
   padding: 12px 14px 14px;
-  grid-column: 2 / 3;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
 }
 
 .cp-editor--hidden {
@@ -397,14 +422,24 @@ button:hover, .btn:hover {
 }
 
 .cp-checkbox {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
+  cursor: pointer;
 }
 
-.cp-checkbox input {
+.cp-checkbox input[type="checkbox"] {
+  width: auto;
   margin: 0;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cp-checkbox span {
+  display: inline-block;
+  line-height: 1.4;
 }
 
 .cp-editor-actions {

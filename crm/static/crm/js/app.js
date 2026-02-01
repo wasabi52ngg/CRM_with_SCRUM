@@ -100,56 +100,70 @@ function initRequestTimeline(root) {
 
   function render() {
     root.innerHTML = '';
-    const line = document.createElement('div');
-    line.className = 'cp-line';
     const list = document.createElement('div');
     list.className = 'cp-points';
 
-    checkpoints
-      .slice()
-      .sort((a, b) => (a.order || 0) - (b.order || 0) || a.id - b.id)
-      .forEach((cp, index) => {
-        const item = document.createElement('div');
-        item.className = 'cp-point';
-        item.setAttribute('data-id', cp.id);
-        item.setAttribute('draggable', 'true');
+    const sorted = checkpoints.slice().sort(
+      (a, b) => (a.order || 0) - (b.order || 0) || a.id - b.id,
+    );
 
-        const dot = document.createElement('div');
-        dot.className = 'cp-dot' + (cp.is_done ? ' cp-dot--done' : '');
+    sorted.forEach((cp, index) => {
+      const item = document.createElement('div');
+      item.className = 'cp-point';
+      if (index === 0) {
+        item.classList.add('cp-point--first');
+      }
+      item.setAttribute('data-id', cp.id);
+      item.setAttribute('draggable', 'true');
+      item.setAttribute('data-index', index);
 
-        const label = document.createElement('div');
-        label.className = 'cp-label';
-        label.textContent = cp.title || `Этап ${index + 1}`;
+      const dot = document.createElement('div');
+      dot.className = 'cp-dot' + (cp.is_done ? ' cp-dot--done' : '');
 
-        item.appendChild(dot);
-        item.appendChild(label);
-        list.appendChild(item);
+      const label = document.createElement('div');
+      label.className = 'cp-label';
+      label.textContent = cp.title || `Этап ${index + 1}`;
 
-        item.addEventListener('click', () => {
-          openEditor(cp);
-          // подсветка активной точки
-          root.querySelectorAll('.cp-dot').forEach(d => d.classList.remove('cp-dot--active'));
-          dot.classList.add('cp-dot--active');
-        });
-      });
+      item.appendChild(dot);
+      item.appendChild(label);
+      list.appendChild(item);
 
-    root.appendChild(line);
+      // клик по точке или тексту открывает редактор
+      const openOnClick = (e) => {
+        if (e.target.closest('.cp-editor')) return;
+        e.stopPropagation();
+        openEditor(cp, item);
+        root.querySelectorAll('.cp-dot').forEach(d => d.classList.remove('cp-dot--active'));
+        dot.classList.add('cp-dot--active');
+      };
+      item.addEventListener('click', openOnClick);
+    });
+
     root.appendChild(list);
 
     // drag & drop reordering
     let dragSrc = null;
+    let dragSrcIndex = -1;
+    let draggedDot = null;
+
     list.querySelectorAll('.cp-point').forEach(el => {
       el.addEventListener('dragstart', e => {
         dragSrc = el;
+        dragSrcIndex = parseInt(el.getAttribute('data-index') || '0', 10);
+        draggedDot = el.querySelector('.cp-dot');
+        if (draggedDot) draggedDot.classList.add('cp-dot--dragging');
         e.dataTransfer.effectAllowed = 'move';
       });
+
       el.addEventListener('dragover', e => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
       });
+
       el.addEventListener('drop', e => {
         e.preventDefault();
         if (!dragSrc || dragSrc === el) return;
+
         const children = Array.from(list.children);
         const srcIndex = children.indexOf(dragSrc);
         const targetIndex = children.indexOf(el);
@@ -158,15 +172,30 @@ function initRequestTimeline(root) {
         } else {
           list.insertBefore(dragSrc, el);
         }
+
+        // Обновляем индексы и классы first/gap
+        Array.from(list.children).forEach((child, idx) => {
+          child.setAttribute('data-index', idx);
+          child.classList.toggle('cp-point--first', idx === 0);
+        });
+
         saveOrder(list);
       });
+
       el.addEventListener('dragend', () => {
+        if (draggedDot) draggedDot.classList.remove('cp-dot--dragging');
         dragSrc = null;
+        dragSrcIndex = -1;
+        draggedDot = null;
+        // На всякий случай обновим классы first после завершения
+        Array.from(list.children).forEach((child, idx) => {
+          child.classList.toggle('cp-point--first', idx === 0);
+        });
       });
     });
   }
 
-  function openEditor(cp) {
+  function openEditor(cp, pointElement) {
     if (!editor) return;
     editor.classList.remove('cp-editor--hidden');
     const idEl = document.getElementById('cp-id');
@@ -183,6 +212,38 @@ function initRequestTimeline(root) {
     // для нового сразу включаем редактирование
     isEditMode = !cp;
     applyEditMode();
+
+    // позиционируем редактор справа от выбранного чекпоинта
+    if (pointElement) {
+      const rootRect = root.getBoundingClientRect();
+      const pointRect = pointElement.getBoundingClientRect();
+      const editorRect = editor.getBoundingClientRect();
+      const timelineCard = root.closest('.timeline-card');
+      if (timelineCard) {
+        const cardRect = timelineCard.getBoundingClientRect();
+        const top = pointRect.top - cardRect.top - 8;
+        const right = cardRect.right - pointRect.right - 24;
+        editor.style.top = `${Math.max(0, top)}px`;
+        editor.style.right = `${Math.max(24, right)}px`;
+        editor.style.left = 'auto';
+      }
+    } else {
+      // для нового чекпоинта - внизу списка
+      const points = root.querySelectorAll('.cp-point');
+      if (points.length > 0) {
+        const lastPoint = points[points.length - 1];
+        const rootRect = root.getBoundingClientRect();
+        const pointRect = lastPoint.getBoundingClientRect();
+        const timelineCard = root.closest('.timeline-card');
+        if (timelineCard) {
+          const cardRect = timelineCard.getBoundingClientRect();
+          const top = pointRect.top - cardRect.top - 8;
+          editor.style.top = `${Math.max(0, top)}px`;
+          editor.style.right = '24px';
+          editor.style.left = 'auto';
+        }
+      }
+    }
   }
 
   function closeEditor() {
@@ -223,7 +284,8 @@ function initRequestTimeline(root) {
         if (payload.action === 'create' && resp.checkpoint) {
           checkpoints.push(resp.checkpoint);
           render();
-          openEditor(resp.checkpoint);
+          const newPoint = root.querySelector(`[data-id="${resp.checkpoint.id}"]`);
+          openEditor(resp.checkpoint, newPoint);
         } else if (payload.action === 'update' && id) {
           const cp = findCheckpoint(id);
           if (cp) {
@@ -232,7 +294,8 @@ function initRequestTimeline(root) {
             cp.is_done = isDone;
           }
           render();
-          openEditor(cp || null);
+          const updatedPoint = root.querySelector(`[data-id="${id}"]`);
+          openEditor(cp || null, updatedPoint);
         }
       })
       .catch(() => {});
@@ -255,20 +318,20 @@ function initRequestTimeline(root) {
     // локально обновим порядок
     const map = new Map();
     checkpoints.forEach(c => map.set(c.id, c));
-    checkpoints = ids
+    const sorted = ids
       .map((id, idx) => {
         const cp = map.get(id);
         if (cp) cp.order = idx + 1;
         return cp;
       })
       .filter(Boolean);
+    checkpoints = sorted;
     render();
   }
 
   if (addBtn) {
     addBtn.addEventListener('click', () => {
-      render();
-      openEditor(null);
+      openEditor(null, null);
     });
   }
 
@@ -297,6 +360,7 @@ function initRequestTimeline(root) {
         .then(resp => {
           if (!resp.ok) return;
           checkpoints = checkpoints.filter(c => c.id !== id);
+          render();
           closeEditor();
         })
         .catch(() => {});

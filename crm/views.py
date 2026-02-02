@@ -72,13 +72,46 @@ class ManagerProjectDetailView(ManagerRequiredMixin, DetailView):
     model = Project
     template_name = "crm/manager/project_detail.html"
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        # Список разработчиков для назначения исполнителя прямо при создании задачи
+        ctx["developers"] = (
+            User.objects.filter(role=User.Role.DEVELOPER, is_active=True)
+            .order_by("username")
+            .only("id", "username", "first_name", "last_name", "developer_type")
+        )
+        return ctx
+
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         project = self.get_object()
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         task_type = request.POST.get("task_type")
+        assignee_id = request.POST.get("assignee") or ""
+        due_date = request.POST.get("due_date") or None
+        story_points_raw = request.POST.get("story_points") or "0"
+
+        assignee = None
+        if assignee_id:
+            assignee = get_object_or_404(User, pk=assignee_id, role=User.Role.DEVELOPER)
+
+        try:
+            story_points = int(story_points_raw)
+        except Exception:
+            story_points = 0
+        story_points = max(0, min(100, story_points))
+
         if title and task_type in dict(Task.TaskType.choices):
-            Task.objects.create(project=project, title=title, description=description, task_type=task_type)
+            Task.objects.create(
+                project=project,
+                title=title,
+                description=description,
+                task_type=task_type,
+                created_by=request.user,
+                assignee=assignee,
+                due_date=due_date,
+                story_points=story_points,
+            )
         return redirect("crm:manager_project_detail", pk=project.pk)
 
 

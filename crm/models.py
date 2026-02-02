@@ -102,9 +102,18 @@ class Task(models.Model):
     description = models.TextField(blank=True)
     task_type = models.CharField(max_length=20, choices=TaskType.choices)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.TODO)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_tasks",
+        help_text="Постановщик задачи",
+    )
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="tasks"
     )
+    due_date = models.DateField(null=True, blank=True, help_text="Дедлайн/дата завершения")
     story_points = models.PositiveSmallIntegerField(default=0)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -10,7 +10,15 @@
 </div>
 <table>
     <thead>
-    <tr><th>Название</th><th>Тип</th><th>Статус</th><th>Исполнитель</th></tr>
+    <tr>
+      <th>Название</th>
+      <th>Тип</th>
+      <th>Статус</th>
+      <th>Постановщик</th>
+      <th>Исполнитель</th>
+      <th>Дедлайн</th>
+      <th>SP</th>
+    </tr>
     </thead>
     <tbody>
     {% for t in object.tasks.all %}
@@ -18,13 +26,21 @@
             <td>{{ t.title }}</td>
             <td>{{ t.get_task_type_display }}</td>
             <td>{{ t.get_status_display }}</td>
-            <td>{{ t.assignee }}</td>
+            <td>{{ t.created_by|default:"—" }}</td>
+            <td>{{ t.assignee|default:"—" }}</td>
+            <td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td>
+            <td>{{ t.story_points }}</td>
         </tr>
     {% empty %}
-        <tr><td colspan="4">Пока нет задач</td></tr>
+        <tr><td colspan="7">Пока нет задач</td></tr>
     {% endfor %}
     </tbody>
  </table>
+
+<div style="margin-top:10px;">
+  <span class="muted">Фишки на будущее:</span>
+  <span class="muted">шаблоны задач по типу проекта, приоритет, чеклист подзадач, вложения, оценка + авто-дедлайн, зависимости между задачами и уведомления исполнителю.</span>
+</div>
 
 <h3>Добавить задачу</h3>
 <form method="post">
@@ -32,6 +48,22 @@
     <input type="text" name="title" placeholder="Название" required>
     <br>
     <textarea name="description" placeholder="Описание"></textarea>
+    <br>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Исполнитель (опционально)</label>
+    <select name="assignee">
+      <option value="">— не назначать —</option>
+      {% for u in developers %}
+        <option value="{{ u.id }}">
+          {{ u.username }}{% if u.developer_type %} ({{ u.get_developer_type_display }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    <br>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Дедлайн</label>
+    <input type="date" name="due_date">
+    <br>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Story points</label>
+    <input type="number" name="story_points" min="0" max="100" value="0">
     <br>
     <select name="task_type" required>
         <option value="frontend">Фронтенд</option>

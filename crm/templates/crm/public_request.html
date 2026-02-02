@@ -7,36 +7,36 @@
 .request-page {
     max-width: 800px;
     margin: 60px auto;
-    padding: var(--token-32);
+    padding: 24px;
 }
 
 .request-header {
     text-align: center;
-    margin-bottom: var(--token-48);
+    margin-bottom: 28px;
 }
 
 .request-header h1 {
     font-size: 2.5rem;
-    font-weight: var(--fw-bold);
+    font-weight: 700;
     background: linear-gradient(135deg, #ffffff 0%, #60a5fa 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    margin-bottom: var(--token-16);
+    margin-bottom: 12px;
 }
 
 .request-header p {
     color: var(--muted);
-    font-size: var(--font-size-base);
+    font-size: 14px;
     line-height: 1.6;
 }
 
 .request-form-container {
     background: var(--card);
-    border-radius: var(--radius-lg);
+    border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, .1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    padding: var(--token-40);
+    padding: 22px;
     position: relative;
     overflow: hidden;
 }
@@ -54,44 +54,39 @@
 .request-form {
     display: flex;
     flex-direction: column;
-    gap: var(--token-24);
+    gap: 16px;
 }
 
 .form-group {
     display: flex;
     flex-direction: column;
-    gap: var(--token-08);
+    gap: 8px;
 }
 
 .form-group label {
-    font-size: var(--font-size-sm);
-    font-weight: var(--fw-semibold);
+    font-size: 12px;
+    font-weight: 600;
     color: var(--text);
     display: flex;
     align-items: center;
-    gap: var(--token-08);
+    gap: 8px;
 }
 
-.form-group label::before {
-    content: '';
-    width: 4px;
-    height: 16px;
-    background: var(--primary);
-    border-radius: 2px;
-}
+/* Убираем “лишнюю синюю полоску” слева от названий полей */
+.form-group label::before { display: none; }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
     width: 100%;
     padding: 14px 16px;
-    border-radius: var(--radius-md);
+    border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, .1);
     background: rgba(15, 23, 42, 0.5);
     color: var(--text);
-    font-size: var(--font-size-base);
+    font-size: 14px;
     font-family: inherit;
-    transition: all 0.3s ease;
+    transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
 }
 
 .form-group input:focus,
@@ -109,13 +104,30 @@
     line-height: 1.6;
 }
 
-.form-group select {
+/* Селект “Тип проекта”: фиксируем стрелку, чтобы она не прыгала/не пропадала */
+.select-wrap {
+    position: relative;
+}
+.select-wrap select {
     cursor: pointer;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2360a5fa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: none;
+    padding-right: 44px;
+}
+.select-wrap::after {
+    content: "";
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    width: 12px;
+    height: 12px;
+    transform: translateY(-50%);
+    pointer-events: none;
     background-repeat: no-repeat;
-    background-position: right 16px center;
-    padding-right: 40px;
+    background-size: 12px 12px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2360a5fa' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
 }
 
 .form-group select option {
@@ -124,11 +136,11 @@
 }
 
 .form-submit {
-    margin-top: var(--token-08);
+    margin-top: 6px;
     padding: 16px 32px;
-    font-size: var(--font-size-base);
-    font-weight: var(--fw-semibold);
-    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 14px;
     background: linear-gradient(135deg, var(--primary), var(--accent));
     color: white;
     border: none;
@@ -166,28 +178,28 @@
 .form-info {
     background: rgba(96, 165, 250, 0.1);
     border: 1px solid rgba(96, 165, 250, 0.2);
-    border-radius: var(--radius-md);
-    padding: var(--token-16);
-    margin-top: var(--token-24);
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 16px;
     color: var(--text);
-    font-size: var(--font-size-sm);
+    font-size: 12px;
     line-height: 1.6;
 }
 
 .form-info strong {
     color: var(--primary);
     display: block;
-    margin-bottom: var(--token-08);
+    margin-bottom: 8px;
 }
 
 @media (max-width: 768px) {
     .request-page {
-        padding: var(--token-16);
+        padding: 14px;
         margin: 40px auto;
     }
     
     .request-form-container {
-        padding: var(--token-24);
+        padding: 16px;
     }
     
     .request-header h1 {
@@ -209,12 +221,14 @@
             
             <div class="form-group">
                 <label for="project_type">Тип проекта</label>
-                <select name="project_type" id="project_type" required>
-                    <option value="">Выберите тип проекта</option>
-                    <option value="website">Сайт</option>
-                    <option value="bot">Telegram бот</option>
-                    <option value="mobile">Мобильное приложение</option>
-                </select>
+                <div class="select-wrap">
+                    <select name="project_type" id="project_type" required>
+                        <option value="">Выберите тип проекта</option>
+                        <option value="website">Сайт</option>
+                        <option value="bot">Telegram бот</option>
+                        <option value="mobile">Мобильное приложение</option>
+                    </select>
+                </div>
             </div>
             
             <div class="form-group">

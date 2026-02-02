@@ -126,6 +126,27 @@ class Task(models.Model):
         return f"[{self.get_task_type_display()}] {self.title}"
 
 
+class TaskCheckpoint(models.Model):
+    """
+    Чекпоинты/этапы внутри задачи (для менеджера и исполнителя).
+    Отображаются в карточке задачи на канбане.
+    """
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="checkpoints")
+    title = models.CharField("Заголовок", max_length=255)
+    comment = models.TextField("Комментарий / детали", blank=True)
+    is_done = models.BooleanField("Выполнен", default=False)
+    order = models.PositiveIntegerField("Порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+
+    def __str__(self) -> str:
+        return f"Task {self.task_id}: {self.title}"
+
+
 class Comment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

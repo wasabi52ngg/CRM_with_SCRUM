@@ -9,7 +9,7 @@ from django.utils.decorators import method_decorator
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
 from accounts.models import User
-from .models import ClientRequest, Project, Task, RequestCheckpoint
+from .models import ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
 from .models import Message
 
 
@@ -316,6 +316,134 @@ class RequestCheckpointApiView(ManagerRequiredMixin, View):
                     cp.order = order_map[cp.id]
                     cp.save(update_fields=["order"])
             return JsonResponse({"ok": True})
+
+        return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
+
+
+@method_decorator(require_POST, name="dispatch")
+class TaskPanelApiView(ManagerRequiredMixin, View):
+    """
+    JSON‑API для боковой панели задачи на канбане.
+    - action=detail: данные задачи + чекпоинты + чат (последние 50)
+    - action=checkpoint_create/update/delete/reorder
+    - action=chat_add
+    """
+
+    def post(self, request: HttpRequest, pk: int) -> JsonResponse:
+        import json
+
+        task = get_object_or_404(Task.objects.select_related("assignee", "created_by", "project"), pk=pk)
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
+
+        action = payload.get("action") or "detail"
+
+        if action == "detail":
+            checkpoints = list(task.checkpoints.all().values("id", "title", "comment", "is_done", "order"))
+            chat = list(
+                task.comments.select_related("author")
+                .order_by("-created_at")[:50]
+                .values("id", "text", "created_at", "author__username")
+            )[::-1]
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "task": {
+                        "id": task.id,
+                        "title": task.title,
+                        "description": task.description,
+                        "status": task.status,
+                        "status_label": task.get_status_display(),
+                        "task_type": task.task_type,
+                        "task_type_label": task.get_task_type_display(),
+                        "story_points": task.story_points,
+                        "assignee": getattr(task.assignee, "username", None),
+                        "created_by": getattr(task.created_by, "username", None),
+                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "project_id": task.project_id,
+                    },
+                    "checkpoints": checkpoints,
+                    "chat": chat,
+                }
+            )
+
+        # ---- Checkpoints ----
+        if action == "checkpoint_create":
+            title = (payload.get("title") or "").strip()
+            comment = (payload.get("comment") or "").strip()
+            if not title:
+                return JsonResponse({"ok": False, "error": "title_required"}, status=400)
+            last_order = task.checkpoints.order_by("-order").values_list("order", flat=True).first() or 0
+            cp = TaskCheckpoint.objects.create(task=task, title=title, comment=comment, order=last_order + 1)
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "checkpoint": {
+                        "id": cp.id,
+                        "title": cp.title,
+                        "comment": cp.comment,
+                        "is_done": cp.is_done,
+                        "order": cp.order,
+                    },
+                }
+            )
+
+        if action == "checkpoint_update":
+            cp_id = payload.get("id")
+            cp = get_object_or_404(TaskCheckpoint, pk=cp_id, task=task)
+            title = payload.get("title")
+            comment = payload.get("comment")
+            is_done = payload.get("is_done")
+            changed = False
+            if title is not None:
+                cp.title = (title or "").strip()
+                changed = True
+            if comment is not None:
+                cp.comment = (comment or "").strip()
+                changed = True
+            if is_done is not None:
+                cp.is_done = bool(is_done)
+                changed = True
+            if changed:
+                cp.save()
+            return JsonResponse({"ok": True})
+
+        if action == "checkpoint_delete":
+            cp_id = payload.get("id")
+            cp = get_object_or_404(TaskCheckpoint, pk=cp_id, task=task)
+            cp.delete()
+            return JsonResponse({"ok": True})
+
+        if action == "checkpoint_reorder":
+            ids = payload.get("ids") or []
+            if not isinstance(ids, list):
+                return JsonResponse({"ok": False, "error": "ids_list_required"}, status=400)
+            order_map = {cp_id: idx for idx, cp_id in enumerate(ids, start=1)}
+            for cp in task.checkpoints.all():
+                if cp.id in order_map:
+                    cp.order = order_map[cp.id]
+                    cp.save(update_fields=["order"])
+            return JsonResponse({"ok": True})
+
+        # ---- Chat ----
+        if action == "chat_add":
+            text = (payload.get("text") or "").strip()
+            if not text:
+                return JsonResponse({"ok": False, "error": "text_required"}, status=400)
+            comment = task.comments.create(author=request.user, text=text)
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "message": {
+                        "id": comment.id,
+                        "text": comment.text,
+                        "created_at": comment.created_at.isoformat(),
+                        "author__username": request.user.username,
+                    },
+                }
+            )
 
         return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
 

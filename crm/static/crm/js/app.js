@@ -42,6 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Kanban task panel (details/checkpoints/chat)
+  const taskPanel = document.getElementById('task-panel');
+  if (taskPanel) {
+    initKanbanTaskPanel(taskPanel);
+  }
+
   // Request checkpoints timeline (manager request detail)
   const timeline = document.getElementById('cp-timeline');
   if (timeline) {
@@ -69,6 +75,181 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+
+function initKanbanTaskPanel(panel) {
+  const closeBtn = document.getElementById('tp-close');
+  const titleEl = document.getElementById('tp-title');
+  const metaEl = document.getElementById('tp-meta');
+  const assigneeEl = document.getElementById('tp-assignee');
+  const createdByEl = document.getElementById('tp-created-by');
+  const dueEl = document.getElementById('tp-due');
+  const spEl = document.getElementById('tp-sp');
+
+  const tabBtns = document.querySelectorAll('.task-tab');
+  const tabPanes = document.querySelectorAll('.task-tabpane');
+
+  const cpAddBtn = document.getElementById('tp-cp-add');
+  const cpList = document.getElementById('tp-cp-list');
+  const chatList = document.getElementById('tp-chat-list');
+  const chatForm = document.getElementById('tp-chat-form');
+  const chatText = document.getElementById('tp-chat-text');
+
+  let currentTaskId = null;
+  let apiUrl = null;
+  let checkpoints = [];
+  let chat = [];
+
+  function show() {
+    panel.classList.remove('task-panel--hidden');
+  }
+  function hide() {
+    panel.classList.add('task-panel--hidden');
+    currentTaskId = null;
+    apiUrl = null;
+  }
+
+  function setActiveTab(name) {
+    tabBtns.forEach(b => b.classList.toggle('task-tab--active', b.getAttribute('data-tab') === name));
+    tabPanes.forEach(p => p.classList.toggle('task-tabpane--active', p.getAttribute('data-tabpane') === name));
+  }
+
+  function renderCheckpoints() {
+    if (!cpList) return;
+    cpList.innerHTML = '';
+    const sorted = checkpoints.slice().sort((a, b) => (a.order || 0) - (b.order || 0) || a.id - b.id);
+    sorted.forEach(cp => {
+      const item = document.createElement('div');
+      item.className = 'tp-item';
+      const top = document.createElement('div');
+      top.className = 'tp-item__top';
+      const title = document.createElement('div');
+      title.textContent = cp.title || 'Без названия';
+      const badge = document.createElement('span');
+      badge.className = 'tp-badge' + (cp.is_done ? ' tp-badge--done' : '');
+      badge.textContent = cp.is_done ? 'done' : 'todo';
+      top.appendChild(title);
+      top.appendChild(badge);
+      item.appendChild(top);
+      if (cp.comment) {
+        const c = document.createElement('div');
+        c.className = 'muted';
+        c.style.marginTop = '6px';
+        c.textContent = cp.comment;
+        item.appendChild(c);
+      }
+      item.addEventListener('click', () => {
+        // быстрый toggle done
+        apiRequest({ action: 'checkpoint_update', id: cp.id, is_done: !cp.is_done })
+          .then(resp => {
+            if (!resp.ok) return;
+            cp.is_done = !cp.is_done;
+            renderCheckpoints();
+          })
+          .catch(() => {});
+      });
+      cpList.appendChild(item);
+    });
+  }
+
+  function renderChat() {
+    if (!chatList) return;
+    chatList.innerHTML = '';
+    chat.forEach(m => {
+      const msg = document.createElement('div');
+      msg.className = 'tp-msg';
+      const meta = document.createElement('div');
+      meta.className = 'tp-msg__meta';
+      const author = document.createElement('div');
+      author.textContent = m.author__username || 'user';
+      const time = document.createElement('div');
+      time.textContent = (m.created_at || '').toString().slice(0, 16).replace('T', ' ');
+      meta.appendChild(author);
+      meta.appendChild(time);
+      const text = document.createElement('div');
+      text.textContent = m.text;
+      msg.appendChild(meta);
+      msg.appendChild(text);
+      chatList.appendChild(msg);
+    });
+  }
+
+  function apiRequest(payload) {
+    if (!apiUrl) return Promise.reject();
+    return fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify(payload),
+    }).then(r => r.json());
+  }
+
+  function loadTask(taskId) {
+    currentTaskId = taskId;
+    apiUrl = `/manager/tasks/${taskId}/panel/`;
+    show();
+    setActiveTab('checkpoints');
+    return apiRequest({ action: 'detail' }).then(resp => {
+      if (!resp.ok) return;
+      const t = resp.task;
+      if (titleEl) titleEl.textContent = t.title;
+      if (metaEl) metaEl.textContent = `${t.task_type_label} • ${t.status_label}`;
+      if (assigneeEl) assigneeEl.textContent = t.assignee || '—';
+      if (createdByEl) createdByEl.textContent = t.created_by || '—';
+      if (dueEl) dueEl.textContent = t.due_date || '—';
+      if (spEl) spEl.textContent = String(t.story_points ?? 0);
+      checkpoints = resp.checkpoints || [];
+      chat = resp.chat || [];
+      renderCheckpoints();
+      renderChat();
+    });
+  }
+
+  // click on kanban cards (ignore drag)
+  document.querySelectorAll('[data-task]').forEach(card => {
+    card.addEventListener('click', e => {
+      if (card === window.__kanbanDragged) return;
+      const id = parseInt(card.getAttribute('data-task') || '0', 10);
+      if (!id) return;
+      loadTask(id).catch(() => {});
+    });
+    card.addEventListener('dragstart', () => {
+      window.__kanbanDragged = card;
+      setTimeout(() => { window.__kanbanDragged = null; }, 50);
+    });
+  });
+
+  if (closeBtn) closeBtn.addEventListener('click', () => hide());
+  tabBtns.forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.getAttribute('data-tab'))));
+
+  if (cpAddBtn) {
+    cpAddBtn.addEventListener('click', () => {
+      const title = prompt('Название чекпоинта');
+      if (!title) return;
+      apiRequest({ action: 'checkpoint_create', title, comment: '' })
+        .then(resp => {
+          if (!resp.ok) return;
+          checkpoints.push(resp.checkpoint);
+          renderCheckpoints();
+        })
+        .catch(() => {});
+    });
+  }
+
+  if (chatForm) {
+    chatForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const text = (chatText && chatText.value || '').trim();
+      if (!text) return;
+      apiRequest({ action: 'chat_add', text })
+        .then(resp => {
+          if (!resp.ok) return;
+          chat.push(resp.message);
+          if (chatText) chatText.value = '';
+          renderChat();
+        })
+        .catch(() => {});
+    });
+  }
+}
 
 function initRequestTimeline(root) {
   const apiUrl = root.getAttribute('data-api-url');

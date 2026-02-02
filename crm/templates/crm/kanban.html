@@ -3,6 +3,7 @@
 {% block content %}
 <h1 class="page-title">Доска проекта: {{ object.name }}</h1>
 
+<div class="kanban-wrap">
 <div class="kanban">
   <div class="col" data-col="todo">
     <h3>К выполнению</h3>
@@ -10,7 +11,14 @@
       {% for t in todo %}
         <div class="task" data-task="{{ t.id }}">
           <div>{{ t.title }}</div>
-          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+          <div class="meta">
+            <span>{{ t.get_task_type_display }}</span>
+            <span>SP: {{ t.story_points }}</span>
+          </div>
+          <div class="meta">
+            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
+            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+          </div>
         </div>
       {% endfor %}
     </div>
@@ -21,7 +29,14 @@
       {% for t in in_progress %}
         <div class="task" data-task="{{ t.id }}">
           <div>{{ t.title }}</div>
-          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+          <div class="meta">
+            <span>{{ t.get_task_type_display }}</span>
+            <span>SP: {{ t.story_points }}</span>
+          </div>
+          <div class="meta">
+            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
+            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+          </div>
         </div>
       {% endfor %}
     </div>
@@ -32,7 +47,14 @@
       {% for t in review %}
         <div class="task" data-task="{{ t.id }}">
           <div>{{ t.title }}</div>
-          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+          <div class="meta">
+            <span>{{ t.get_task_type_display }}</span>
+            <span>SP: {{ t.story_points }}</span>
+          </div>
+          <div class="meta">
+            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
+            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+          </div>
         </div>
       {% endfor %}
     </div>
@@ -43,11 +65,58 @@
       {% for t in done %}
         <div class="task" data-task="{{ t.id }}">
           <div>{{ t.title }}</div>
-          <div class="meta"><span>{{ t.get_task_type_display }}</span><span>SP: {{ t.story_points }}</span></div>
+          <div class="meta">
+            <span>{{ t.get_task_type_display }}</span>
+            <span>SP: {{ t.story_points }}</span>
+          </div>
+          <div class="meta">
+            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
+            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+          </div>
         </div>
       {% endfor %}
     </div>
   </div>
+</div>
+
+<aside id="task-panel" class="task-panel task-panel--hidden">
+  <div class="task-panel__header">
+    <div>
+      <div class="task-panel__title" id="tp-title">Задача</div>
+      <div class="task-panel__subtitle muted" id="tp-meta"></div>
+    </div>
+    <button type="button" class="btn-ghost" id="tp-close">✕</button>
+  </div>
+
+  <div class="task-panel__info" id="tp-info">
+    <div class="task-panel__row"><span class="muted">Исполнитель</span><span id="tp-assignee">—</span></div>
+    <div class="task-panel__row"><span class="muted">Постановщик</span><span id="tp-created-by">—</span></div>
+    <div class="task-panel__row"><span class="muted">Дедлайн</span><span id="tp-due">—</span></div>
+    <div class="task-panel__row"><span class="muted">SP</span><span id="tp-sp">0</span></div>
+  </div>
+
+  <div class="task-panel__tabs">
+    <button type="button" class="task-tab task-tab--active" data-tab="checkpoints">Чекпоинты</button>
+    <button type="button" class="task-tab" data-tab="chat">Чат</button>
+  </div>
+
+  <div class="task-panel__body">
+    <div class="task-tabpane task-tabpane--active" data-tabpane="checkpoints">
+      <div class="task-panel__toolbar">
+        <button type="button" class="btn-ghost" id="tp-cp-add">Добавить чекпоинт</button>
+      </div>
+      <div id="tp-cp-list" class="tp-list"></div>
+    </div>
+    <div class="task-tabpane" data-tabpane="chat">
+      <div id="tp-chat-list" class="tp-chat"></div>
+      <form id="tp-chat-form" class="tp-chat-form">
+        {% csrf_token %}
+        <input type="text" id="tp-chat-text" placeholder="Сообщение..." autocomplete="off">
+        <button type="submit">Отправить</button>
+      </form>
+    </div>
+  </div>
+</aside>
 </div>
 
 <p class="muted" style="margin-top:14px">Подсказка: перетащите карточку в нужную колонку.</p>

@@ -1,15 +1,5 @@
 // Main app initialization
 document.addEventListener('DOMContentLoaded', () => {
-  // Theme toggle
-  const root = document.documentElement;
-  const toggle = document.getElementById('theme-toggle');
-  const saved = localStorage.getItem('theme');
-  if (saved === 'light') root.classList.add('light');
-  toggle && toggle.addEventListener('click', () => {
-    root.classList.toggle('light');
-    localStorage.setItem('theme', root.classList.contains('light') ? 'light' : 'dark');
-  });
-
   // Kanban drag & drop
   const cols = document.querySelectorAll('[data-col]');
   let dragged = null;

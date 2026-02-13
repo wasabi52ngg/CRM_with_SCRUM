@@ -1,28 +1,21 @@
 /* Global Variables */
 :root {
-  --bg: #0f172a;
-  --panel: #111827;
-  --muted: #94a3b8;
-  --card: #1f2937;
-  --primary: #60a5fa;
-  --accent: #a78bfa;
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --text: #e5e7eb;
-}
-
-:root.light {
-  --bg: #f7fafc;
+  /* Светлая палитра по умолчанию (мягкая, не слишком яркая) */
+  --bg: #f5f7fb;
   --panel: #ffffff;
-  --muted: #6b7280;
   --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+
+  --border: rgba(15, 23, 42, .10);
+  --border-strong: rgba(15, 23, 42, .16);
+  --shadow: 0 10px 30px rgba(15, 23, 42, .10);
+
   --primary: #2563eb;
   --accent: #7c3aed;
   --ok: #059669;
   --warn: #d97706;
   --danger: #dc2626;
-  --text: #111827;
 }
 
 /* Base Styles */
@@ -32,14 +25,10 @@
 
 body {
   margin: 0;
-  background: linear-gradient(120deg, #0b1226, #111827 60%);
+  background: linear-gradient(120deg, #f3f6ff, #ffffff 62%);
   color: var(--text);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
   transition: background .3s, color .3s;
-}
-
-:root.light body {
-  background: linear-gradient(120deg, #eef2ff, #ffffff 60%);
 }
 
 /* Layout */
@@ -73,7 +62,7 @@ th, td {
 
 th {
   background: transparent;
-  color: #9ca3af;
+  color: var(--muted);
   padding: 0 14px 8px;
 }
 
@@ -87,16 +76,15 @@ input, textarea, select {
   width: 100%;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  background: #0b1020;
+  border: 1px solid var(--border);
+  background: #fbfcff;
   color: var(--text);
 }
 
-:root.light input,
-:root.light textarea,
-:root.light select {
-  background: #f8fafc;
-  border-color: rgba(0, 0, 0, .08);
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: rgba(37, 99, 235, .35);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
 }
 
 /* Buttons */
@@ -108,7 +96,7 @@ button, .btn {
   background: linear-gradient(135deg, var(--primary), var(--accent));
   color: white;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(96, 165, 250, .25);
+  box-shadow: 0 10px 26px rgba(37, 99, 235, .18);
   transition: .2s;
 }
 
@@ -119,15 +107,11 @@ button:hover, .btn:hover {
 
 .btn-ghost {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, .15);
+  border: 1px solid var(--border);
   padding: 8px 10px;
   border-radius: 10px;
   color: var(--text);
   margin-left: 12px;
-}
-
-:root.light .btn-ghost {
-  border-color: rgba(0, 0, 0, .12);
 }
 
 /* Kanban Board */
@@ -150,17 +134,13 @@ button:hover, .btn:hover {
   background: var(--panel);
   border-radius: 12px;
   padding: 12px;
-  border: 1px solid rgba(255, 255, 255, .06);
-}
-
-:root.light .col {
-  border-color: rgba(0, 0, 0, .06);
+  border: 1px solid var(--border);
 }
 
 .col h3 {
   margin: 6px 6px 12px;
   font-size: 14px;
-  color: #cbd5e1;
+  color: rgba(15, 23, 42, .72);
 }
 
 .task {
@@ -168,11 +148,7 @@ button:hover, .btn:hover {
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 10px;
-  border: 1px solid rgba(255, 255, 255, .06);
-}
-
-:root.light .task {
-  border-color: rgba(0, 0, 0, .06);
+  border: 1px solid var(--border);
 }
 
 .task .meta {
@@ -187,11 +163,12 @@ button:hover, .btn:hover {
   position: sticky;
   top: 18px;
   background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, .08);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 12px 14px;
   max-height: calc(100vh - 36px);
   overflow: auto;
+  box-shadow: var(--shadow);
 }
 
 .task-panel--hidden {
@@ -217,8 +194,8 @@ button:hover, .btn:hover {
 }
 
 .task-panel__info {
-  background: rgba(15, 23, 42, .35);
-  border: 1px solid rgba(255, 255, 255, .06);
+  background: rgba(15, 23, 42, .03);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 10px 10px;
   margin-bottom: 12px;
@@ -240,7 +217,7 @@ button:hover, .btn:hover {
 
 .task-tab {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, .12);
+  border: 1px solid var(--border);
   padding: 8px 10px;
   border-radius: 10px;
   color: var(--text);
@@ -267,8 +244,8 @@ button:hover, .btn:hover {
 }
 
 .tp-list .tp-item {
-  border: 1px solid rgba(255, 255, 255, .06);
-  background: rgba(15, 23, 42, .25);
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, .03);
   border-radius: 12px;
   padding: 10px 10px;
   margin-bottom: 8px;
@@ -286,7 +263,7 @@ button:hover, .btn:hover {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, .12);
+  border: 1px solid var(--border);
   color: var(--muted);
 }
 
@@ -303,8 +280,8 @@ button:hover, .btn:hover {
 }
 
 .tp-msg {
-  border: 1px solid rgba(255, 255, 255, .06);
-  background: rgba(15, 23, 42, .25);
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, .03);
   border-radius: 12px;
   padding: 10px 10px;
 }
@@ -353,8 +330,9 @@ button:hover, .btn:hover {
   background: var(--panel);
   border-radius: 16px;
   padding: 18px 20px;
-  border: 1px solid rgba(255, 255, 255, .06);
+  border: 1px solid var(--border);
   margin-bottom: 22px;
+  box-shadow: var(--shadow);
 }
 
 .request-meta-row {
@@ -426,11 +404,12 @@ button:hover, .btn:hover {
   background: var(--panel);
   border-radius: 16px;
   padding: 18px 20px 20px;
-  border: 1px solid rgba(255, 255, 255, .06);
+  border: 1px solid var(--border);
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(260px, 320px);
   column-gap: 24px;
   align-items: flex-start;
+  box-shadow: var(--shadow);
 }
 
 .timeline-header {
@@ -542,10 +521,11 @@ button:hover, .btn:hover {
 .cp-editor {
   grid-column: 2 / 3;
   border-radius: 14px;
-  background: rgba(15, 23, 42, .95);
-  border: 1px solid rgba(148, 163, 184, .4);
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid var(--border-strong);
   padding: 12px 14px 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
 }
 
 .cp-editor--hidden {

@@ -7,7 +7,14 @@ from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.views import View
 from django.views.generic import CreateView, UpdateView
-from .forms import RegisterUserForm, LoginUserForm, ProfileUserForm, UserPasswordChangeForm, CompanyRegisterForm
+from .forms import (
+    RegisterUserForm,
+    LoginUserForm,
+    ProfileUserForm,
+    UserPasswordChangeForm,
+    CompanyRegisterForm,
+    CompanyUserRegisterForm,
+)
 from .models import User
 
 
@@ -45,6 +52,17 @@ class CompanyRegisterView(CreateView):
     form_class = CompanyRegisterForm
     template_name = 'accounts/register_company.html'
     extra_context = {'title': 'Регистрация компании'}
+    success_url = reverse_lazy('accounts:login')
+
+
+class CompanyUserRegisterView(CreateView):
+    """
+    Регистрация сотрудника в уже существующей компании по секретному коду.
+    """
+
+    form_class = CompanyUserRegisterForm
+    template_name = 'accounts/register_company_user.html'
+    extra_context = {'title': 'Регистрация сотрудника компании'}
     success_url = reverse_lazy('accounts:login')
 
 

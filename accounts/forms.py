@@ -72,10 +72,18 @@ class CompanyRegisterForm(UserCreationForm):
         widget=forms.Textarea(attrs={'rows': 3}),
         required=False,
     )
+    company_industry = forms.CharField(
+        label='Сфера деятельности компании',
+        required=False,
+    )
 
     class Meta:
         model = get_user_model()
         fields = [
+            'company_name',
+            'company_slug',
+            'company_description',
+            'company_industry',
             'username',
             'email',
             'first_name',
@@ -84,9 +92,6 @@ class CompanyRegisterForm(UserCreationForm):
             'photo',
             'password1',
             'password2',
-            'company_name',
-            'company_slug',
-            'company_description',
         ]
 
     def clean_email(self):
@@ -117,6 +122,7 @@ class CompanyRegisterForm(UserCreationForm):
             name=self.cleaned_data['company_name'],
             slug=self.cleaned_data['company_slug'],
             description=self.cleaned_data.get('company_description', ''),
+            industry=self.cleaned_data.get('company_industry', ''),
         )
 
         if commit:
@@ -131,6 +137,73 @@ class CompanyRegisterForm(UserCreationForm):
             # В дипломном проекте commit=False практически не используется,
             # но для корректности оставляем вариант без сохранения.
             self._company_instance = company
+
+        return user
+
+
+class CompanyUserRegisterForm(UserCreationForm):
+    """
+    Регистрация сотрудника в уже существующей компании по секретному коду.
+    """
+
+    username = forms.CharField(label='Логин')
+    email = forms.EmailField(label='E-mail')
+    first_name = forms.CharField(label='Имя')
+    last_name = forms.CharField(label='Фамилия')
+    phone = forms.CharField(label='Телефон')
+    photo = forms.ImageField(label='Фото', required=False)
+    password1 = forms.CharField(label='Пароль', widget=forms.PasswordInput())
+    password2 = forms.CharField(label='Повторите пароль', widget=forms.PasswordInput())
+
+    company_code = forms.CharField(
+        label='Код компании',
+        help_text='Секретный код, который вы получили от администратора компании',
+    )
+
+    class Meta:
+        model = get_user_model()
+        fields = [
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'phone',
+            'photo',
+            'password1',
+            'password2',
+            'company_code',
+        ]
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if get_user_model().objects.filter(email=email).exists():
+            raise forms.ValidationError('Такая почта уже существует')
+        return email
+
+    def clean_company_code(self):
+        code = self.cleaned_data['company_code']
+        if not Company.objects.filter(join_code=code).exists():
+            raise forms.ValidationError('Компания с таким кодом не найдена')
+        return code
+
+    def save(self, commit=True):
+        """
+        Создаёт пользователя и привязывает его к компании по коду как разработчика.
+        """
+        UserModel = get_user_model()
+        user = super().save(commit=False)
+        user.role = UserModel.Role.DEVELOPER
+        # developer_type можно оставить NONE по умолчанию, пусть выбирает в профиле
+
+        company = Company.objects.get(join_code=self.cleaned_data['company_code'])
+
+        if commit:
+            user.save()
+            CompanyMembership.objects.create(
+                company=company,
+                user=user,
+                role=CompanyMembership.Role.DEVELOPER,
+            )
 
         return user
 

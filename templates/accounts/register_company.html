@@ -20,24 +20,60 @@
         </div>
         {% endif %}
 
-        {% for field in form %}
+        <h2>Данные компании</h2>
         <div class="input-box">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}
-            <div class="phone-hint">{{ field.help_text }}</div>
-            {% endif %}
-            {% if field.errors %}
-            <div class="field-errors">
-                <ul>
-                    {% for error in field.errors %}
-                    <li>{{ error }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
+            <label for="{{ form.company_name.id_for_label }}">{{ form.company_name.label }}</label>
+            {{ form.company_name }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.company_slug.id_for_label }}">{{ form.company_slug.label }}</label>
+            {{ form.company_slug }}
+            {% if form.company_slug.help_text %}
+            <div class="phone-hint">{{ form.company_slug.help_text }}</div>
             {% endif %}
         </div>
-        {% endfor %}
+        <div class="input-box">
+            <label for="{{ form.company_description.id_for_label }}">{{ form.company_description.label }}</label>
+            {{ form.company_description }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.company_industry.id_for_label }}">{{ form.company_industry.label }}</label>
+            {{ form.company_industry }}
+        </div>
+
+        <h2>Аккаунт администратора</h2>
+        <div class="input-box">
+            <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+            {{ form.username }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+            {{ form.email }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+            {{ form.first_name }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+            {{ form.last_name }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
+            {{ form.phone }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.photo.id_for_label }}">{{ form.photo.label }}</label>
+            {{ form.photo }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+            {{ form.password1 }}
+        </div>
+        <div class="input-box">
+            <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+            {{ form.password2 }}
+        </div>
 
         <button type="submit" class="btn">Создать компанию</button>
         <p>Уже есть аккаунт? <a href="{% url 'accounts:login' %}" style="color: var(--primary);">Войти</a></p>

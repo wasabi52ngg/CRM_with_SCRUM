@@ -17,12 +17,20 @@ class Company(models.Model):
         help_text="Короткий идентификатор компании в URL",
     )
     description = models.TextField("Описание", blank=True)
+    industry = models.CharField("Сфера деятельности", max_length=255, blank=True)
     public_token = models.CharField(
         "Токен публичной формы",
         max_length=32,
         unique=True,
         editable=False,
         help_text="Используется в публичной ссылке для заявок клиентов",
+    )
+    join_code = models.CharField(
+        "Код для подключения сотрудников",
+        max_length=16,
+        unique=True,
+        editable=False,
+        help_text="Секретный код, который сотрудники вводят при регистрации",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -35,9 +43,11 @@ class Company(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        # Генерируем токен для публичной формы один раз
+        # Генерируем токен для публичной формы и секретный код один раз
         if not self.public_token:
             self.public_token = get_random_string(24)
+        if not self.join_code:
+            self.join_code = get_random_string(10)
         super().save(*args, **kwargs)
 
 

@@ -224,10 +224,15 @@ class DashboardView(LoginRequiredMixin, View):
         
         elif user.is_developer():
             # Для разработчика: последние проекты, где он работал, и доступные задачи
-            my_tasks = Task.objects.filter(
+            # Сначала получаем project_ids до среза
+            tasks_qs = Task.objects.filter(
                 assignee=user,
                 project__company_id__in=company_ids
-            ).select_related("project").order_by("-updated_at")[:5]
+            )
+            project_ids = list(tasks_qs.values_list("project_id", flat=True).distinct())
+            
+            # Теперь получаем последние задачи с срезом
+            my_tasks = tasks_qs.select_related("project").order_by("-updated_at")[:5]
             
             available_tasks = Task.objects.filter(
                 status=Task.Status.TODO,
@@ -236,7 +241,6 @@ class DashboardView(LoginRequiredMixin, View):
             ).select_related("project")[:5]
             
             # Проекты, где разработчик работал
-            project_ids = my_tasks.values_list("project_id", flat=True).distinct()
             recent_projects = Project.objects.filter(
                 id__in=project_ids,
                 company_id__in=company_ids

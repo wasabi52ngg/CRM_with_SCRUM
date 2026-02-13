@@ -1,0 +1,24 @@
+{% extends 'crm/base.html' %}
+{% block title %}Мои компании{% endblock %}
+{% block content %}
+<section class="page-section">
+  <h1 class="page-title">Мои компании</h1>
+  {% if object_list %}
+    <div class="card-list">
+      {% for company in object_list %}
+      <article class="card">
+        <h2 class="card-title">
+          <a href="{% url 'crm:company_detail' slug=company.slug %}">{{ company.name }}</a>
+        </h2>
+        {% if company.description %}
+        <p class="card-text">{{ company.description }}</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>Вы ещё не состоите ни в одной компании. Зарегистрируйте компанию через раздел «Регистрация компании».</p>
+  {% endif %}
+</section>
+{% endblock %}
+

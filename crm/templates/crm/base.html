@@ -19,16 +19,15 @@
         {% if user.is_authenticated %}
           {% if user.is_manager %}
             <li><a href="{% url 'crm:manager_request_list' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'manager_request_list' or request.resolver_match.url_name == 'manager_request_detail' or request.resolver_match.url_name == 'manager_project_detail' or request.resolver_match.url_name == 'kanban_board' %} active{% endif %}" data-radix-collection-item><span>Заявки</span></a></li>
+            <li><a href="{% url 'crm:company_list' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'company_list' or request.resolver_match.url_name == 'company_detail' %} active{% endif %}" data-radix-collection-item><span>Мои компании</span></a></li>
             <li><a href="{% url 'crm:dashboard' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}" data-radix-collection-item><span>Дашборд</span></a></li>
           {% elif user.is_developer %}
             <li><a href="{% url 'crm:dev_open_tasks' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'dev_open_tasks' or request.resolver_match.url_name == 'dev_take_task' %} active{% endif %}" data-radix-collection-item><span>Задачи</span></a></li>
+            <li><a href="{% url 'crm:company_list' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'company_list' or request.resolver_match.url_name == 'company_detail' %} active{% endif %}" data-radix-collection-item><span>Мои компании</span></a></li>
             <li><a href="{% url 'crm:dashboard' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}" data-radix-collection-item><span>Дашборд</span></a></li>
           {% else %}
             <li><a href="{% url 'crm:client_requests' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'client_requests' or request.resolver_match.url_name == 'client_request_detail' %} active{% endif %}" data-radix-collection-item><span>Мои заявки</span></a></li>
-            <li><a href="{% url 'crm:public_request' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'public_request' %} active{% endif %}" data-radix-collection-item><span>Оставить заявку</span></a></li>
           {% endif %}
-        {% else %}
-          <li><a href="{% url 'crm:public_request' %}" class="styles_navLink___VcW8{% if request.resolver_match.url_name == 'public_request' %} active{% endif %}" data-radix-collection-item><span>Оставить заявку</span></a></li>
         {% endif %}
       </ul>
     </nav>

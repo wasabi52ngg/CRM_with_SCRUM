@@ -14,7 +14,7 @@
       <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
     </svg>
     <span>Новые возможности в разработке: Agile-методология для IT-команд</span>
-    <a href="/request/">Узнать больше →</a>
+    <a href="{% url 'accounts:register_company' %}">Подключить компанию →</a>
   </div>
 </div>
 
@@ -35,9 +35,8 @@
     <div class="hero-buttons">
       {% if user.is_authenticated and user.is_client %}
         <a href="{% url 'crm:client_requests' %}" class="cta-button">Мои заявки →</a>
-        <a href="{% url 'crm:public_request' %}" class="cta-button secondary">Оставить заявку</a>
       {% else %}
-        <a href="{% url 'crm:public_request' %}" class="cta-button">Обсудить проект →</a>
+        <a href="{% url 'accounts:register_company' %}" class="cta-button">Подключить компанию →</a>
       {% endif %}
     </div>
   </div>
@@ -117,7 +116,7 @@
           <h2>Упростите требования по безопасности и соответствию при запуске IT-продукта</h2>
         </div>
         <p>Улучшите время выхода вашего продукта на рынок с месяцев до дней, используя нашу систему для управления задачами, хранения данных проектов с минимальным влиянием на соответствие методологиям, и даже раскрытия деталей проектов пользователям.</p>
-        <a href="/request/" class="learn-more">Узнать больше →</a>
+        <a href="{% url 'accounts:register_company' %}" class="learn-more">Узнать больше →</a>
         <div class="solution-visual">
           <div class="mockup-cards">
             <div class="mockup-card">CRM</div>
@@ -133,7 +132,7 @@
           <h2>Улучшите затраты на разработку и глобальное покрытие с многопроцессорной настройкой</h2>
         </div>
         <p>Избегайте блокировки поставщика процессора разработки, оптимизируйте затраты на разработку и показатели принятия, выборочно маршрутизируя задачи различным командам разработчиков.</p>
-        <a href="/request/" class="learn-more">Узнать больше →</a>
+        <a href="{% url 'accounts:register_company' %}" class="learn-more">Узнать больше →</a>
         <div class="solution-visual">
           <div class="tech-logos">
             <div class="tech-logo">React</div>
@@ -168,19 +167,18 @@
           </div>
         {% else %}
           <h2>Готовы начать?</h2>
-          <p>Обсудим ваш проект и создадим что-то выдающееся вместе</p>
+          <p>Перейдите к вашим заявкам или свяжитесь с компанией, которая выдала вам ссылку на систему</p>
           <div class="cta-buttons">
-            <a href="{% url 'crm:public_request' %}" class="cta-button primary">Оставить заявку</a>
-            <a href="{% url 'crm:client_requests' %}" class="cta-button secondary">Мои заявки</a>
+            <a href="{% url 'crm:client_requests' %}" class="cta-button primary">Мои заявки</a>
           </div>
         {% endif %}
       {% else %}
         <h2>Готовы начать?</h2>
-        <p>Обсудим ваш проект и создадим что-то выдающееся вместе</p>
+        <p>Подключите вашу IT-компанию и начните управлять проектами в единой системе</p>
         <div class="cta-buttons">
-          <a href="{% url 'crm:public_request' %}" class="cta-button primary">Оставить заявку</a>
+          <a href="{% url 'accounts:register_company' %}" class="cta-button primary">Регистрация компании</a>
           <a href="{% url 'accounts:login' %}" class="cta-button secondary">Войти</a>
-          <a href="{% url 'accounts:register' %}" class="cta-button secondary">Регистрация</a>
+          <a href="{% url 'accounts:register' %}" class="cta-button secondary">Регистрация пользователя</a>
         </div>
       {% endif %}
     </div>

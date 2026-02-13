@@ -15,6 +15,8 @@ from .views import (
     ClientRequestListView,
     ClientRequestDetailView,
     RequestCheckpointApiView,
+    CompanyListView,
+    CompanyDetailView,
 )
 
 
@@ -44,6 +46,9 @@ urlpatterns = [
     # Developer area
     path("dev/open/", DeveloperOpenTasksView.as_view(), name="dev_open_tasks"),
     path("dev/take/<int:pk>/", DeveloperTakeTaskView.as_view(), name="dev_take_task"),
+    # Companies
+    path("companies/", CompanyListView.as_view(), name="company_list"),
+    path("companies/<slug:slug>/", CompanyDetailView.as_view(), name="company_detail"),
 ]
 
 

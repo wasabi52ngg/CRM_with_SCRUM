@@ -11,6 +11,7 @@ from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginR
 from accounts.models import User
 from .models import Company, CompanyMembership, ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
 from .models import Message
+from .forms import CompanyMemberAddForm
 
 
 def _get_user_company_ids(user: User) -> list[int]:
@@ -213,6 +214,77 @@ class DashboardRedirectView(LoginRequiredMixin, View):
 class LandingView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
         return render(request, "crm/landing.html")
+
+
+class CompanyListView(LoginRequiredMixin, ListView):
+    """
+    Список компаний, в которых состоит текущий пользователь.
+    """
+
+    model = Company
+    template_name = "crm/company_list.html"
+
+    def get_queryset(self):
+        company_ids = _get_user_company_ids(self.request.user)
+        return Company.objects.filter(id__in=company_ids).order_by("name")
+
+
+class CompanyDetailView(LoginRequiredMixin, DetailView):
+    """
+    Страница настроек компании: участники и публичные ссылки для клиентов.
+    """
+
+    model = Company
+    template_name = "crm/company_detail.html"
+
+    def get_queryset(self):
+        company_ids = _get_user_company_ids(self.request.user)
+        return Company.objects.filter(id__in=company_ids)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        company: Company = self.object
+        request = self.request
+
+        # Публичные ссылки для клиентов
+        slug_url = request.build_absolute_uri(
+            reverse("crm:public_request_by_slug", args=[company.slug])
+        )
+        token_url = request.build_absolute_uri(
+            reverse("crm:public_request_by_token", args=[company.public_token])
+        )
+
+        ctx["memberships"] = company.memberships.select_related("user").order_by("user__username")
+        ctx["public_slug_url"] = slug_url
+        ctx["public_token_url"] = token_url
+
+        # Форма добавления участника доступна только владельцам компании
+        is_owner = company.memberships.filter(
+            user=request.user, role=CompanyMembership.Role.OWNER
+        ).exists()
+        ctx["is_owner"] = is_owner
+        if is_owner:
+            ctx["member_form"] = CompanyMemberAddForm(company=company)
+        return ctx
+
+    def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        self.object = self.get_object()
+        company: Company = self.object
+
+        # Разрешаем изменять участников только владельцам
+        if not company.memberships.filter(
+            user=request.user, role=CompanyMembership.Role.OWNER
+        ).exists():
+            return redirect("crm:company_detail", slug=company.slug)
+
+        form = CompanyMemberAddForm(request.POST, company=company)
+        if form.is_valid():
+            form.save()
+            return redirect("crm:company_detail", slug=company.slug)
+
+        ctx = self.get_context_data()
+        ctx["member_form"] = form
+        return render(request, self.template_name, ctx)
 
 
 class ClientRequestListView(ClientRequiredMixin, ListView):

@@ -1,0 +1,68 @@
+{% extends 'crm/base.html' %}
+{% block title %}Компания: {{ object.name }}{% endblock %}
+{% block content %}
+<section class="page-section">
+  <h1 class="page-title">{{ object.name }}</h1>
+  {% if object.description %}
+  <p class="muted-text">{{ object.description }}</p>
+  {% endif %}
+
+  <div class="grid-2">
+    <div>
+      <h2>Публичные ссылки для клиентов</h2>
+      <p class="muted-text">
+        Отправьте одну из ссылок вашим клиентам, чтобы они могли оставить заявку. Все заявки сразу попадут в эту компанию.
+      </p>
+      <div class="card">
+        <p><strong>По slug:</strong><br><code>{{ public_slug_url }}</code></p>
+        <p><strong>По токену:</strong><br><code>{{ public_token_url }}</code></p>
+      </div>
+    </div>
+
+    <div>
+      <h2>Участники компании</h2>
+      <div class="card">
+        {% if memberships %}
+          <ul class="plain-list">
+            {% for m in memberships %}
+            <li>
+              <strong>{{ m.user.username }}</strong>
+              {% if m.user.first_name or m.user.last_name %}
+                ({{ m.user.first_name }} {{ m.user.last_name }})
+              {% endif %}
+              — {{ m.get_role_display }}
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted-text">Участников пока нет.</p>
+        {% endif %}
+      </div>
+
+      {% if is_owner %}
+      <h3>Добавить / изменить участника</h3>
+      <form method="post" class="auth-form">
+        {% csrf_token %}
+        {% for field in member_form %}
+        <div class="input-box">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}
+          <div class="field-errors">
+            <ul>
+              {% for error in field.errors %}
+              <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn">Сохранить</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+

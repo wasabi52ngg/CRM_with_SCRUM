@@ -1,0 +1,236 @@
+{% extends 'crm/base.html' %}
+{% load static %}
+{% block title %}Дашборд - Разработчик{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+<style>
+.dashboard-header {
+    margin-bottom: 32px;
+}
+
+.dashboard-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+.dashboard-header p {
+    color: var(--muted);
+    font-size: 15px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.dashboard-section {
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.project-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    transition: all 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.project-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    border-color: var(--primary);
+}
+
+.project-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.project-card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.project-card-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+}
+
+.task-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.task-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.task-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.task-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+}
+
+.task-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+}
+
+.task-meta {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+    background: var(--card);
+    border-radius: 12px;
+    border: 1px dashed var(--border);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+    <h1>Добро пожаловать, {{ user.first_name|default:user.username }}!</h1>
+    <p>Ваши задачи и проекты</p>
+</div>
+
+<div class="dashboard-section">
+    <h2 class="section-title">
+        <span>📁</span>
+        Проекты, над которыми вы работали
+    </h2>
+    {% if recent_projects %}
+    <div class="dashboard-grid">
+        {% for project in recent_projects %}
+        <a href="{% url 'crm:manager_project_detail' project.pk %}" class="project-card">
+            <div class="project-card-header">
+                <h3 class="project-card-title">{{ project.name }}</h3>
+            </div>
+            {% if project.description %}
+            <p class="project-card-meta">{{ project.description|truncatewords:15 }}</p>
+            {% endif %}
+            <div class="project-card-meta">
+                Обновлён: {{ project.updated_at|date:"d.m.Y H:i" }}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📁</div>
+        <p>Вы ещё не работали над проектами</p>
+        <a href="{% url 'crm:dev_open_tasks' %}" class="btn" style="margin-top: 16px; display: inline-block;">Посмотреть доступные задачи</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="dashboard-section">
+    <h2 class="section-title">
+        <span>✅</span>
+        Мои задачи
+    </h2>
+    {% if my_tasks %}
+    <div>
+        {% for task in my_tasks %}
+        <a href="{% url 'crm:dev_open_tasks' %}" class="task-card">
+            <div class="task-card-header">
+                <h3 class="task-card-title">{{ task.title }}</h3>
+                <span class="task-badge">{{ task.get_task_type_display }}</span>
+            </div>
+            <div class="task-meta">
+                Проект: {{ task.project.name }} • {{ task.get_status_display }}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <div style="margin-top: 16px;">
+        <a href="{% url 'crm:dev_open_tasks' %}" class="btn">Все задачи →</a>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">📝</div>
+        <p>У вас нет активных задач</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if available_tasks %}
+<div class="dashboard-section">
+    <h2 class="section-title">
+        <span>🎯</span>
+        Доступные задачи
+    </h2>
+    <div>
+        {% for task in available_tasks %}
+        <a href="{% url 'crm:dev_open_tasks' %}" class="task-card">
+            <div class="task-card-header">
+                <h3 class="task-card-title">{{ task.title }}</h3>
+                <span class="task-badge">{{ task.get_task_type_display }}</span>
+            </div>
+            <div class="task-meta">
+                Проект: {{ task.project.name }}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <div style="margin-top: 16px;">
+        <a href="{% url 'crm:dev_open_tasks' %}" class="btn">Посмотреть все →</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

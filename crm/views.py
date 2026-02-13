@@ -201,18 +201,64 @@ class DeveloperTakeTaskView(DeveloperRequiredMixin, View):
         return redirect("crm:dev_open_tasks")
 
 
-class DashboardRedirectView(LoginRequiredMixin, View):
+class DashboardView(LoginRequiredMixin, View):
+    """
+    Дашборд для авторизованных пользователей.
+    Показывает последние проекты и релевантную информацию в зависимости от роли.
+    """
+    
     def get(self, request: HttpRequest) -> HttpResponse:
         user: User = request.user
+        company_ids = _get_user_company_ids(user)
+        ctx = {}
+        
         if user.is_manager():
-            return redirect("crm:manager_request_list")
-        if user.is_developer():
-            return redirect("crm:dev_open_tasks")
-        return redirect("crm:client_requests")
+            # Для менеджера: последние проекты и заявки
+            projects = Project.objects.filter(company_id__in=company_ids).order_by("-updated_at")[:6]
+            requests = ClientRequest.objects.filter(company_id__in=company_ids).order_by("-created_at")[:5]
+            ctx.update({
+                "recent_projects": projects,
+                "recent_requests": requests,
+            })
+            return render(request, "crm/dashboard_manager.html", ctx)
+        
+        elif user.is_developer():
+            # Для разработчика: последние проекты, где он работал, и доступные задачи
+            my_tasks = Task.objects.filter(
+                assignee=user,
+                project__company_id__in=company_ids
+            ).select_related("project").order_by("-updated_at")[:5]
+            
+            available_tasks = Task.objects.filter(
+                status=Task.Status.TODO,
+                assignee__isnull=True,
+                project__company_id__in=company_ids
+            ).select_related("project")[:5]
+            
+            # Проекты, где разработчик работал
+            project_ids = my_tasks.values_list("project_id", flat=True).distinct()
+            recent_projects = Project.objects.filter(
+                id__in=project_ids,
+                company_id__in=company_ids
+            ).order_by("-updated_at")[:6]
+            
+            ctx.update({
+                "recent_projects": recent_projects,
+                "my_tasks": my_tasks,
+                "available_tasks": available_tasks,
+            })
+            return render(request, "crm/dashboard_developer.html", ctx)
+        
+        else:
+            # Для клиента: его заявки
+            return redirect("crm:client_requests")
 
 
 class LandingView(View):
     def get(self, request: HttpRequest) -> HttpResponse:
+        # Если пользователь авторизован, редиректим на дашборд
+        if request.user.is_authenticated:
+            return redirect("crm:dashboard")
         return render(request, "crm/landing.html")
 
 

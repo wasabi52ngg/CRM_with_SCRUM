@@ -7,7 +7,7 @@ from .views import (
     ManagerProjectDetailView,
     DeveloperOpenTasksView,
     DeveloperTakeTaskView,
-    DashboardRedirectView,
+    DashboardView,
     KanbanBoardView,
     KanbanMoveApiView,
     TaskPanelApiView,
@@ -30,7 +30,7 @@ urlpatterns = [
     # Client portal
     path("client/requests/", ClientRequestListView.as_view(), name="client_requests"),
     path("client/requests/<int:pk>/", ClientRequestDetailView.as_view(), name="client_request_detail"),
-    path("dashboard/", DashboardRedirectView.as_view(), name="dashboard"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
     # Manager area
     path("manager/requests/", ManagerRequestListView.as_view(), name="manager_request_list"),
     path("manager/requests/<int:pk>/", ManagerRequestDetailView.as_view(), name="manager_request_detail"),

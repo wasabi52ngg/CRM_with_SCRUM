@@ -9,24 +9,43 @@ from django.utils.decorators import method_decorator
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
 from accounts.models import User
-from .models import ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
+from .models import Company, ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
 from .models import Message
 
 
 class PublicRequestView(View):
-    def get(self, request: HttpRequest) -> HttpResponse:
-        return render(request, "crm/public_request.html")
+    """
+    Публичная форма оставления заявки для конкретной компании.
+    Доступ по ссылке вида /request/<company_slug>/ или по токену.
+    """
 
-    def post(self, request: HttpRequest) -> HttpResponse:
+    def get_company(self, *, company_slug: str | None = None, token: str | None = None) -> Company:
+        if company_slug:
+            return get_object_or_404(Company, slug=company_slug)
+        if token:
+            return get_object_or_404(Company, public_token=token)
+        # Для совместимости можно показывать первую компанию, но в дипломе
+        # этот случай лучше явно не использовать.
+        return get_object_or_404(Company.objects.order_by("id"))
+
+    def get(self, request: HttpRequest, company_slug: str | None = None, token: str | None = None) -> HttpResponse:
+        company = self.get_company(company_slug=company_slug, token=token)
+        ctx = {"company": company}
+        return render(request, "crm/public_request.html", ctx)
+
+    def post(self, request: HttpRequest, company_slug: str | None = None, token: str | None = None) -> HttpResponse:
+        company = self.get_company(company_slug=company_slug, token=token)
         data = request.POST
         ClientRequest.objects.create(
+            company=company,
             project_type=data.get("project_type"),
             title=data.get("title", ""),
             description=data.get("description", ""),
             contact_email=data.get("contact_email", ""),
             contact_telegram=data.get("contact_telegram", ""),
         )
-        return render(request, "crm/public_request_success.html")
+        ctx = {"company": company}
+        return render(request, "crm/public_request_success.html", ctx)
 
 
 class ManagerRequestListView(ManagerRequiredMixin, ListView):

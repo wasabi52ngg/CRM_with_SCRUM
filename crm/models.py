@@ -1,5 +1,86 @@
 from django.db import models
 from django.conf import settings
+from django.utils.crypto import get_random_string
+
+
+class Company(models.Model):
+    """
+    Компания‑арендатор системы (аналог организации в Jira).
+    Все проекты, заявки и задачи принадлежат конкретной компании.
+    """
+
+    name = models.CharField("Название компании", max_length=255)
+    slug = models.SlugField(
+        "Слаг компании",
+        max_length=64,
+        unique=True,
+        help_text="Короткий идентификатор компании в URL",
+    )
+    description = models.TextField("Описание", blank=True)
+    public_token = models.CharField(
+        "Токен публичной формы",
+        max_length=32,
+        unique=True,
+        editable=False,
+        help_text="Используется в публичной ссылке для заявок клиентов",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Компания"
+        verbose_name_plural = "Компании"
+
+    def __str__(self) -> str:
+        return self.name
+
+    def save(self, *args, **kwargs):
+        # Генерируем токен для публичной формы один раз
+        if not self.public_token:
+            self.public_token = get_random_string(24)
+        super().save(*args, **kwargs)
+
+
+class CompanyMembership(models.Model):
+    """
+    Принадлежность пользователя к компании и его роль внутри неё.
+    Это основа мульти‑тенантной модели (несколько компаний в одной системе).
+    """
+
+    class Role(models.TextChoices):
+        OWNER = "owner", "Владелец организации"
+        PRODUCT_OWNER = "product_owner", "Владелец продукта"
+        SCRUM_MASTER = "scrum_master", "Scrum-мастер"
+        MANAGER = "manager", "Менеджер проектов"
+        DEVELOPER = "developer", "Разработчик"
+
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+        verbose_name="Компания",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="company_memberships",
+        verbose_name="Пользователь",
+    )
+    role = models.CharField(
+        "Роль в компании",
+        max_length=32,
+        choices=Role.choices,
+        default=Role.DEVELOPER,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Участник компании"
+        verbose_name_plural = "Участники компаний"
+        unique_together = ("company", "user")
+
+    def __str__(self) -> str:
+        return f"{self.user} @ {self.company} ({self.get_role_display()})"
 
 
 class ClientRequest(models.Model):
@@ -14,6 +95,14 @@ class ClientRequest(models.Model):
         IN_PROGRESS = "in_progress", "В работе"
         DONE = "done", "Завершена"
 
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="client_requests",
+        null=True,
+        blank=True,
+        help_text="Компания, для которой оставлена заявка",
+    )
     project_type = models.CharField(max_length=20, choices=ProjectType.choices)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -34,7 +123,22 @@ class ClientRequest(models.Model):
 
 
 class Project(models.Model):
-    client_request = models.OneToOneField(ClientRequest, on_delete=models.CASCADE, related_name="project")
+    company = models.ForeignKey(
+        Company,
+        on_delete=models.CASCADE,
+        related_name="projects",
+        null=True,
+        blank=True,
+        help_text="Компания‑владелец проекта",
+    )
+    client_request = models.OneToOneField(
+        ClientRequest,
+        on_delete=models.CASCADE,
+        related_name="project",
+        null=True,
+        blank=True,
+        help_text="Исходная клиентская заявка (если проект создан по заявке)",
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     is_archived = models.BooleanField(default=False)

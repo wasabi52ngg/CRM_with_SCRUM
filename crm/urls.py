@@ -22,7 +22,9 @@ app_name = "crm"
 
 urlpatterns = [
     path("", LandingView.as_view(), name="landing"),
-    path("request/", PublicRequestView.as_view(), name="public_request"),
+    # Публичные заявки клиентов: компания может отдавать ссылку по слагу или токену
+    path("request/<slug:company_slug>/", PublicRequestView.as_view(), name="public_request_by_slug"),
+    path("r/<str:token>/", PublicRequestView.as_view(), name="public_request_by_token"),
     # Client portal
     path("client/requests/", ClientRequestListView.as_view(), name="client_requests"),
     path("client/requests/<int:pk>/", ClientRequestDetailView.as_view(), name="client_request_detail"),

@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordChangeForm
 from django import forms
 from .CustomWidgets import CustomClearableFileInput
+from crm.models import Company, CompanyMembership
 
 
 class LoginUserForm(AuthenticationForm):
@@ -14,7 +15,7 @@ class LoginUserForm(AuthenticationForm):
 
 
 class RegisterUserForm(UserCreationForm):
-    """Форма регистрации пользователя"""
+    """Форма регистрации пользователя (клиент / обычный пользователь)"""
     username = forms.CharField(label='Логин')
     email = forms.EmailField(label='E-mail')
     first_name = forms.CharField(label='Имя')
@@ -36,11 +37,101 @@ class RegisterUserForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Устанавливаем роль по умолчанию
+        # Устанавливаем роль по умолчанию для обычного зарегистрированного пользователя
         user.role = get_user_model().Role.CLIENT
         user.developer_type = get_user_model().DeveloperType.NONE
         if commit:
             user.save()
+        return user
+
+
+class CompanyRegisterForm(UserCreationForm):
+    """
+    Регистрация компании и первого пользователя‑владельца.
+    Это основной вход в систему для IT‑компаний (аналог создания организации в Jira).
+    """
+
+    # Поля пользователя
+    username = forms.CharField(label='Логин')
+    email = forms.EmailField(label='E-mail')
+    first_name = forms.CharField(label='Имя')
+    last_name = forms.CharField(label='Фамилия')
+    phone = forms.CharField(label='Телефон')
+    photo = forms.ImageField(label='Фото', required=False)
+    password1 = forms.CharField(label='Пароль', widget=forms.PasswordInput())
+    password2 = forms.CharField(label='Повторите пароль', widget=forms.PasswordInput())
+
+    # Поля компании
+    company_name = forms.CharField(label='Название компании')
+    company_slug = forms.SlugField(
+        label='Короткий идентификатор (slug)',
+        help_text='Используется в ссылке для клиентов, только латиница, цифры и дефис',
+    )
+    company_description = forms.CharField(
+        label='Описание компании',
+        widget=forms.Textarea(attrs={'rows': 3}),
+        required=False,
+    )
+
+    class Meta:
+        model = get_user_model()
+        fields = [
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'phone',
+            'photo',
+            'password1',
+            'password2',
+            'company_name',
+            'company_slug',
+            'company_description',
+        ]
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if get_user_model().objects.filter(email=email).exists():
+            raise forms.ValidationError('Такая почта уже существует')
+        return email
+
+    def clean_company_slug(self):
+        slug = self.cleaned_data['company_slug']
+        if Company.objects.filter(slug=slug).exists():
+            raise forms.ValidationError('Компания с таким идентификатором уже существует')
+        return slug
+
+    def save(self, commit=True):
+        """
+        Создаёт:
+        - компанию;
+        - пользователя с ролью MANAGER;
+        - запись CompanyMembership с ролью OWNER.
+        """
+        UserModel = get_user_model()
+        user = super().save(commit=False)
+        user.role = UserModel.Role.MANAGER
+        user.developer_type = UserModel.DeveloperType.NONE
+
+        company = Company(
+            name=self.cleaned_data['company_name'],
+            slug=self.cleaned_data['company_slug'],
+            description=self.cleaned_data.get('company_description', ''),
+        )
+
+        if commit:
+            company.save()
+            user.save()
+            CompanyMembership.objects.create(
+                company=company,
+                user=user,
+                role=CompanyMembership.Role.OWNER,
+            )
+        else:
+            # В дипломном проекте commit=False практически не используется,
+            # но для корректности оставляем вариант без сохранения.
+            self._company_instance = company
+
         return user
 
 

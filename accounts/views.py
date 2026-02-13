@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.views import View
 from django.views.generic import CreateView, UpdateView
-from .forms import RegisterUserForm, LoginUserForm, ProfileUserForm, UserPasswordChangeForm
+from .forms import RegisterUserForm, LoginUserForm, ProfileUserForm, UserPasswordChangeForm, CompanyRegisterForm
 from .models import User
 
 
@@ -28,10 +28,23 @@ def logout_user(request):
 
 
 class RegisterUser(CreateView):
-    """Представление для регистрации"""
+    """Регистрация обычного пользователя (клиента и т.п.)"""
+
     form_class = RegisterUserForm
     template_name = 'accounts/register.html'
     extra_context = {'title': 'Регистрация'}
+    success_url = reverse_lazy('accounts:login')
+
+
+class CompanyRegisterView(CreateView):
+    """
+    Регистрация компании и первого владельца.
+    Это основной вход для IT‑компаний, которые будут вести проекты в системе.
+    """
+
+    form_class = CompanyRegisterForm
+    template_name = 'accounts/register_company.html'
+    extra_context = {'title': 'Регистрация компании'}
     success_url = reverse_lazy('accounts:login')
 
 

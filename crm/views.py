@@ -9,8 +9,18 @@ from django.utils.decorators import method_decorator
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
 from accounts.models import User
-from .models import Company, ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
+from .models import Company, CompanyMembership, ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
 from .models import Message
+
+
+def _get_user_company_ids(user: User) -> list[int]:
+    """
+    Вспомогательная функция: возвращает список id компаний, в которых состоит пользователь.
+    Используется для фильтрации объектов по компании (мульти‑тенантность).
+    """
+    if not user.is_authenticated:
+        return []
+    return list(user.company_memberships.values_list("company_id", flat=True))
 
 
 class PublicRequestView(View):
@@ -54,6 +64,13 @@ class ManagerRequestListView(ManagerRequiredMixin, ListView):
     paginate_by = 20
     ordering = ["-created_at"]
 
+    def get_queryset(self):
+        company_ids = _get_user_company_ids(self.request.user)
+        qs = super().get_queryset()
+        if company_ids:
+            qs = qs.filter(company_id__in=company_ids)
+        return qs
+
 
 class ManagerRequestDetailView(ManagerRequiredMixin, DetailView):
     model = ClientRequest
@@ -82,7 +99,11 @@ class ManagerRequestDetailView(ManagerRequiredMixin, DetailView):
             client_request.save()
             Project.objects.get_or_create(
                 client_request=client_request,
-                defaults={"name": client_request.title, "description": client_request.description},
+                defaults={
+                    "name": client_request.title,
+                    "description": client_request.description,
+                    "company": client_request.company,
+                },
             )
         return redirect("crm:manager_request_detail", pk=client_request.pk)
 
@@ -90,6 +111,13 @@ class ManagerRequestDetailView(ManagerRequiredMixin, DetailView):
 class ManagerProjectDetailView(ManagerRequiredMixin, DetailView):
     model = Project
     template_name = "crm/manager/project_detail.html"
+
+    def get_queryset(self):
+        company_ids = _get_user_company_ids(self.request.user)
+        qs = super().get_queryset()
+        if company_ids:
+            qs = qs.filter(company_id__in=company_ids)
+        return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -145,11 +173,19 @@ class DeveloperOpenTasksView(DeveloperRequiredMixin, ListView):
             dev_types = [User.DeveloperType.FRONTEND, User.DeveloperType.BACKEND, User.DeveloperType.FULLSTACK]
         else:
             dev_types = [user.developer_type]
-        return (
-            Task.objects.filter(status=Task.Status.TODO, assignee__isnull=True, task_type__in=dev_types)
-            .select_related("project")
-            .order_by("project__created_at")
-        )
+
+        company_ids = _get_user_company_ids(user)
+
+        qs = Task.objects.filter(
+            status=Task.Status.TODO,
+            assignee__isnull=True,
+            task_type__in=dev_types,
+        ).select_related("project")
+
+        if company_ids:
+            qs = qs.filter(project__company_id__in=company_ids)
+
+        return qs.order_by("project__created_at")
 
 
 class DeveloperTakeTaskView(DeveloperRequiredMixin, View):

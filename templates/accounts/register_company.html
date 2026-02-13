@@ -1,0 +1,47 @@
+{% extends 'crm/base.html' %}
+{% load static %}
+{% block title %}Регистрация компании - IT Project Manager{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+{% endblock %}
+{% block content %}
+<div class="auth-container">
+    <h1>Регистрация компании</h1>
+    <form action="{% url 'accounts:register_company' %}" method="post" enctype="multipart/form-data" class="auth-form" autocomplete="on">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="form-error-box">
+            <ul>
+                {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% for field in form %}
+        <div class="input-box">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+            <div class="phone-hint">{{ field.help_text }}</div>
+            {% endif %}
+            {% if field.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn">Создать компанию</button>
+        <p>Уже есть аккаунт? <a href="{% url 'accounts:login' %}" style="color: var(--primary);">Войти</a></p>
+    </form>
+</div>
+{% endblock %}
+

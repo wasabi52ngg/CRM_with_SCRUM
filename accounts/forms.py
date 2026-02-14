@@ -15,19 +15,41 @@ class LoginUserForm(AuthenticationForm):
 
 
 class RegisterUserForm(UserCreationForm):
-    """Форма регистрации пользователя (клиент / обычный пользователь)"""
+    """
+    Форма регистрации пользователя.
+    Пользователь выбирает: сотрудник или клиент.
+    Если сотрудник - нужен код компании, создаётся запрос на участие.
+    """
+    USER_TYPE_CHOICES = [
+        ('employee', 'Сотрудник'),
+        ('client', 'Клиент'),
+    ]
+    
     username = forms.CharField(label='Логин')
     email = forms.EmailField(label='E-mail')
     first_name = forms.CharField(label='Имя')
     last_name = forms.CharField(label='Фамилия')
     phone = forms.CharField(label='Телефон')
     photo = forms.ImageField(label='Фото', required=False)
+    user_type = forms.ChoiceField(
+        label='Тип пользователя',
+        choices=USER_TYPE_CHOICES,
+        widget=forms.RadioSelect,
+        initial='client',
+        help_text='Выберите, регистрируетесь ли вы как сотрудник компании или как клиент',
+    )
+    company_code = forms.CharField(
+        label='Код компании',
+        max_length=16,
+        help_text='Введите секретный код компании, который вам предоставил администратор',
+        required=False,
+    )
     password1 = forms.CharField(label='Пароль', widget=forms.PasswordInput())
     password2 = forms.CharField(label='Повторите пароль', widget=forms.PasswordInput())
 
     class Meta:
         model = get_user_model()
-        fields = ['username', 'email', 'first_name', 'last_name', 'phone', 'photo', 'password1', 'password2']
+        fields = ['username', 'email', 'first_name', 'last_name', 'phone', 'photo', 'user_type', 'company_code', 'password1', 'password2']
 
     def clean_email(self):
         email = self.cleaned_data['email']
@@ -35,13 +57,52 @@ class RegisterUserForm(UserCreationForm):
             raise forms.ValidationError('Такая почта уже существует')
         return email
 
+    def clean(self):
+        cleaned_data = super().clean()
+        user_type = cleaned_data.get('user_type')
+        company_code = cleaned_data.get('company_code', '').strip()
+        
+        # Если выбран сотрудник, код компании обязателен
+        if user_type == 'employee' and not company_code:
+            raise forms.ValidationError({
+                'company_code': 'Для регистрации сотрудника необходимо указать код компании'
+            })
+        
+        # Если указан код компании, проверяем его существование
+        if company_code:
+            if not Company.objects.filter(join_code=company_code).exists():
+                raise forms.ValidationError({
+                    'company_code': 'Компания с таким кодом не найдена'
+                })
+        
+        return cleaned_data
+
     def save(self, commit=True):
         user = super().save(commit=False)
-        # Устанавливаем роль по умолчанию для обычного зарегистрированного пользователя
-        user.role = get_user_model().Role.CLIENT
+        user_type = self.cleaned_data.get('user_type')
+        company_code = self.cleaned_data.get('company_code', '').strip()
+        
+        # Устанавливаем роль в зависимости от типа пользователя
+        if user_type == 'employee':
+            user.role = get_user_model().Role.DEVELOPER
+        else:
+            user.role = get_user_model().Role.CLIENT
+        
         user.developer_type = get_user_model().DeveloperType.NONE
+        
         if commit:
             user.save()
+            # Если сотрудник с кодом компании, создаём запрос на участие
+            if user_type == 'employee' and company_code:
+                company = Company.objects.get(join_code=company_code)
+                CompanyMembership.objects.create(
+                    company=company,
+                    user=user,
+                    is_manager=False,  # Админ выберет роли при подтверждении
+                    is_developer=False,
+                    is_approved=False,  # Требует подтверждения администратора
+                )
+        
         return user
 
 
@@ -131,7 +192,10 @@ class CompanyRegisterForm(UserCreationForm):
             CompanyMembership.objects.create(
                 company=company,
                 user=user,
-                role=CompanyMembership.Role.OWNER,
+                is_owner=True,  # Владелец компании
+                is_manager=True,  # Владелец имеет все права
+                is_developer=True,
+                is_approved=True,  # Владелец автоматически подтверждён
             )
         else:
             # В дипломном проекте commit=False практически не используется,

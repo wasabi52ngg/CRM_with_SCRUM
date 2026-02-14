@@ -8,10 +8,10 @@
     max-width: 450px;
     margin: 60px auto;
     padding: var(--token-32);
-    background: var(--card);
+    background: transparent;
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, .1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border: none;
+    box-shadow: none;
 }
 
 .auth-container h1 {
@@ -44,8 +44,8 @@
     width: 100%;
     padding: 12px 14px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, .1);
-    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--border);
+    background: var(--card);
     color: var(--text);
     font-size: var(--font-size-base);
     transition: all 0.3s ease;
@@ -151,7 +151,7 @@
             <a href="{% url 'accounts:password_reset' %}">Забыли пароль?</a>
         </div>
         <button type="submit" class="btn">Войти</button>
-        <p>Нет аккаунта? <a href="{% url 'accounts:register' %}" style="color: var(--primary);">Зарегистрироваться</a></p>
+        <p>Нет аккаунта? <a href="{% url 'accounts:register' %}" style="color: var(--primary);">Регистрация сотрудника</a> | <a href="{% url 'accounts:register_company' %}" style="color: var(--primary);">Регистрация компании</a></p>
     </form>
 </div>
 {% endblock %}

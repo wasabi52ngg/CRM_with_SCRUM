@@ -30,6 +30,8 @@ class Company(models.Model):
         max_length=16,
         unique=True,
         editable=False,
+        null=True,
+        blank=True,
         help_text="Секретный код, который сотрудники вводят при регистрации",
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -54,15 +56,8 @@ class Company(models.Model):
 class CompanyMembership(models.Model):
     """
     Принадлежность пользователя к компании и его роль внутри неё.
-    Это основа мульти‑тенантной модели (несколько компаний в одной системе).
+    Пользователь может быть менеджером, разработчиком или обоими одновременно.
     """
-
-    class Role(models.TextChoices):
-        OWNER = "owner", "Владелец организации"
-        PRODUCT_OWNER = "product_owner", "Владелец продукта"
-        SCRUM_MASTER = "scrum_master", "Scrum-мастер"
-        MANAGER = "manager", "Менеджер проектов"
-        DEVELOPER = "developer", "Разработчик"
 
     company = models.ForeignKey(
         Company,
@@ -76,11 +71,25 @@ class CompanyMembership(models.Model):
         related_name="company_memberships",
         verbose_name="Пользователь",
     )
-    role = models.CharField(
-        "Роль в компании",
-        max_length=32,
-        choices=Role.choices,
-        default=Role.DEVELOPER,
+    is_owner = models.BooleanField(
+        "Владелец компании",
+        default=False,
+        help_text="Администратор компании, имеет полный доступ",
+    )
+    is_manager = models.BooleanField(
+        "Менеджер",
+        default=False,
+        help_text="Может работать с заявками и проектами",
+    )
+    is_developer = models.BooleanField(
+        "Разработчик",
+        default=False,
+        help_text="Может работать с задачами в проектах",
+    )
+    is_approved = models.BooleanField(
+        "Подтверждён администратором",
+        default=False,
+        help_text="Администратор должен подтвердить участие пользователя в компании",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -90,7 +99,15 @@ class CompanyMembership(models.Model):
         unique_together = ("company", "user")
 
     def __str__(self) -> str:
-        return f"{self.user} @ {self.company} ({self.get_role_display()})"
+        roles = []
+        if self.is_owner:
+            roles.append("Владелец")
+        if self.is_manager:
+            roles.append("Менеджер")
+        if self.is_developer:
+            roles.append("Разработчик")
+        role_str = ", ".join(roles) if roles else "Без роли"
+        return f"{self.user} @ {self.company} ({role_str})"
 
 
 class ClientRequest(models.Model):

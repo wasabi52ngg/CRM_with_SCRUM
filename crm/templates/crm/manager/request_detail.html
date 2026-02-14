@@ -29,15 +29,30 @@
         <div class="meta-label">Описание запроса</div>
         <p class="meta-value">{{ object.description|default:"Клиент не оставил подробного описания." }}</p>
       </div>
+      {% if can_take %}
       <form method="post" class="request-actions">
         {% csrf_token %}
-        {% if object.status == object.Status.NEW %}
-          <button name="action" value="to_discuss" type="submit">В обсуждение</button>
-        {% endif %}
-        {% if not object.project %}
-          <button name="action" value="to_work" type="submit">В работу (создать проект)</button>
-        {% endif %}
+        <button name="action" value="take" type="submit" class="btn" style="background: var(--ok);">Взять заявку в работу</button>
       </form>
+      {% elif is_responsible %}
+      <div class="request-actions">
+        <p style="color: var(--ok); margin-bottom: 12px;">Вы являетесь ответственным за эту заявку</p>
+        <form method="post">
+          {% csrf_token %}
+          {% if object.status == object.Status.NEW or object.status == object.Status.DISCUSS %}
+            <button name="action" value="to_discuss" type="submit" class="btn">В обсуждение</button>
+          {% endif %}
+          {% if not object.project %}
+            <button name="action" value="to_work" type="submit" class="btn">В работу (создать проект)</button>
+          {% endif %}
+        </form>
+      </div>
+      {% else %}
+      <div class="request-actions">
+        <p style="color: var(--muted);">Ответственный: <strong>{{ object.manager.username }}</strong></p>
+        <p style="color: var(--muted); font-size: 14px;">Вы можете только просматривать эту заявку</p>
+      </div>
+      {% endif %}
       {% if object.project %}
       <div class="request-project-link">
         <a class="btn" href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a>

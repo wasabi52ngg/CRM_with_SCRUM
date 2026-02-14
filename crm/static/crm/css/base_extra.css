@@ -33,7 +33,7 @@
 
 .site-header .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
 }
 
@@ -100,7 +100,8 @@
 }
 
 .nav-btn.active .nav-btn-icon {
-  filter: brightness(0) invert(1);
+  /* Не применяем фильтр к эмодзи, чтобы сохранить их оригинальные цвета */
+  filter: none;
 }
 
 /* Evervault Navigation Menu */

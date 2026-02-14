@@ -1,0 +1,36 @@
+{% extends "crm/base.html" %}
+{% load static %}
+
+{% block title %}{% if no_company %}Нет компании{% else %}Ожидание подтверждения{% endif %}{% endblock %}
+
+{% block content %}
+<section class="container" style="max-width: 800px; margin: 40px auto; padding: 0 20px;">
+  <div class="card" style="text-align: center; padding: 40px;">
+    {% if no_company %}
+    <div style="font-size: 64px; margin-bottom: 24px;">🏢</div>
+    <h1 style="margin-bottom: 16px;">Вы не состоите ни в одной компании</h1>
+    <p class="muted-text" style="margin-bottom: 24px;">
+      {{ message|default:"Создайте компанию или присоединитесь к существующей." }}
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <a href="{% url 'accounts:register_company' %}" class="btn">Создать компанию</a>
+      <a href="{% url 'accounts:register' %}" class="btn" style="background: var(--secondary);">Присоединиться к компании</a>
+      <a href="{% url 'crm:company_list' %}" class="btn" style="background: var(--secondary);">Список компаний</a>
+    </div>
+    {% else %}
+    <div style="font-size: 64px; margin-bottom: 24px;">⏳</div>
+    <h1 style="margin-bottom: 16px;">Ожидание подтверждения</h1>
+    <p class="muted-text" style="margin-bottom: 24px;">
+      {{ message|default:"Ваша заявка на участие в компании ожидает подтверждения администратором." }}
+    </p>
+    <p class="muted-text" style="margin-bottom: 32px;">
+      После подтверждения вы получите доступ к функциям системы.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center;">
+      <a href="{% url 'crm:dashboard' %}" class="btn">Обновить</a>
+      <a href="{% url 'accounts:profile' %}" class="btn" style="background: var(--secondary);">Профиль</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

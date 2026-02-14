@@ -8,10 +8,10 @@
     max-width: 500px;
     margin: 60px auto;
     padding: var(--token-32);
-    background: var(--card);
+    background: transparent;
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(255, 255, 255, .1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border: none;
+    box-shadow: none;
 }
 
 .auth-container h1 {
@@ -49,8 +49,8 @@
     width: 100%;
     padding: 12px 14px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, .1);
-    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--border);
+    background: var(--card);
     color: var(--text);
     font-size: var(--font-size-base);
     transition: all 0.3s ease;
@@ -108,6 +108,47 @@
     margin: var(--token-16) 0 var(--token-08);
     font-size: var(--font-size-sm);
 }
+
+.user-type-selector {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.user-type-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 14px 20px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.2s;
+    flex: 1;
+    background: var(--card);
+}
+
+.user-type-option:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.user-type-option input[type="radio"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+.user-type-option input[type="radio"]:checked + span {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.user-type-option:has(input[type="radio"]:checked) {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -127,14 +168,34 @@
         {% endif %}
 
         {% for field in form %}
-        <div class="input-box">
+        <div class="input-box" {% if field.name == 'company_code' %}id="company-code-field" style="display: none;"{% endif %}>
             {% if field.label == "Телефон" %}
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             <div class="phone-hint">Формат: "+#-###-###-##-##"</div>
+            {% elif field.name == "user_type" %}
+            <label style="display: block; margin-bottom: 12px; font-weight: 600;">{{ field.label }}</label>
+            <div class="user-type-selector">
+                {% for choice in field %}
+                <label class="user-type-option">
+                    {{ choice.tag }}
+                    <span>{{ choice.choice_label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% if field.help_text %}
+            <div class="phone-hint">{{ field.help_text }}</div>
+            {% endif %}
+            {% elif field.label == "Код компании" %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% if field.help_text %}
+            <div class="phone-hint">{{ field.help_text }}</div>
+            {% endif %}
             {% else %}
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {% endif %}
+            {% if field.name != "user_type" %}
             {{ field }}
+            {% endif %}
             {% if field.errors %}
             <div class="field-errors">
                 <ul>
@@ -146,9 +207,33 @@
             {% endif %}
         </div>
         {% endfor %}
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userTypeInputs = document.querySelectorAll('input[name="user_type"]');
+            const companyCodeField = document.getElementById('company-code-field');
+            
+            function toggleCompanyCode() {
+                const selectedType = document.querySelector('input[name="user_type"]:checked');
+                if (selectedType && selectedType.value === 'employee') {
+                    companyCodeField.style.display = 'block';
+                    companyCodeField.querySelector('input').required = true;
+                } else {
+                    companyCodeField.style.display = 'none';
+                    companyCodeField.querySelector('input').required = false;
+                }
+            }
+            
+            userTypeInputs.forEach(input => {
+                input.addEventListener('change', toggleCompanyCode);
+            });
+            
+            toggleCompanyCode();
+        });
+        </script>
 
         <button type="submit" class="btn">Зарегистрироваться</button>
-        <p>Уже есть аккаунт? <a href="{% url 'accounts:login' %}" style="color: var(--primary);">Войти</a></p>
+        <p>Уже есть аккаунт? <a href="{% url 'accounts:login' %}" style="color: var(--primary);">Войти</a> | <a href="{% url 'accounts:register_company' %}" style="color: var(--primary);">Регистрация компании</a></p>
     </form>
 </div>
 {% endblock %}

@@ -1,6 +1,9 @@
 from django.contrib import admin
 
-from .models import ClientRequest, Project, Sprint, Task, Comment, Attachment, Message
+from .models import (
+    Company, CompanyMembership,
+    ClientRequest, Project, Sprint, Task, Comment, Attachment, Message
+)
 
 
 @admin.register(ClientRequest)
@@ -45,5 +48,22 @@ class AttachmentAdmin(admin.ModelAdmin):
 class MessageAdmin(admin.ModelAdmin):
     list_display = ("request", "author", "created_at")
     search_fields = ("text",)
+
+
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "join_code", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("name", "slug", "description")
+    readonly_fields = ("public_token", "join_code", "created_at", "updated_at")
+
+
+@admin.register(CompanyMembership)
+class CompanyMembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "company", "is_owner", "is_manager", "is_developer", "is_approved", "created_at")
+    list_filter = ("is_owner", "is_manager", "is_developer", "is_approved", "company", "created_at")
+    search_fields = ("user__username", "user__email", "company__name")
+    list_editable = ("is_manager", "is_developer", "is_approved")
+    readonly_fields = ("created_at", "is_owner")  # is_owner нельзя редактировать напрямую, только через создание компании
 
 # Register your models here.

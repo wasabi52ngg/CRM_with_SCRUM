@@ -5,20 +5,31 @@
 <table>
     <thead>
     <tr>
-        <th>Дата</th><th>Название</th><th>Тип</th><th>Статус</th><th>Менеджер</th>
+        <th>Дата</th><th>Название</th><th>Тип</th><th>Статус</th><th>Ответственный</th><th>Действия</th>
     </tr>
     </thead>
     <tbody>
     {% for r in object_list %}
         <tr>
-            <td>{{ r.created_at }}</td>
+            <td>{{ r.created_at|date:"d.m.Y H:i" }}</td>
             <td><a href="{% url 'crm:manager_request_detail' r.pk %}">{{ r.title }}</a></td>
             <td>{{ r.get_project_type_display }}</td>
             <td>{{ r.get_status_display }}</td>
-            <td>{{ r.manager }}</td>
+            <td>{% if r.manager %}{{ r.manager.username }}{% else %}<span style="color: var(--muted);">Не назначен</span>{% endif %}</td>
+            <td>
+                {% if not r.manager and r.status == 'new' %}
+                <form method="post" action="{% url 'crm:manager_request_detail' r.pk %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="take">
+                    <button type="submit" class="btn" style="padding: 4px 12px; font-size: 13px;">Взять заявку</button>
+                </form>
+                {% elif r.manager == user %}
+                <span style="color: var(--ok); font-size: 13px;">Вы ответственный</span>
+                {% endif %}
+            </td>
         </tr>
     {% empty %}
-        <tr><td colspan="5">Нет заявок</td></tr>
+        <tr><td colspan="6">Нет заявок</td></tr>
     {% endfor %}
     </tbody>
  </table>

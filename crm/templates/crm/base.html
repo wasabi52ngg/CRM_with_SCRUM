@@ -14,8 +14,9 @@
   <div class="header-flex">
     <a class="logo" href="{% if user.is_authenticated %}{% url 'crm:dashboard' %}{% else %}{% url 'crm:landing' %}{% endif %}">IT CRM</a>
     <div class="header-nav-buttons">
+      {% load company_tags %}
       {% if user.is_authenticated %}
-        {% if user.is_manager %}
+        {% if user|is_manager_in_company %}
           <a href="{% url 'crm:manager_request_list' %}" class="nav-btn {% if request.resolver_match.url_name == 'manager_request_list' or request.resolver_match.url_name == 'manager_request_detail' or request.resolver_match.url_name == 'manager_project_detail' or request.resolver_match.url_name == 'kanban_board' %} active{% endif %}">
             <span class="nav-btn-icon">📋</span>
             <span>Заявки</span>
@@ -24,16 +25,20 @@
             <span class="nav-btn-icon">📊</span>
             <span>Дашборд</span>
           </a>
-        {% elif user.is_developer %}
+        {% endif %}
+        {% if user|is_developer_in_company %}
           <a href="{% url 'crm:dev_open_tasks' %}" class="nav-btn {% if request.resolver_match.url_name == 'dev_open_tasks' or request.resolver_match.url_name == 'dev_take_task' %} active{% endif %}">
             <span class="nav-btn-icon">✅</span>
             <span>Задачи</span>
           </a>
+          {% if not user|is_manager_in_company %}
           <a href="{% url 'crm:dashboard' %}" class="nav-btn {% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}">
             <span class="nav-btn-icon">📊</span>
             <span>Дашборд</span>
           </a>
-        {% else %}
+          {% endif %}
+        {% endif %}
+        {% if not user|is_manager_in_company and not user|is_developer_in_company %}
           <a href="{% url 'crm:client_requests' %}" class="nav-btn {% if request.resolver_match.url_name == 'client_requests' or request.resolver_match.url_name == 'client_request_detail' %} active{% endif %}">
             <span class="nav-btn-icon">📬</span>
             <span>Мои заявки</span>
@@ -48,10 +53,11 @@
     </div>
     <div class="header-actions">
       {% if user.is_authenticated %}
-      <a href="{% url 'accounts:profile' %}" class="nav-link">{{ user.username }}</a> |
+      <a href="{% url 'accounts:profile' %}" class="nav-link">{{ user.username }}</a>
       <a href="{% url 'accounts:logout' %}" class="nav-link">Выйти</a>
       {% else %}
       <a href="{% url 'accounts:login' %}" class="nav-link">Вход</a>
+      <a href="{% url 'accounts:register' %}" class="nav-link">Регистрация</a>
       <a href="{% url 'accounts:register_company' %}" class="nav-link">Регистрация компании</a>
       {% endif %}
     </div>

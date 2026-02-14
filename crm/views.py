@@ -11,17 +11,43 @@ from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginR
 from accounts.models import User
 from .models import Company, CompanyMembership, ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
 from .models import Message
-from .forms import CompanyMemberAddForm
 
 
 def _get_user_company_ids(user: User) -> list[int]:
     """
     Вспомогательная функция: возвращает список id компаний, в которых состоит пользователь.
     Используется для фильтрации объектов по компании (мульти‑тенантность).
+    Учитывает только подтверждённые участия (is_approved=True).
     """
     if not user.is_authenticated:
         return []
-    return list(user.company_memberships.values_list("company_id", flat=True))
+    return list(user.company_memberships.filter(is_approved=True).values_list("company_id", flat=True))
+
+
+def _is_user_manager_in_company(user: User, company_id: int | None = None) -> bool:
+    """
+    Проверяет, является ли пользователь менеджером в компании.
+    Если company_id не указан, проверяет во всех компаниях пользователя.
+    """
+    if not user.is_authenticated:
+        return False
+    qs = user.company_memberships.filter(is_approved=True)
+    if company_id:
+        qs = qs.filter(company_id=company_id)
+    return qs.filter(is_manager=True).exists() or qs.filter(is_owner=True).exists()
+
+
+def _is_user_developer_in_company(user: User, company_id: int | None = None) -> bool:
+    """
+    Проверяет, является ли пользователь разработчиком в компании.
+    Если company_id не указан, проверяет во всех компаниях пользователя.
+    """
+    if not user.is_authenticated:
+        return False
+    qs = user.company_memberships.filter(is_approved=True)
+    if company_id:
+        qs = qs.filter(company_id=company_id)
+    return qs.filter(is_developer=True).exists() or qs.filter(is_owner=True).exists()
 
 
 class PublicRequestView(View):
@@ -59,12 +85,18 @@ class PublicRequestView(View):
         return render(request, "crm/public_request_success.html", ctx)
 
 
-class ManagerRequestListView(ManagerRequiredMixin, ListView):
+class ManagerRequestListView(LoginRequiredMixin, ListView):
     model = ClientRequest
     template_name = "crm/manager/request_list.html"
     paginate_by = 20
     ordering = ["-created_at"]
 
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, что пользователь является менеджером или владельцем в какой-либо компании
+        if not _is_user_manager_in_company(request.user):
+            return redirect("crm:dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         company_ids = _get_user_company_ids(self.request.user)
         qs = super().get_queryset()
@@ -73,45 +105,79 @@ class ManagerRequestListView(ManagerRequiredMixin, ListView):
         return qs
 
 
-class ManagerRequestDetailView(ManagerRequiredMixin, DetailView):
+class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
     model = ClientRequest
     template_name = "crm/manager/request_detail.html"
 
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        # Проверяем доступ: менеджер/владелец в компании заявки ИЛИ менеджер, который взял эту заявку
+        if not (_is_user_manager_in_company(request.user, obj.company_id) or obj.manager == request.user):
+            return redirect("crm:manager_request_list")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        client_request = self.object
         # Все чекпоинты заявки в удобном для таймлайна виде
         ctx["checkpoints"] = list(
-            self.object.checkpoints.all().values(
+            client_request.checkpoints.all().values(
                 "id", "title", "comment", "is_done", "order", "created_at", "updated_at"
             )
         )
+        # Проверяем, может ли текущий менеджер взять заявку
+        ctx["can_take"] = (
+            _is_user_manager_in_company(self.request.user, client_request.company_id) and
+            client_request.manager is None and
+            client_request.status == ClientRequest.Status.NEW
+        )
+        ctx["is_responsible"] = client_request.manager == self.request.user
         return ctx
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         client_request = self.get_object()
         action = request.POST.get("action")
-        if action == "to_discuss":
-            client_request.status = ClientRequest.Status.DISCUSS
-            client_request.manager = request.user
-            client_request.save()
+        
+        if action == "take":
+            # Менеджер берет заявку в работу
+            if _is_user_manager_in_company(request.user, client_request.company_id) and client_request.manager is None:
+                client_request.manager = request.user
+                client_request.status = ClientRequest.Status.DISCUSS
+                client_request.save()
+        elif action == "to_discuss":
+            if client_request.manager == request.user:
+                client_request.status = ClientRequest.Status.DISCUSS
+                client_request.save()
         elif action == "to_work":
-            client_request.status = ClientRequest.Status.IN_PROGRESS
-            client_request.manager = request.user
-            client_request.save()
-            Project.objects.get_or_create(
-                client_request=client_request,
-                defaults={
-                    "name": client_request.title,
-                    "description": client_request.description,
-                    "company": client_request.company,
-                },
-            )
+            if client_request.manager == request.user:
+                client_request.status = ClientRequest.Status.IN_PROGRESS
+                client_request.save()
+                Project.objects.get_or_create(
+                    client_request=client_request,
+                    defaults={
+                        "name": client_request.title,
+                        "description": client_request.description,
+                        "company": client_request.company,
+                    },
+                )
         return redirect("crm:manager_request_detail", pk=client_request.pk)
 
 
-class ManagerProjectDetailView(ManagerRequiredMixin, DetailView):
+class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
     model = Project
     template_name = "crm/manager/project_detail.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        # Доступ имеют: владелец компании, менеджер который взял заявку, или разработчик с задачами в проекте
+        has_access = (
+            _is_user_manager_in_company(request.user, obj.company_id) or
+            (obj.client_request and obj.client_request.manager == request.user) or
+            _is_user_developer_in_company(request.user, obj.company_id)
+        )
+        if not has_access:
+            return redirect("crm:dashboard")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         company_ids = _get_user_company_ids(self.request.user)
@@ -122,9 +188,17 @@ class ManagerProjectDetailView(ManagerRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        # Список разработчиков для назначения исполнителя прямо при создании задачи
+        project = self.object
+        # Список разработчиков компании для назначения исполнителя
+        company_ids = _get_user_company_ids(self.request.user)
+        developer_user_ids = CompanyMembership.objects.filter(
+            company_id__in=company_ids,
+            is_approved=True,
+            is_developer=True
+        ).values_list("user_id", flat=True)
+        
         ctx["developers"] = (
-            User.objects.filter(role=User.Role.DEVELOPER, is_active=True)
+            User.objects.filter(id__in=developer_user_ids, is_active=True)
             .order_by("username")
             .only("id", "username", "first_name", "last_name", "developer_type")
         )
@@ -163,9 +237,15 @@ class ManagerProjectDetailView(ManagerRequiredMixin, DetailView):
         return redirect("crm:manager_project_detail", pk=project.pk)
 
 
-class DeveloperOpenTasksView(DeveloperRequiredMixin, ListView):
+class DeveloperOpenTasksView(LoginRequiredMixin, ListView):
     model = Task
     template_name = "crm/dev/open_tasks.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # Проверяем, что пользователь является разработчиком в какой-либо компании
+        if not _is_user_developer_in_company(request.user):
+            return redirect("crm:dashboard")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         user: User = self.request.user
@@ -189,9 +269,12 @@ class DeveloperOpenTasksView(DeveloperRequiredMixin, ListView):
         return qs.order_by("project__created_at")
 
 
-class DeveloperTakeTaskView(DeveloperRequiredMixin, View):
+class DeveloperTakeTaskView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         task = get_object_or_404(Task, pk=pk, assignee__isnull=True, status=Task.Status.TODO)
+        # Проверяем, что пользователь является разработчиком в компании проекта
+        if not _is_user_developer_in_company(request.user, task.project.company_id):
+            return redirect("crm:dev_open_tasks")
         # Ограничение: один исполнитель — одна активная задача
         has_active = Task.objects.filter(assignee=request.user).exclude(status=Task.Status.DONE).exists()
         if not has_active:
@@ -212,17 +295,28 @@ class DashboardView(LoginRequiredMixin, View):
         company_ids = _get_user_company_ids(user)
         ctx = {}
         
-        if user.is_manager():
-            # Для менеджера: последние проекты и заявки
-            projects = Project.objects.filter(company_id__in=company_ids).order_by("-updated_at")[:6]
-            requests = ClientRequest.objects.filter(company_id__in=company_ids).order_by("-created_at")[:5]
+        is_manager = _is_user_manager_in_company(user)
+        is_developer = _is_user_developer_in_company(user)
+        
+        if is_manager:
+            # Для менеджера: последние проекты и заявки (только те, которые он взял или все, если владелец)
+            if user.company_memberships.filter(is_approved=True, is_owner=True).exists():
+                # Владелец видит все заявки компании
+                requests = ClientRequest.objects.filter(company_id__in=company_ids).order_by("-created_at")[:5]
+                projects = Project.objects.filter(company_id__in=company_ids).order_by("-updated_at")[:6]
+            else:
+                # Обычный менеджер видит только свои заявки
+                requests = ClientRequest.objects.filter(company_id__in=company_ids, manager=user).order_by("-created_at")[:5]
+                project_ids = requests.values_list("project_id", flat=True).exclude(project_id__isnull=True)
+                projects = Project.objects.filter(id__in=project_ids).order_by("-updated_at")[:6]
+            
             ctx.update({
                 "recent_projects": projects,
                 "recent_requests": requests,
             })
             return render(request, "crm/dashboard_manager.html", ctx)
         
-        elif user.is_developer():
+        elif is_developer:
             # Для разработчика: последние проекты, где он работал, и доступные задачи
             # Сначала получаем project_ids до среза
             tasks_qs = Task.objects.filter(
@@ -255,7 +349,32 @@ class DashboardView(LoginRequiredMixin, View):
         
         else:
             # Для клиента: его заявки
-            return redirect("crm:client_requests")
+            # Проверяем, что пользователь действительно клиент (не менеджер и не разработчик в компании)
+            if user.role == User.Role.CLIENT:
+                # Дополнительно проверяем, что пользователь не имеет ролей в компании
+                has_company_role = is_manager or is_developer
+                if not has_company_role:
+                    return redirect("crm:client_requests")
+            
+            # Если пользователь не имеет подтвержденных ролей в компании, но имеет роль MANAGER или DEVELOPER
+            # (возможно, он еще не подтвержден администратором), показываем пустой дашборд или редиректим
+            # Проверяем, есть ли у пользователя неподтвержденные членства
+            has_pending = user.company_memberships.filter(is_approved=False).exists()
+            if has_pending:
+                # Показываем сообщение о том, что нужно дождаться подтверждения
+                ctx = {
+                    "pending_approval": True,
+                    "message": "Ваша заявка на участие в компании ожидает подтверждения администратором."
+                }
+                return render(request, "crm/dashboard_pending.html", ctx)
+            
+            # Если пользователь не имеет ролей в компании и не клиент, показываем пустой дашборд
+            # с предложением создать компанию или присоединиться к существующей
+            ctx = {
+                "no_company": True,
+                "message": "Вы не состоите ни в одной компании. Создайте компанию или присоединитесь к существующей."
+            }
+            return render(request, "crm/dashboard_pending.html", ctx)
 
 
 class LandingView(View):
@@ -304,17 +423,21 @@ class CompanyDetailView(LoginRequiredMixin, DetailView):
             reverse("crm:public_request_by_token", args=[company.public_token])
         )
 
-        ctx["memberships"] = company.memberships.select_related("user").order_by("user__username")
+        # Разделяем участников на подтверждённых и ожидающих подтверждения
+        ctx["memberships"] = company.memberships.filter(
+            is_approved=True
+        ).select_related("user").order_by("user__username")
+        ctx["pending_memberships"] = company.memberships.filter(
+            is_approved=False
+        ).select_related("user").order_by("-created_at")
         ctx["public_slug_url"] = slug_url
         ctx["public_token_url"] = token_url
 
         # Форма добавления участника доступна только владельцам компании
         is_owner = company.memberships.filter(
-            user=request.user, role=CompanyMembership.Role.OWNER
+            user=request.user, is_owner=True, is_approved=True
         ).exists()
         ctx["is_owner"] = is_owner
-        if is_owner:
-            ctx["member_form"] = CompanyMemberAddForm(company=company)
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -322,19 +445,75 @@ class CompanyDetailView(LoginRequiredMixin, DetailView):
         company: Company = self.object
 
         # Разрешаем изменять участников только владельцам
-        if not company.memberships.filter(
-            user=request.user, role=CompanyMembership.Role.OWNER
-        ).exists():
+        is_owner = company.memberships.filter(
+            user=request.user, is_owner=True, is_approved=True
+        ).exists()
+        if not is_owner:
             return redirect("crm:company_detail", slug=company.slug)
 
-        form = CompanyMemberAddForm(request.POST, company=company)
-        if form.is_valid():
-            form.save()
+        # Обработка одобрения заявки с выбором ролей
+        action = request.POST.get("action")
+        if action == "approve":
+            membership_id = request.POST.get("membership_id")
+            try:
+                membership = CompanyMembership.objects.get(
+                    id=membership_id, company=company, is_approved=False
+                )
+                # Получаем выбранные роли
+                is_manager = request.POST.get(f"is_manager_{membership_id}") == "on"
+                is_developer = request.POST.get(f"is_developer_{membership_id}") == "on"
+                
+                if not is_manager and not is_developer:
+                    # Если не выбрано ни одной роли, не подтверждаем
+                    return redirect("crm:company_detail", slug=company.slug)
+                
+                membership.is_manager = is_manager
+                membership.is_developer = is_developer
+                membership.is_approved = True
+                membership.save()
+            except CompanyMembership.DoesNotExist:
+                pass
+            return redirect("crm:company_detail", slug=company.slug)
+        
+        elif action == "reject":
+            membership_id = request.POST.get("membership_id")
+            try:
+                membership = CompanyMembership.objects.get(
+                    id=membership_id, company=company, is_approved=False
+                )
+                membership.delete()
+            except CompanyMembership.DoesNotExist:
+                pass
+            return redirect("crm:company_detail", slug=company.slug)
+        
+        elif action == "update_roles":
+            # Обновление ролей существующего участника
+            membership_id = request.POST.get("membership_id")
+            try:
+                membership = CompanyMembership.objects.get(
+                    id=membership_id, company=company, is_approved=True
+                )
+                # Не позволяем изменять роли владельца
+                if membership.is_owner:
+                    return redirect("crm:company_detail", slug=company.slug)
+                
+                # Получаем выбранные роли
+                is_manager = request.POST.get(f"is_manager_{membership_id}") == "on"
+                is_developer = request.POST.get(f"is_developer_{membership_id}") == "on"
+                
+                # Хотя бы одна роль должна быть выбрана (кроме владельца)
+                if not is_manager and not is_developer:
+                    # Если не выбрано ни одной роли, оставляем как есть или можно удалить участника
+                    pass
+                
+                membership.is_manager = is_manager
+                membership.is_developer = is_developer
+                membership.save()
+            except CompanyMembership.DoesNotExist:
+                pass
             return redirect("crm:company_detail", slug=company.slug)
 
-        ctx = self.get_context_data()
-        ctx["member_form"] = form
-        return render(request, self.template_name, ctx)
+        return redirect("crm:company_detail", slug=company.slug)
 
 
 class ClientRequestListView(ClientRequiredMixin, ListView):
@@ -363,9 +542,21 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
 # SignupView удален - теперь используется accounts.views.RegisterUser
 
 
-class KanbanBoardView(ManagerRequiredMixin, DetailView):
+class KanbanBoardView(LoginRequiredMixin, DetailView):
     model = Project
     template_name = "crm/kanban.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        # Доступ имеют: владелец компании, менеджер который взял заявку, или разработчик с задачами
+        has_access = (
+            _is_user_manager_in_company(request.user, obj.company_id) or
+            (obj.client_request and obj.client_request.manager == request.user) or
+            _is_user_developer_in_company(request.user, obj.company_id)
+        )
+        if not has_access:
+            return redirect("crm:dashboard")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -378,7 +569,7 @@ class KanbanBoardView(ManagerRequiredMixin, DetailView):
 
 
 @method_decorator(require_POST, name='dispatch')
-class KanbanMoveApiView(ManagerRequiredMixin, View):
+class KanbanMoveApiView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest) -> JsonResponse:
         try:
             import json
@@ -407,7 +598,7 @@ class KanbanMoveApiView(ManagerRequiredMixin, View):
 
 
 @method_decorator(require_POST, name="dispatch")
-class RequestCheckpointApiView(ManagerRequiredMixin, View):
+class RequestCheckpointApiView(LoginRequiredMixin, View):
     """
     Простое JSON‑API для управления чекпоинтами заявки:
     - action=create  (title, comment, is_done?)
@@ -498,7 +689,7 @@ class RequestCheckpointApiView(ManagerRequiredMixin, View):
 
 
 @method_decorator(require_POST, name="dispatch")
-class TaskPanelApiView(ManagerRequiredMixin, View):
+class TaskPanelApiView(LoginRequiredMixin, View):
     """
     JSON‑API для боковой панели задачи на канбане.
     - action=detail: данные задачи + чекпоинты + чат (последние 50)

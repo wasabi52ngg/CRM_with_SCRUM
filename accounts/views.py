@@ -6,7 +6,7 @@ from django.contrib.auth.views import LoginView, PasswordChangeView, PasswordCha
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.views import View
-from django.views.generic import CreateView, UpdateView
+from django.views.generic import CreateView, UpdateView, TemplateView
 from .forms import (
     RegisterUserForm,
     LoginUserForm,
@@ -35,12 +35,22 @@ def logout_user(request):
 
 
 class RegisterUser(CreateView):
-    """Регистрация обычного пользователя (клиента и т.п.)"""
+    """Регистрация сотрудника компании (с кодом компании) или обычного пользователя"""
 
     form_class = RegisterUserForm
     template_name = 'accounts/register.html'
-    extra_context = {'title': 'Регистрация'}
-    success_url = reverse_lazy('accounts:login')
+    extra_context = {'title': 'Регистрация сотрудника'}
+
+    def get_success_url(self):
+        # Если был указан код компании, показываем сообщение о подтверждении
+        if hasattr(self, 'company_code_used') and self.company_code_used:
+            return reverse_lazy('accounts:register_success')
+        return reverse_lazy('accounts:login')
+
+    def form_valid(self, form):
+        company_code = form.cleaned_data.get('company_code', '').strip()
+        self.company_code_used = bool(company_code)
+        return super().form_valid(form)
 
 
 class CompanyRegisterView(CreateView):
@@ -92,3 +102,9 @@ class UserPasswordChangeDoneView(PasswordChangeDoneView):
     """Представление после успешной смены пароля"""
     template_name = 'accounts/password_change_done.html'
     extra_context = {'title': 'Успех'}
+
+
+class RegisterSuccessView(TemplateView):
+    """Страница успешной регистрации с ожиданием подтверждения"""
+    template_name = 'accounts/register_success.html'
+    extra_context = {'title': 'Регистрация успешна'}

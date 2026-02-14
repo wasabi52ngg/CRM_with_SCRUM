@@ -26,12 +26,39 @@
         {% if memberships %}
           <ul class="plain-list">
             {% for m in memberships %}
-            <li>
-              <strong>{{ m.user.username }}</strong>
-              {% if m.user.first_name or m.user.last_name %}
-                ({{ m.user.first_name }} {{ m.user.last_name }})
-              {% endif %}
-              — {{ m.get_role_display }}
+            <li style="padding: 12px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 8px;{% endif %}">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong>{{ m.user.username }}</strong>
+                  {% if m.user.first_name or m.user.last_name %}
+                    ({{ m.user.first_name }} {{ m.user.last_name }})
+                  {% endif %}
+                  <br>
+                  <small class="muted-text">
+                    {% if m.is_owner %}Владелец{% endif %}
+                    {% if m.is_manager %}{% if m.is_owner %}, {% endif %}Менеджер{% endif %}
+                    {% if m.is_developer %}{% if m.is_owner or m.is_manager %}, {% endif %}Разработчик{% endif %}
+                  </small>
+                </div>
+                {% if is_owner and not m.is_owner %}
+                <form method="post" style="display: inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_roles">
+                  <input type="hidden" name="membership_id" value="{{ m.id }}">
+                  <div style="display: flex; gap: 12px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" name="is_manager_{{ m.id }}" id="is_manager_edit_{{ m.id }}" {% if m.is_manager %}checked{% endif %}>
+                      <span>Менеджер</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <input type="checkbox" name="is_developer_{{ m.id }}" id="is_developer_edit_{{ m.id }}" {% if m.is_developer %}checked{% endif %}>
+                      <span>Разработчик</span>
+                    </label>
+                    <button type="submit" class="btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
+                  </div>
+                </form>
+                {% endif %}
+              </div>
             </li>
             {% endfor %}
           </ul>
@@ -40,28 +67,43 @@
         {% endif %}
       </div>
 
-      {% if is_owner %}
-      <h3>Добавить / изменить участника</h3>
-      <form method="post" class="auth-form">
-        {% csrf_token %}
-        {% for field in member_form %}
-        <div class="input-box">
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}
-          <div class="field-errors">
-            <ul>
-              {% for error in field.errors %}
-              <li>{{ error }}</li>
-              {% endfor %}
-            </ul>
+      {% if is_owner and pending_memberships %}
+      <h3 style="margin-top: 24px; color: var(--warn);">Ожидают подтверждения</h3>
+      <div class="card" style="border-left: 4px solid var(--warn);">
+        {% for m in pending_memberships %}
+        <div style="padding: 16px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 16px;{% endif %}">
+          <div style="margin-bottom: 12px;">
+            <strong>{{ m.user.username }}</strong>
+            {% if m.user.first_name or m.user.last_name %}
+              ({{ m.user.first_name }} {{ m.user.last_name }})
+            {% endif %}
+            <br>
+            <small class="muted-text">{{ m.user.email }} • {{ m.created_at|date:"d.m.Y H:i" }}</small>
           </div>
-          {% endif %}
+          <form method="post" style="margin-top: 12px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve">
+            <input type="hidden" name="membership_id" value="{{ m.id }}">
+            <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" name="is_manager_{{ m.id }}" id="is_manager_{{ m.id }}">
+                <span>Менеджер</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" name="is_developer_{{ m.id }}" id="is_developer_{{ m.id }}">
+                <span>Разработчик</span>
+              </label>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button type="submit" class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--ok);">Одобрить</button>
+              <button type="button" onclick="if(confirm('Отклонить заявку?')) { this.form.action.value='reject'; this.form.submit(); }" class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--danger);">Отклонить</button>
+            </div>
+          </form>
         </div>
         {% endfor %}
-        <button type="submit" class="btn">Сохранить</button>
-      </form>
+      </div>
       {% endif %}
+
     </div>
   </div>
 </section>

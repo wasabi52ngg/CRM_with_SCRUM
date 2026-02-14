@@ -18,7 +18,8 @@
 .request-header h1 {
     font-size: 2.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #ffffff 0%, #60a5fa 100%);
+    color: var(--text);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -34,8 +35,8 @@
 .request-form-container {
     background: var(--card);
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, .1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     padding: 22px;
     position: relative;
     overflow: hidden;
@@ -81,8 +82,8 @@
     width: 100%;
     padding: 14px 16px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, .1);
-    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--border);
+    background: var(--card);
     color: var(--text);
     font-size: 14px;
     font-family: inherit;
@@ -94,8 +95,8 @@
 .form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-    background: rgba(15, 23, 42, 0.7);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+    background: var(--card);
 }
 
 .form-group textarea {

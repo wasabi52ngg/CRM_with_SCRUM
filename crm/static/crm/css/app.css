@@ -75,19 +75,212 @@ tr {
   overflow: hidden;
 }
 
-/* Forms */
-input, textarea, select {
+/* Forms - Общие стили */
+.auth-container {
+  max-width: 500px;
+  margin: 60px auto;
+  padding: 32px 24px;
+  background: transparent;
+}
+
+.auth-container h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.auth-container h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 32px 0 20px 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.auth-container h2:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.input-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-box label {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.input-box input,
+.input-box textarea,
+.input-box select {
   width: 100%;
-  padding: 10px 12px;
+  padding: 14px 16px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.input-box input:focus,
+.input-box textarea:focus,
+.input-box select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+  background: var(--card);
+}
+
+.input-box textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.input-box input[type="file"] {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.phone-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.form-error-box {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: var(--danger);
+  font-size: 14px;
+}
+
+.form-error-box ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.field-errors {
+  margin-top: 6px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.field-errors ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+/* User type selector */
+.user-type-selector {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.user-type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.user-type-option:hover {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.user-type-option input[type="radio"] {
+  width: auto;
+  margin: 0;
+}
+
+.user-type-option input[type="radio"]:checked + span {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.user-type-option:has(input[type="radio"]:checked) {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Кнопки в формах */
+.auth-form .btn {
+  margin-top: 8px;
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.auth-form p {
+  text-align: center;
+  color: var(--muted);
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+
+.forgot-link {
+  text-align: right;
+  margin-top: -8px;
+  margin-bottom: 8px;
+}
+
+.forgot-link a {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.forgot-link a:hover {
+  color: var(--accent);
+}
+
+/* Forms - базовые стили для всех input/textarea/select */
+input, textarea, select {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
 }
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: rgba(37, 99, 235, .35);
+  border-color: var(--primary);
   box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
 }
 

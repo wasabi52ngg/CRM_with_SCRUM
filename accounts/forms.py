@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordChangeForm
 from django import forms
+from django.utils.text import slugify
 from .CustomWidgets import CustomClearableFileInput
 from crm.models import Company, CompanyMembership
 
@@ -124,17 +125,13 @@ class CompanyRegisterForm(UserCreationForm):
 
     # Поля компании
     company_name = forms.CharField(label='Название компании')
-    company_slug = forms.SlugField(
-        label='Короткий идентификатор (slug)',
-        help_text='Используется в ссылке для клиентов, только латиница, цифры и дефис',
-    )
     company_description = forms.CharField(
         label='Описание компании',
         widget=forms.Textarea(attrs={'rows': 3}),
         required=False,
     )
     company_industry = forms.CharField(
-        label='Сфера деятельности компании',
+        label='Сфера деятельности компании (необязательно)',
         required=False,
     )
 
@@ -142,7 +139,6 @@ class CompanyRegisterForm(UserCreationForm):
         model = get_user_model()
         fields = [
             'company_name',
-            'company_slug',
             'company_description',
             'company_industry',
             'username',
@@ -161,11 +157,23 @@ class CompanyRegisterForm(UserCreationForm):
             raise forms.ValidationError('Такая почта уже существует')
         return email
 
-    def clean_company_slug(self):
-        slug = self.cleaned_data['company_slug']
-        if Company.objects.filter(slug=slug).exists():
-            raise forms.ValidationError('Компания с таким идентификатором уже существует')
-        return slug
+    def clean_company_name(self):
+        company_name = self.cleaned_data['company_name']
+        # Генерируем slug из названия компании
+        base_slug = slugify(company_name)
+        if not base_slug:
+            raise forms.ValidationError('Название компании должно содержать хотя бы одну букву или цифру')
+        
+        # Проверяем уникальность slug
+        slug = base_slug
+        counter = 1
+        while Company.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        
+        # Сохраняем сгенерированный slug для использования в save()
+        self._generated_slug = slug
+        return company_name
 
     def save(self, commit=True):
         """
@@ -181,7 +189,7 @@ class CompanyRegisterForm(UserCreationForm):
 
         company = Company(
             name=self.cleaned_data['company_name'],
-            slug=self.cleaned_data['company_slug'],
+            slug=getattr(self, '_generated_slug', slugify(self.cleaned_data['company_name'])),
             description=self.cleaned_data.get('company_description', ''),
             industry=self.cleaned_data.get('company_industry', ''),
         )

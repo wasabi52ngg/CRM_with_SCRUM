@@ -33,19 +33,40 @@
 
 .site-header .header-actions {
   display: flex;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
 }
 
 .site-header .header-actions .nav-link {
-  color: var(--muted);
+  color: var(--text);
   font-weight: 500;
   text-decoration: none;
   transition: .2s;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  font-size: 14px;
 }
 
 .site-header .header-actions .nav-link:hover {
-  color: #60a5fa;
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+.site-header .header-actions .nav-link:last-child {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.site-header .header-actions .nav-link:last-child:hover {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: var(--danger);
 }
 
 /* Новые кнопки навигации */

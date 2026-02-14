@@ -24,55 +24,147 @@
         <div class="input-box">
             <label for="{{ form.company_name.id_for_label }}">{{ form.company_name.label }}</label>
             {{ form.company_name }}
-        </div>
-        <div class="input-box">
-            <label for="{{ form.company_slug.id_for_label }}">{{ form.company_slug.label }}</label>
-            {{ form.company_slug }}
-            {% if form.company_slug.help_text %}
-            <div class="phone-hint">{{ form.company_slug.help_text }}</div>
+            {% if form.company_name.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.company_name.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
             {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.company_description.id_for_label }}">{{ form.company_description.label }}</label>
             {{ form.company_description }}
+            {% if form.company_description.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.company_description.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.company_industry.id_for_label }}">{{ form.company_industry.label }}</label>
             {{ form.company_industry }}
+            {% if form.company_industry.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.company_industry.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
 
         <h2>Аккаунт администратора</h2>
         <div class="input-box">
             <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
             {{ form.username }}
+            {% if form.username.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.username.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
             {{ form.email }}
+            {% if form.email.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.email.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
             {{ form.first_name }}
+            {% if form.first_name.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.first_name.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
             {{ form.last_name }}
+            {% if form.last_name.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.last_name.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
             {{ form.phone }}
+            {% if form.phone.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.phone.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.photo.id_for_label }}">{{ form.photo.label }}</label>
             {{ form.photo }}
+            {% if form.photo.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.photo.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
             {{ form.password1 }}
+            {% if form.password1.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.password1.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
         <div class="input-box">
             <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
             {{ form.password2 }}
+            {% if form.password2.errors %}
+            <div class="field-errors">
+                <ul>
+                    {% for error in form.password2.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
 
         <button type="submit" class="btn">Создать компанию</button>

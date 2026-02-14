@@ -58,13 +58,13 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
 }
 
-.site-header .header-actions .nav-link:last-child {
+.site-header .header-actions .nav-link.logout-link {
   background: rgba(220, 38, 38, 0.1);
   color: var(--danger);
   border-color: rgba(220, 38, 38, 0.2);
 }
 
-.site-header .header-actions .nav-link:last-child:hover {
+.site-header .header-actions .nav-link.logout-link:hover {
   background: rgba(220, 38, 38, 0.15);
   border-color: var(--danger);
 }

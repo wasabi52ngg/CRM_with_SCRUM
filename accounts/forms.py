@@ -6,6 +6,26 @@ from .CustomWidgets import CustomClearableFileInput
 from crm.models import Company, CompanyMembership
 
 
+def transliterate_to_latin(text):
+    """Транслитерация кириллицы в латиницу для slug"""
+    translit_map = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+        'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+        'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+        'ф': 'f', 'х': 'h', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+        'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+        'А': 'A', 'Б': 'B', 'В': 'V', 'Г': 'G', 'Д': 'D', 'Е': 'E', 'Ё': 'Yo',
+        'Ж': 'Zh', 'З': 'Z', 'И': 'I', 'Й': 'Y', 'К': 'K', 'Л': 'L', 'М': 'M',
+        'Н': 'N', 'О': 'O', 'П': 'P', 'Р': 'R', 'С': 'S', 'Т': 'T', 'У': 'U',
+        'Ф': 'F', 'Х': 'H', 'Ц': 'Ts', 'Ч': 'Ch', 'Ш': 'Sh', 'Щ': 'Sch',
+        'Ъ': '', 'Ы': 'Y', 'Ь': '', 'Э': 'E', 'Ю': 'Yu', 'Я': 'Ya',
+    }
+    result = ''
+    for char in text:
+        result += translit_map.get(char, char)
+    return result
+
+
 class LoginUserForm(AuthenticationForm):
     """Форма входа с поддержкой email/username"""
     username = forms.CharField(label='Логин или Email', max_length=254)
@@ -159,10 +179,18 @@ class CompanyRegisterForm(UserCreationForm):
 
     def clean_company_name(self):
         company_name = self.cleaned_data['company_name']
-        # Генерируем slug из названия компании
-        base_slug = slugify(company_name)
+        # Сначала транслитерируем кириллицу в латиницу, затем создаем slug
+        transliterated = transliterate_to_latin(company_name)
+        base_slug = slugify(transliterated)
+        
+        # Если после транслитерации и slugify получилась пустая строка, используем fallback
         if not base_slug:
-            raise forms.ValidationError('Название компании должно содержать хотя бы одну букву или цифру')
+            # Пробуем создать slug из первых букв/цифр
+            base_slug = slugify(company_name.replace(' ', '-').lower()[:20])
+            if not base_slug:
+                # Если все еще пусто, используем просто "company" + случайное число
+                import random
+                base_slug = f"company-{random.randint(1000, 9999)}"
         
         # Проверяем уникальность slug
         slug = base_slug

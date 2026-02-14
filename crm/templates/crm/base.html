@@ -16,6 +16,16 @@
     <div class="header-nav-buttons">
       {% load company_tags %}
       {% if user.is_authenticated %}
+        {% if user|is_owner_in_company %}
+          {% with owned_company=user|get_owned_company %}
+          {% if owned_company %}
+          <a href="{% url 'crm:company_detail' owned_company.slug %}" class="nav-btn {% if request.resolver_match.url_name == 'company_detail' %} active{% endif %}">
+            <span class="nav-btn-icon">🏢</span>
+            <span>Управление</span>
+          </a>
+          {% endif %}
+          {% endwith %}
+        {% endif %}
         {% if user|is_manager_in_company %}
           <a href="{% url 'crm:manager_request_list' %}" class="nav-btn {% if request.resolver_match.url_name == 'manager_request_list' or request.resolver_match.url_name == 'manager_request_detail' or request.resolver_match.url_name == 'manager_project_detail' or request.resolver_match.url_name == 'kanban_board' %} active{% endif %}">
             <span class="nav-btn-icon">📋</span>

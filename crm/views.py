@@ -415,6 +415,12 @@ class CompanyDetailView(LoginRequiredMixin, DetailView):
         company: Company = self.object
         request = self.request
 
+        # Проверяем, является ли пользователь владельцем
+        is_owner = company.memberships.filter(
+            user=request.user, is_owner=True, is_approved=True
+        ).exists()
+        ctx["is_owner"] = is_owner
+
         # Публичные ссылки для клиентов
         slug_url = request.build_absolute_uri(
             reverse("crm:public_request_by_slug", args=[company.slug])
@@ -422,22 +428,82 @@ class CompanyDetailView(LoginRequiredMixin, DetailView):
         token_url = request.build_absolute_uri(
             reverse("crm:public_request_by_token", args=[company.public_token])
         )
-
-        # Разделяем участников на подтверждённых и ожидающих подтверждения
-        ctx["memberships"] = company.memberships.filter(
-            is_approved=True
-        ).select_related("user").order_by("user__username")
-        ctx["pending_memberships"] = company.memberships.filter(
-            is_approved=False
-        ).select_related("user").order_by("-created_at")
         ctx["public_slug_url"] = slug_url
         ctx["public_token_url"] = token_url
 
-        # Форма добавления участника доступна только владельцам компании
-        is_owner = company.memberships.filter(
-            user=request.user, is_owner=True, is_approved=True
-        ).exists()
-        ctx["is_owner"] = is_owner
+        # Разделяем участников на подтверждённых и ожидающих подтверждения
+        memberships = company.memberships.filter(
+            is_approved=True
+        ).select_related("user").order_by("user__username")
+        ctx["memberships"] = memberships
+        ctx["pending_memberships"] = company.memberships.filter(
+            is_approved=False
+        ).select_related("user").order_by("-created_at")
+
+        # Статистика компании (только для владельца)
+        if is_owner:
+            # Статистика по сотрудникам
+            total_members = memberships.count()
+            managers_count = memberships.filter(is_manager=True).count()
+            developers_count = memberships.filter(is_developer=True).count()
+            owners_count = memberships.filter(is_owner=True).count()
+            
+            # Статистика по проектам
+            projects = Project.objects.filter(company=company)
+            total_projects = projects.count()
+            active_projects = projects.filter(is_archived=False).count()
+            archived_projects = projects.filter(is_archived=True).count()
+            
+            # Статистика по заявкам
+            requests = ClientRequest.objects.filter(company=company)
+            total_requests = requests.count()
+            new_requests = requests.filter(status=ClientRequest.Status.NEW).count()
+            in_progress_requests = requests.filter(status=ClientRequest.Status.IN_PROGRESS).count()
+            done_requests = requests.filter(status=ClientRequest.Status.DONE).count()
+            
+            # Статистика по задачам
+            tasks = Task.objects.filter(project__company=company)
+            total_tasks = tasks.count()
+            todo_tasks = tasks.filter(status=Task.Status.TODO).count()
+            in_progress_tasks = tasks.filter(status=Task.Status.IN_PROGRESS).count()
+            done_tasks = tasks.filter(status=Task.Status.DONE).count()
+            
+            # Последние заявки
+            recent_requests = requests.select_related("manager", "client").order_by("-created_at")[:5]
+            
+            # Последние проекты
+            recent_projects = projects.order_by("-updated_at")[:5]
+            
+            ctx.update({
+                "stats": {
+                    "members": {
+                        "total": total_members,
+                        "managers": managers_count,
+                        "developers": developers_count,
+                        "owners": owners_count,
+                    },
+                    "projects": {
+                        "total": total_projects,
+                        "active": active_projects,
+                        "archived": archived_projects,
+                    },
+                    "requests": {
+                        "total": total_requests,
+                        "new": new_requests,
+                        "in_progress": in_progress_requests,
+                        "done": done_requests,
+                    },
+                    "tasks": {
+                        "total": total_tasks,
+                        "todo": todo_tasks,
+                        "in_progress": in_progress_tasks,
+                        "done": done_tasks,
+                    },
+                },
+                "recent_requests": recent_requests,
+                "recent_projects": recent_projects,
+            })
+
         return ctx
 
     def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -509,6 +575,34 @@ class CompanyDetailView(LoginRequiredMixin, DetailView):
                 membership.is_manager = is_manager
                 membership.is_developer = is_developer
                 membership.save()
+            except CompanyMembership.DoesNotExist:
+                pass
+            return redirect("crm:company_detail", slug=company.slug)
+        
+        elif action == "regenerate_join_code":
+            # Регенерация кода для подключения сотрудников
+            from django.utils.crypto import get_random_string
+            company.join_code = get_random_string(10)
+            company.save()
+            return redirect("crm:company_detail", slug=company.slug)
+        
+        elif action == "regenerate_public_token":
+            # Регенерация публичного токена
+            from django.utils.crypto import get_random_string
+            company.public_token = get_random_string(24)
+            company.save()
+            return redirect("crm:company_detail", slug=company.slug)
+        
+        elif action == "remove_member":
+            # Удаление участника из компании
+            membership_id = request.POST.get("membership_id")
+            try:
+                membership = CompanyMembership.objects.get(
+                    id=membership_id, company=company, is_approved=True
+                )
+                # Не позволяем удалять владельца
+                if not membership.is_owner:
+                    membership.delete()
             except CompanyMembership.DoesNotExist:
                 pass
             return redirect("crm:company_detail", slug=company.slug)

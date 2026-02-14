@@ -2,9 +2,11 @@
 :root {
   /* Светлая палитра по умолчанию (мягкая, не слишком яркая) */
   --bg: #f5f7fb;
+  --bg-secondary: #f1f5f9;
   --panel: #ffffff;
   --card: #ffffff;
   --text: #0f172a;
+  --text-secondary: #64748b;
   --muted: #64748b;
 
   --border: rgba(15, 23, 42, .10);
@@ -13,9 +15,11 @@
 
   --primary: #2563eb;
   --accent: #7c3aed;
+  --info: #0ea5e9;
   --ok: #059669;
   --warn: #d97706;
   --danger: #dc2626;
+  --secondary: #64748b;
 }
 
 /* Base Styles */
@@ -112,6 +116,30 @@ button:hover, .btn:hover {
   border-radius: 10px;
   color: var(--text);
   margin-left: 12px;
+}
+
+/* Grid Layouts */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .grid-2, .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.muted-text {
+  color: var(--muted);
+  font-size: 0.9em;
 }
 
 /* Kanban Board */

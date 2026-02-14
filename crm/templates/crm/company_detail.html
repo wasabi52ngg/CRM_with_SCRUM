@@ -1,111 +1,275 @@
 {% extends 'crm/base.html' %}
-{% block title %}Компания: {{ object.name }}{% endblock %}
+{% load static %}
+
+{% block title %}Управление компанией: {{ object.name }}{% endblock %}
+
 {% block content %}
 <section class="page-section">
-  <h1 class="page-title">{{ object.name }}</h1>
-  {% if object.description %}
-  <p class="muted-text">{{ object.description }}</p>
-  {% endif %}
-
-  <div class="grid-2">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <div>
-      <h2>Публичные ссылки для клиентов</h2>
-      <p class="muted-text">
-        Отправьте одну из ссылок вашим клиентам, чтобы они могли оставить заявку. Все заявки сразу попадут в эту компанию.
-      </p>
-      <div class="card">
-        <p><strong>По slug:</strong><br><code>{{ public_slug_url }}</code></p>
-        <p><strong>По токену:</strong><br><code>{{ public_token_url }}</code></p>
-        <p class="muted-text">Секретный код для сотрудников: <code>{{ object.join_code }}</code></p>
+      <h1 class="page-title">{{ object.name }}</h1>
+      {% if object.description %}
+      <p class="muted-text">{{ object.description }}</p>
+      {% endif %}
+      {% if object.industry %}
+      <p class="muted-text">Сфера: {{ object.industry }}</p>
+      {% endif %}
+    </div>
+    {% if is_owner %}
+    <a href="{% url 'crm:dashboard' %}" class="btn" style="background: var(--secondary);">← Назад к дашборду</a>
+    {% endif %}
+  </div>
+
+  {% if is_owner %}
+  <!-- Статистика компании -->
+  <div class="grid-4" style="margin-bottom: 32px;">
+    <div class="card" style="text-align: center; padding: 20px;">
+      <div style="font-size: 32px; margin-bottom: 8px;">👥</div>
+      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.members.total }}</div>
+      <div class="muted-text">Сотрудников</div>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+        Менеджеров: {{ stats.members.managers }} • Разработчиков: {{ stats.members.developers }}
+      </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+      <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
+      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.projects.total }}</div>
+      <div class="muted-text">Проектов</div>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+        Активных: {{ stats.projects.active }} • Архивированных: {{ stats.projects.archived }}
+      </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+      <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
+      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.requests.total }}</div>
+      <div class="muted-text">Заявок</div>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+        Новых: {{ stats.requests.new }} • В работе: {{ stats.requests.in_progress }}
+      </div>
+    </div>
+    <div class="card" style="text-align: center; padding: 20px;">
+      <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.tasks.total }}</div>
+      <div class="muted-text">Задач</div>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+        TODO: {{ stats.tasks.todo }} • В работе: {{ stats.tasks.in_progress }}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom: 32px;">
+    <!-- Публичные ссылки и коды -->
+    <div class="card">
+      <h2 style="margin-bottom: 16px;">🔗 Публичные ссылки и коды</h2>
+      
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-size: 16px; margin-bottom: 8px;">Ссылки для клиентов</h3>
+        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+          <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">По slug:</div>
+          <code style="font-size: 13px; word-break: break-all;">{{ public_slug_url }}</code>
+        </div>
+        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+          <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">По токену:</div>
+          <code style="font-size: 13px; word-break: break-all;">{{ public_token_url }}</code>
+        </div>
+        <form method="post" style="display: inline;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="regenerate_public_token">
+          <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px; background: var(--warn);" onclick="return confirm('Регенерировать публичный токен? Старая ссылка перестанет работать.');">
+            🔄 Регенерировать токен
+          </button>
+        </form>
+      </div>
+
+      <div style="border-top: 1px solid var(--border); padding-top: 20px;">
+        <h3 style="font-size: 16px; margin-bottom: 8px;">Код для сотрудников</h3>
+        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+          <code style="font-size: 18px; font-weight: bold; letter-spacing: 2px;">{{ object.join_code }}</code>
+        </div>
+        <form method="post" style="display: inline;">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="regenerate_join_code">
+          <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px; background: var(--warn);" onclick="return confirm('Регенерировать код для сотрудников? Старый код перестанет работать.');">
+            🔄 Регенерировать код
+          </button>
+        </form>
       </div>
     </div>
 
+    <!-- Последние заявки и проекты -->
     <div>
-      <h2>Участники компании</h2>
-      <div class="card">
-        {% if memberships %}
-          <ul class="plain-list">
-            {% for m in memberships %}
-            <li style="padding: 12px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 8px;{% endif %}">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <strong>{{ m.user.username }}</strong>
-                  {% if m.user.first_name or m.user.last_name %}
-                    ({{ m.user.first_name }} {{ m.user.last_name }})
-                  {% endif %}
-                  <br>
-                  <small class="muted-text">
-                    {% if m.is_owner %}Владелец{% endif %}
-                    {% if m.is_manager %}{% if m.is_owner %}, {% endif %}Менеджер{% endif %}
-                    {% if m.is_developer %}{% if m.is_owner or m.is_manager %}, {% endif %}Разработчик{% endif %}
-                  </small>
-                </div>
-                {% if is_owner and not m.is_owner %}
-                <form method="post" style="display: inline;">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="update_roles">
-                  <input type="hidden" name="membership_id" value="{{ m.id }}">
-                  <div style="display: flex; gap: 12px; align-items: center;">
-                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" name="is_manager_{{ m.id }}" id="is_manager_edit_{{ m.id }}" {% if m.is_manager %}checked{% endif %}>
-                      <span>Менеджер</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                      <input type="checkbox" name="is_developer_{{ m.id }}" id="is_developer_edit_{{ m.id }}" {% if m.is_developer %}checked{% endif %}>
-                      <span>Разработчик</span>
-                    </label>
-                    <button type="submit" class="btn" style="padding: 4px 8px; font-size: 12px;">Сохранить</button>
-                  </div>
-                </form>
+      {% if recent_requests %}
+      <div class="card" style="margin-bottom: 20px;">
+        <h2 style="margin-bottom: 16px;">📋 Последние заявки</h2>
+        <ul class="plain-list">
+          {% for req in recent_requests %}
+          <li style="padding: 12px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 8px;{% endif %}">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                <strong><a href="{% url 'crm:manager_request_detail' req.pk %}">{{ req.title }}</a></strong>
+                <br>
+                <small class="muted-text">{{ req.get_project_type_display }} • {{ req.get_status_display }}</small>
+                {% if req.manager %}
+                <br><small class="muted-text">Менеджер: {{ req.manager.username }}</small>
                 {% endif %}
               </div>
-            </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="muted-text">Участников пока нет.</p>
-        {% endif %}
-      </div>
-
-      {% if is_owner and pending_memberships %}
-      <h3 style="margin-top: 24px; color: var(--warn);">Ожидают подтверждения</h3>
-      <div class="card" style="border-left: 4px solid var(--warn);">
-        {% for m in pending_memberships %}
-        <div style="padding: 16px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 16px;{% endif %}">
-          <div style="margin-bottom: 12px;">
-            <strong>{{ m.user.username }}</strong>
-            {% if m.user.first_name or m.user.last_name %}
-              ({{ m.user.first_name }} {{ m.user.last_name }})
-            {% endif %}
-            <br>
-            <small class="muted-text">{{ m.user.email }} • {{ m.created_at|date:"d.m.Y H:i" }}</small>
-          </div>
-          <form method="post" style="margin-top: 12px;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="approve">
-            <input type="hidden" name="membership_id" value="{{ m.id }}">
-            <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="checkbox" name="is_manager_{{ m.id }}" id="is_manager_{{ m.id }}">
-                <span>Менеджер</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="checkbox" name="is_developer_{{ m.id }}" id="is_developer_{{ m.id }}">
-                <span>Разработчик</span>
-              </label>
+              <span style="font-size: 12px; color: var(--text-secondary);">{{ req.created_at|date:"d.m.Y" }}</span>
             </div>
-            <div style="display: flex; gap: 8px;">
-              <button type="submit" class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--ok);">Одобрить</button>
-              <button type="button" onclick="if(confirm('Отклонить заявку?')) { this.form.action.value='reject'; this.form.submit(); }" class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--danger);">Отклонить</button>
-            </div>
-          </form>
+          </li>
+          {% endfor %}
+        </ul>
+        <div style="margin-top: 12px;">
+          <a href="{% url 'crm:manager_request_list' %}" class="btn" style="padding: 6px 12px; font-size: 12px; width: 100%;">Все заявки →</a>
         </div>
-        {% endfor %}
       </div>
       {% endif %}
 
+      {% if recent_projects %}
+      <div class="card">
+        <h2 style="margin-bottom: 16px;">📁 Последние проекты</h2>
+        <ul class="plain-list">
+          {% for proj in recent_projects %}
+          <li style="padding: 12px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 8px;{% endif %}">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div>
+                <strong><a href="{% url 'crm:manager_project_detail' proj.pk %}">{{ proj.name }}</a></strong>
+                {% if proj.is_archived %}
+                <br><small class="muted-text" style="color: var(--warn);">Архивирован</small>
+                {% endif %}
+              </div>
+              <span style="font-size: 12px; color: var(--text-secondary);">{{ proj.updated_at|date:"d.m.Y" }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
     </div>
   </div>
+  {% endif %}
+
+  <!-- Список сотрудников -->
+  <div class="card">
+    <h2 style="margin-bottom: 16px;">👥 Сотрудники компании</h2>
+    {% if memberships %}
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 2px solid var(--border);">
+              <th style="text-align: left; padding: 12px;">Пользователь</th>
+              <th style="text-align: left; padding: 12px;">Email</th>
+              <th style="text-align: left; padding: 12px;">Роли</th>
+              <th style="text-align: left; padding: 12px;">Дата присоединения</th>
+              {% if is_owner %}
+              <th style="text-align: right; padding: 12px;">Действия</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in memberships %}
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="padding: 12px;">
+                <strong>{{ m.user.username }}</strong>
+                {% if m.user.first_name or m.user.last_name %}
+                <br><small class="muted-text">{{ m.user.first_name }} {{ m.user.last_name }}</small>
+                {% endif %}
+              </td>
+              <td style="padding: 12px;">
+                <small>{{ m.user.email }}</small>
+              </td>
+              <td style="padding: 12px;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  {% if m.is_owner %}
+                  <span style="background: var(--primary); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Владелец</span>
+                  {% endif %}
+                  {% if m.is_manager %}
+                  <span style="background: var(--ok); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Менеджер</span>
+                  {% endif %}
+                  {% if m.is_developer %}
+                  <span style="background: var(--info); color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">Разработчик</span>
+                  {% endif %}
+                </div>
+              </td>
+              <td style="padding: 12px;">
+                <small class="muted-text">{{ m.created_at|date:"d.m.Y" }}</small>
+              </td>
+              {% if is_owner %}
+              <td style="padding: 12px; text-align: right;">
+                {% if not m.is_owner %}
+                <form method="post" style="display: inline-block;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="update_roles">
+                  <input type="hidden" name="membership_id" value="{{ m.id }}">
+                  <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 4px;">
+                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px;">
+                      <input type="checkbox" name="is_manager_{{ m.id }}" {% if m.is_manager %}checked{% endif %}>
+                      <span>Менеджер</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 12px;">
+                      <input type="checkbox" name="is_developer_{{ m.id }}" {% if m.is_developer %}checked{% endif %}>
+                      <span>Разработчик</span>
+                    </label>
+                    <button type="submit" class="btn" style="padding: 4px 8px; font-size: 11px;">Сохранить</button>
+                  </div>
+                </form>
+                <form method="post" style="display: inline-block;" onsubmit="return confirm('Удалить сотрудника из компании?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="remove_member">
+                  <input type="hidden" name="membership_id" value="{{ m.id }}">
+                  <button type="submit" class="btn" style="padding: 4px 8px; font-size: 11px; background: var(--danger);">Удалить</button>
+                </form>
+                {% else %}
+                <span class="muted-text" style="font-size: 12px;">Владелец</span>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="muted-text">Сотрудников пока нет.</p>
+    {% endif %}
+  </div>
+
+  <!-- Ожидающие подтверждения -->
+  {% if is_owner and pending_memberships %}
+  <div class="card" style="margin-top: 24px; border-left: 4px solid var(--warn);">
+    <h2 style="margin-bottom: 16px; color: var(--warn);">⏳ Ожидают подтверждения</h2>
+    {% for m in pending_memberships %}
+    <div style="padding: 16px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 16px;{% endif %}">
+      <div style="margin-bottom: 12px;">
+        <strong>{{ m.user.username }}</strong>
+        {% if m.user.first_name or m.user.last_name %}
+          ({{ m.user.first_name }} {{ m.user.last_name }})
+        {% endif %}
+        <br>
+        <small class="muted-text">{{ m.user.email }} • {{ m.created_at|date:"d.m.Y H:i" }}</small>
+      </div>
+      <form method="post" style="margin-top: 12px;">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="approve">
+        <input type="hidden" name="membership_id" value="{{ m.id }}">
+        <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 12px;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" name="is_manager_{{ m.id }}" id="is_manager_{{ m.id }}">
+            <span>Менеджер</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" name="is_developer_{{ m.id }}" id="is_developer_{{ m.id }}">
+            <span>Разработчик</span>
+          </label>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--ok);">Одобрить</button>
+          <button type="button" onclick="if(confirm('Отклонить заявку?')) { this.form.action.value='reject'; this.form.submit(); }" class="btn" style="padding: 6px 12px; font-size: 13px; background: var(--danger);">Отклонить</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
 </section>
 {% endblock %}
-

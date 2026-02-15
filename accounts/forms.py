@@ -316,17 +316,33 @@ class ProfileUserForm(forms.ModelForm):
 
     class Meta:
         model = get_user_model()
-        fields = ['photo', 'username', 'email', 'first_name', 'last_name', 'phone']
+        fields = ['photo', 'username', 'email', 'first_name', 'last_name', 'phone', 'developer_type']
         labels = {
             'first_name': 'Имя',
             'last_name': 'Фамилия',
             'phone': 'Телефон',
+            'developer_type': 'Тип разработчика',
         }
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-input'}),
             'last_name': forms.TextInput(attrs={'class': 'form-input'}),
             'phone': forms.TextInput(attrs={'class': 'form-input'}),
+            'developer_type': forms.Select(attrs={'class': 'form-input'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        UserModel = get_user_model()
+        # Тип разработчика показываем только разработчикам (по роли или по участию в компании)
+        if self.instance:
+            is_dev = (
+                self.instance.role == UserModel.Role.DEVELOPER
+                or self.instance.company_memberships.filter(
+                    is_approved=True, is_developer=True
+                ).exists()
+            )
+            if not is_dev:
+                self.fields.pop('developer_type', None)
 
 
 class UserPasswordChangeForm(PasswordChangeForm):

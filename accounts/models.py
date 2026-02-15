@@ -68,8 +68,11 @@ class User(AbstractUser):
         return self.role == self.Role.CLIENT
 
     def save(self, *args, **kwargs):
-        # Если не разработчик, то обнуляем developer_type
-        if self.role != self.Role.DEVELOPER:
+        # Обнуляем developer_type только если пользователь не разработчик (ни по роли, ни в компании)
+        is_dev_in_company = self.company_memberships.filter(
+            is_approved=True, is_developer=True
+        ).exists()
+        if self.role != self.Role.DEVELOPER and not is_dev_in_company:
             self.developer_type = self.DeveloperType.NONE
         super().save(*args, **kwargs)
 

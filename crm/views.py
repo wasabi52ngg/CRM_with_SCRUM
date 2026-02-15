@@ -237,7 +237,14 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
 
         assignee = None
         if assignee_id:
-            assignee = get_object_or_404(User, pk=assignee_id, role=User.Role.DEVELOPER)
+            # Исполнитель должен быть в списке разработчиков компании проекта (как в форме)
+            developer_user_ids = CompanyMembership.objects.filter(
+                company=project.company,
+                is_approved=True,
+                is_developer=True,
+            ).values_list("user_id", flat=True)
+            if int(assignee_id) in developer_user_ids:
+                assignee = get_object_or_404(User, pk=assignee_id)
 
         try:
             story_points = int(story_points_raw)
@@ -271,23 +278,27 @@ class DeveloperOpenTasksView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user: User = self.request.user
-        dev_types = []
-        if user.developer_type == User.DeveloperType.FULLSTACK:
-            dev_types = [User.DeveloperType.FRONTEND, User.DeveloperType.BACKEND, User.DeveloperType.FULLSTACK]
-        else:
-            dev_types = [user.developer_type]
-
         company_ids = _get_user_company_ids(user)
-
-        qs = Task.objects.filter(
-            status=Task.Status.TODO,
-            assignee__isnull=True,
-            task_type__in=dev_types,
-        ).select_related("project")
-
+        qs = (
+            Task.objects.filter(
+                status=Task.Status.TODO,
+                assignee__isnull=True,
+            )
+            .select_related("project")
+        )
         if company_ids:
             qs = qs.filter(project__company_id__in=company_ids)
-
+        # Фильтр по типу задачи: если у разработчика задан тип (не NONE), показываем подходящие задачи
+        if user.developer_type and user.developer_type != User.DeveloperType.NONE:
+            if user.developer_type == User.DeveloperType.FULLSTACK:
+                dev_types = [
+                    User.DeveloperType.FRONTEND,
+                    User.DeveloperType.BACKEND,
+                    User.DeveloperType.FULLSTACK,
+                ]
+            else:
+                dev_types = [user.developer_type]
+            qs = qs.filter(task_type__in=dev_types)
         return qs.order_by("project__created_at")
 
 
@@ -297,12 +308,9 @@ class DeveloperTakeTaskView(LoginRequiredMixin, View):
         # Проверяем, что пользователь является разработчиком в компании проекта
         if not _is_user_developer_in_company(request.user, task.project.company_id):
             return redirect("crm:dev_open_tasks")
-        # Ограничение: один исполнитель — одна активная задача
-        has_active = Task.objects.filter(assignee=request.user).exclude(status=Task.Status.DONE).exists()
-        if not has_active:
-            task.assignee = request.user
-            task.status = Task.Status.IN_PROGRESS
-            task.save()
+        task.assignee = request.user
+        task.status = Task.Status.IN_PROGRESS
+        task.save()
         return redirect("crm:dev_open_tasks")
 
 

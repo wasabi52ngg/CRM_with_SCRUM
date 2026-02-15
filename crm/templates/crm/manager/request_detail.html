@@ -39,7 +39,7 @@
         <p style="color: var(--ok); margin-bottom: 12px;">Вы являетесь ответственным за эту заявку</p>
         <form method="post">
           {% csrf_token %}
-          {% if object.status == object.Status.NEW or object.status == object.Status.DISCUSS %}
+          {% if object.status == object.Status.NEW %}
             <button name="action" value="to_discuss" type="submit" class="btn">В обсуждение</button>
           {% endif %}
           {% if not object.project %}

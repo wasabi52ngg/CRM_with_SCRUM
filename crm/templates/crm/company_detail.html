@@ -64,13 +64,23 @@
       
       <div style="margin-bottom: 20px;">
         <h3 style="font-size: 16px; margin-bottom: 8px;">Ссылки для клиентов</h3>
-        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 8px;">
-          <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">По slug:</div>
-          <code style="font-size: 13px; word-break: break-all;">{{ public_slug_url }}</code>
+        <div class="copy-field" style="display: flex; align-items: center; gap: 8px; background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 8px;">
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">По slug:</div>
+            <code style="font-size: 13px; word-break: break-all;">{{ public_slug_url }}</code>
+          </div>
+          <button type="button" class="btn-copy" data-copy="{{ public_slug_url }}" title="Копировать" style="flex-shrink: 0; padding: 8px; border: none; background: var(--border); border-radius: 6px; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
         </div>
-        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-          <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">По токену:</div>
-          <code style="font-size: 13px; word-break: break-all;">{{ public_token_url }}</code>
+        <div class="copy-field" style="display: flex; align-items: center; gap: 8px; background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">По токену:</div>
+            <code style="font-size: 13px; word-break: break-all;">{{ public_token_url }}</code>
+          </div>
+          <button type="button" class="btn-copy" data-copy="{{ public_token_url }}" title="Копировать" style="flex-shrink: 0; padding: 8px; border: none; background: var(--border); border-radius: 6px; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
         </div>
         <form method="post" style="display: inline;">
           {% csrf_token %}
@@ -83,8 +93,13 @@
 
       <div style="border-top: 1px solid var(--border); padding-top: 20px;">
         <h3 style="font-size: 16px; margin-bottom: 8px;">Код для сотрудников</h3>
-        <div style="background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-          <code style="font-size: 18px; font-weight: bold; letter-spacing: 2px;">{{ object.join_code }}</code>
+        <div class="copy-field" style="display: flex; align-items: center; gap: 8px; background: var(--bg-secondary); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+          <div style="flex: 1; min-width: 0;">
+            <code style="font-size: 18px; font-weight: bold; letter-spacing: 2px;">{{ object.join_code }}</code>
+          </div>
+          <button type="button" class="btn-copy" data-copy="{{ object.join_code }}" title="Копировать" style="flex-shrink: 0; padding: 8px; border: none; background: var(--border); border-radius: 6px; cursor: pointer;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
         </div>
         <form method="post" style="display: inline;">
           {% csrf_token %}
@@ -272,4 +287,25 @@
   {% endif %}
 
 </section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function() {
+  document.querySelectorAll('.btn-copy').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var text = this.getAttribute('data-copy');
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          btn.innerHTML = '✓'; btn.classList.add('copied');
+          setTimeout(function() { btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; btn.classList.remove('copied'); }, 1500);
+        });
+      } else {
+        var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        btn.textContent = '✓'; setTimeout(function() { btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'; }, 1500);
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'crm/base.html' %}
+{% block title %}Заявка — {{ object.title }}{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--primary);">
+  <p class="muted" style="margin: 0;">Вы просматриваете заявку по ссылке из этой сессии. <a href="{% url 'accounts:register' %}">Зарегистрируйтесь</a> или <a href="{% url 'accounts:login' %}">войдите</a>, чтобы видеть её в «Мои заявки» и общаться с менеджером в чате.</p>
+</div>
+<h1 class="page-title">{{ object.title }}</h1>
+<p class="muted">Тип: {{ object.get_project_type_display }} | Статус: {{ object.get_status_display }}</p>
+<p>{{ object.description }}</p>
+
+<h3>Диалог с менеджером</h3>
+<div class="col" style="max-height:260px;overflow:auto;">
+  {% for m in object.messages.all %}
+    <div class="task" style="margin-bottom:8px;">
+      <div><strong>{{ m.author.username }}</strong> <span class="muted" style="font-size:12px;">{{ m.created_at }}</span></div>
+      <div>{{ m.text }}</div>
+    </div>
+  {% empty %}
+    <p class="muted">Пока нет сообщений. Зарегистрируйтесь, чтобы участвовать в обсуждении.</p>
+  {% endfor %}
+</div>
+{% endblock %}

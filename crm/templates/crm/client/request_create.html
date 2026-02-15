@@ -1,0 +1,58 @@
+{% extends 'crm/base.html' %}
+{% load static %}
+{% block title %}Новая заявка{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
+<style>
+.request-create-page { max-width: 600px; margin: 0 auto; }
+.request-create-page .form-group { margin-bottom: 16px; }
+.request-create-page label { display: block; font-weight: 600; margin-bottom: 6px; }
+.request-create-page input, .request-create-page select, .request-create-page textarea {
+  width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+}
+.request-create-page textarea { min-height: 120px; resize: vertical; }
+</style>
+{% endblock %}
+{% block content %}
+<h1 class="page-title">Новая заявка</h1>
+<p class="muted-text">Выберите компанию (только те, в которые вы уже подавали заявки) и заполните форму.</p>
+<form method="post" class="request-create-page">
+  {% csrf_token %}
+  <div class="form-group">
+    <label for="company">Компания</label>
+    <select name="company" id="company" required>
+      <option value="">— Выберите компанию —</option>
+      {% for c in companies %}
+      <option value="{{ c.pk }}">{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="project_type">Тип проекта</label>
+    <select name="project_type" id="project_type" required>
+      <option value="">— Выберите тип —</option>
+      <option value="website">Сайт</option>
+      <option value="bot">Бот (Telegram и др.)</option>
+      <option value="mobile">Мобильное приложение</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label for="title">Заголовок заявки</label>
+    <input type="text" name="title" id="title" required placeholder="Краткое описание проекта">
+  </div>
+  <div class="form-group">
+    <label for="contact_email">Email для связи</label>
+    <input type="email" name="contact_email" id="contact_email" value="{{ user.email|default:'' }}" required>
+  </div>
+  <div class="form-group">
+    <label for="contact_telegram">Telegram (необязательно)</label>
+    <input type="text" name="contact_telegram" id="contact_telegram" placeholder="@username">
+  </div>
+  <div class="form-group">
+    <label for="description">Описание проекта</label>
+    <textarea name="description" id="description" placeholder="Опишите детали проекта..."></textarea>
+  </div>
+  <button type="submit" class="btn">Отправить заявку</button>
+  <a href="{% url 'crm:client_requests' %}" class="btn" style="background: var(--bg-secondary); color: var(--text); margin-left: 8px;">Отмена</a>
+</form>
+{% endblock %}

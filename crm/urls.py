@@ -14,6 +14,8 @@ from .views import (
     LandingView,
     ClientRequestListView,
     ClientRequestDetailView,
+    ClientRequestBySessionView,
+    ClientCreateRequestView,
     RequestCheckpointApiView,
     CompanyListView,
     CompanyDetailView,
@@ -29,7 +31,9 @@ urlpatterns = [
     path("r/<str:token>/", PublicRequestView.as_view(), name="public_request_by_token"),
     # Client portal
     path("client/requests/", ClientRequestListView.as_view(), name="client_requests"),
+    path("client/requests/new/", ClientCreateRequestView.as_view(), name="client_request_create"),
     path("client/requests/<int:pk>/", ClientRequestDetailView.as_view(), name="client_request_detail"),
+    path("client/request/session/<int:pk>/", ClientRequestBySessionView.as_view(), name="client_request_by_session"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     # Manager area
     path("manager/requests/", ManagerRequestListView.as_view(), name="manager_request_list"),

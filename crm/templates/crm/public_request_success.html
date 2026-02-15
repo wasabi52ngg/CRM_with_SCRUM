@@ -99,6 +99,9 @@
         <h1>Спасибо! Ваша заявка получена</h1>
         <p>Мы получили вашу заявку и свяжемся с вами по указанным контактам в течение 24 часов для обсуждения деталей проекта.</p>
         <div class="success-actions">
+            {% if not user.is_authenticated and request_obj %}
+            <a href="{% url 'crm:client_request_by_session' request_obj.pk %}" class="btn">Посмотреть заявку</a>
+            {% endif %}
             {% if company %}
             <a href="{% url 'crm:public_request_by_slug' company.slug %}" class="btn">Отправить еще одну заявку</a>
             {% endif %}

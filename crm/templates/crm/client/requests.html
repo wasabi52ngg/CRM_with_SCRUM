@@ -1,7 +1,12 @@
 {% extends 'crm/base.html' %}
 {% block title %}Мои заявки{% endblock %}
 {% block content %}
-<h1 class="page-title">Мои заявки</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+  <h1 class="page-title" style="margin: 0;">Мои заявки</h1>
+  {% if object_list %}
+  <a href="{% url 'crm:client_request_create' %}" class="btn">+ Новая заявка</a>
+  {% endif %}
+</div>
 <table>
   <thead>
     <tr><th>Дата</th><th>Название</th><th>Тип</th><th>Статус</th></tr>

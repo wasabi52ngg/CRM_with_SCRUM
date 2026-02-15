@@ -67,21 +67,43 @@ class PublicRequestView(View):
 
     def get(self, request: HttpRequest, company_slug: str | None = None, token: str | None = None) -> HttpResponse:
         company = self.get_company(company_slug=company_slug, token=token)
-        ctx = {"company": company}
+        if not request.user.is_authenticated and request.GET.get("skip_register"):
+            request.session["register_prompt_dismissed"] = True
+            request.session.modified = True
+            if company_slug:
+                base_url = reverse("crm:public_request_by_slug", args=[company.slug])
+            else:
+                token_val = request.resolver_match.kwargs.get("token") or company.public_token or ""
+                base_url = reverse("crm:public_request_by_token", args=[token_val])
+            return redirect(base_url)
+        show_register_prompt = (
+            not request.user.is_authenticated
+            and not request.session.get("register_prompt_dismissed")
+        )
+        ctx = {"company": company, "show_register_prompt": show_register_prompt}
         return render(request, "crm/public_request.html", ctx)
 
     def post(self, request: HttpRequest, company_slug: str | None = None, token: str | None = None) -> HttpResponse:
         company = self.get_company(company_slug=company_slug, token=token)
         data = request.POST
-        ClientRequest.objects.create(
+        client = request.user if request.user.is_authenticated else None
+        req = ClientRequest.objects.create(
             company=company,
             project_type=data.get("project_type"),
             title=data.get("title", ""),
             description=data.get("description", ""),
             contact_email=data.get("contact_email", ""),
             contact_telegram=data.get("contact_telegram", ""),
+            client=client,
         )
-        ctx = {"company": company}
+        # Для анонимных: сохраняем id заявки в сессии, чтобы показать её в «Мои заявки» после регистрации
+        if not request.user.is_authenticated:
+            ids = list(request.session.get("anonymous_request_ids", []))
+            if req.pk not in ids:
+                ids.append(req.pk)
+            request.session["anonymous_request_ids"] = ids
+            request.session.modified = True
+        ctx = {"company": company, "request_obj": req}
         return render(request, "crm/public_request_success.html", ctx)
 
 
@@ -615,7 +637,28 @@ class ClientRequestListView(ClientRequiredMixin, ListView):
     template_name = "crm/client/requests.html"
 
     def get_queryset(self):
+        # При первом заходе клиента привязываем заявки из сессии (оставленные до регистрации)
+        session_ids = self.request.session.get("anonymous_request_ids") or []
+        if session_ids:
+            ClientRequest.objects.filter(pk__in=session_ids).update(client=self.request.user)
+            del self.request.session["anonymous_request_ids"]
+            self.request.session.modified = True
         return ClientRequest.objects.filter(client=self.request.user).order_by("-created_at")
+
+
+class ClientRequestBySessionView(View):
+    """
+    Просмотр заявки по сессии (для анонимных, которые только что отправили заявку).
+    Доступ только если pk заявки лежит в session['anonymous_request_ids'].
+    """
+
+    def get(self, request: HttpRequest, pk: int) -> HttpResponse:
+        session_ids = list(request.session.get("anonymous_request_ids", []))
+        if pk not in session_ids:
+            return redirect("crm:landing")
+        req = get_object_or_404(ClientRequest, pk=pk)
+        ctx = {"object": req, "by_session": True}
+        return render(request, "crm/client/request_detail_by_session.html", ctx)
 
 
 class ClientRequestDetailView(ClientRequiredMixin, DetailView):
@@ -633,7 +676,46 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
         return redirect("crm:client_request_detail", pk=obj.pk)
 
 
-# SignupView удален - теперь используется accounts.views.RegisterUser
+class ClientCreateRequestView(ClientRequiredMixin, View):
+    """
+    Создание новой заявки клиентом с выбором компании.
+    Доступны только компании, в которые клиент уже подавал заявки.
+    """
+
+    template_name = "crm/client/request_create.html"
+
+    def get_client_companies(self, user):
+        return Company.objects.filter(client_requests__client=user).distinct().order_by("name")
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        companies = self.get_client_companies(request.user)
+        if not companies.exists():
+            return redirect("crm:client_requests")
+        ctx = {"companies": companies}
+        return render(request, self.template_name, ctx)
+
+    def post(self, request: HttpRequest) -> HttpResponse:
+        companies = self.get_client_companies(request.user)
+        if not companies.exists():
+            return redirect("crm:client_requests")
+        company_id = request.POST.get("company")
+        company = get_object_or_404(Company, pk=company_id)
+        if not companies.filter(pk=company.pk).exists():
+            return redirect("crm:client_request_create")
+        data = request.POST
+        req = ClientRequest.objects.create(
+            company=company,
+            client=request.user,
+            project_type=data.get("project_type"),
+            title=data.get("title", ""),
+            description=data.get("description", ""),
+            contact_email=data.get("contact_email", ""),
+            contact_telegram=data.get("contact_telegram", ""),
+        )
+        return redirect("crm:client_request_detail", pk=req.pk)
+
+
+# SignupView удален - теперь используется accounts.views.RegisterUser - теперь используется accounts.views.RegisterUser
 
 
 class KanbanBoardView(LoginRequiredMixin, DetailView):

@@ -210,6 +210,23 @@
 </style>
 {% endblock %}
 {% block content %}
+{% if show_register_prompt %}
+<div class="register-prompt-banner" id="registerPrompt" style="max-width: 800px; margin: 0 auto 24px; padding: 20px; background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(52, 211, 153, 0.1)); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 16px;">
+    <div style="display: flex; align-items: start; gap: 16px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 0;">
+            <strong style="color: var(--text); font-size: 15px;">Зарегистрируйтесь на портале</strong>
+            <p style="margin: 8px 0 0; color: var(--text-secondary); font-size: 14px; line-height: 1.5;">
+                Чтобы не потерять данные заявки и иметь чат для общения с командой разработки — создайте аккаунт. Вы сможете видеть все свои заявки и переписку в одном месте.
+            </p>
+            <div style="margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="{% url 'accounts:register' %}?next={{ request.get_full_path|urlencode }}" class="btn" style="padding: 10px 20px;">Зарегистрироваться</a>
+                <a href="{% url 'accounts:login' %}?next={{ request.get_full_path|urlencode }}" class="btn" style="padding: 10px 20px; background: var(--bg-secondary); color: var(--text);">Войти</a>
+            </div>
+        </div>
+        <a href="?skip_register=1" class="register-prompt-skip" style="color: var(--text-secondary); font-size: 13px; text-decoration: none; white-space: nowrap;">Продолжить без регистрации</a>
+    </div>
+</div>
+{% endif %}
 <div class="request-page">
     <div class="request-header">
         <h1>Оставить заявку на проект</h1>

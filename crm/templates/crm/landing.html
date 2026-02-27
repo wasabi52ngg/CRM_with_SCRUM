@@ -36,6 +36,7 @@
       {% if user.is_authenticated and user.is_client %}
         <a href="{% url 'crm:client_requests' %}" class="cta-button">Мои заявки →</a>
       {% else %}
+        <a href="{% url 'crm:public_request_choose_company' %}" class="cta-button primary">Оставить заявку →</a>
         <a href="{% url 'accounts:register_company' %}" class="cta-button">Подключить компанию →</a>
       {% endif %}
     </div>

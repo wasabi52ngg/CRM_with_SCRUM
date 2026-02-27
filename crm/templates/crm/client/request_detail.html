@@ -3,6 +3,11 @@
 {% block content %}
 <h1 class="page-title">{{ object.title }}</h1>
 <p class="muted">Тип: {{ object.get_project_type_display }} | Статус: {{ object.get_status_display }}</p>
+{% if object.manager %}
+  <p class="muted">Менеджер: <strong>{{ object.manager.username }}</strong></p>
+{% else %}
+  <p class="muted">Менеджер ещё не назначен — как только заявка будет взята в работу, вы сможете общаться в чате.</p>
+{% endif %}
 <p>{{ object.description }}</p>
 
 <h3>Диалог с менеджером</h3>

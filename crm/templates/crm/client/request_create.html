@@ -15,7 +15,12 @@
 {% endblock %}
 {% block content %}
 <h1 class="page-title">Новая заявка</h1>
-<p class="muted-text">Выберите компанию (только те, в которые вы уже подавали заявки) и заполните форму.</p>
+<p class="muted-text">Выберите компанию и заполните форму — после отправки вы увидите статус и сможете общаться с менеджером в чате.</p>
+{% if no_companies %}
+  <div class="card" style="margin: 16px 0; border-left: 4px solid var(--danger);">
+    <p class="muted" style="margin: 0;">Пока не создано ни одной компании — отправить заявку невозможно.</p>
+  </div>
+{% endif %}
 <form method="post" class="request-create-page">
   {% csrf_token %}
   <div class="form-group">

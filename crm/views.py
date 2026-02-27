@@ -107,6 +107,16 @@ class PublicRequestView(View):
         return render(request, "crm/public_request_success.html", ctx)
 
 
+class PublicRequestChooseCompanyView(View):
+    """
+    Входная точка для гостей: выбрать компанию и перейти на публичную форму заявки.
+    """
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        companies = Company.objects.all().order_by("name")
+        return render(request, "crm/public_request_choose_company.html", {"companies": companies})
+
+
 class ManagerRequestListView(LoginRequiredMixin, ListView):
     model = ClientRequest
     template_name = "crm/manager/request_list.html"
@@ -154,11 +164,36 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
             client_request.status == ClientRequest.Status.NEW
         )
         ctx["is_responsible"] = client_request.manager == self.request.user
+        ctx["is_owner"] = self.request.user.company_memberships.filter(
+            company_id=client_request.company_id,
+            is_approved=True,
+            is_owner=True,
+        ).exists()
+        ctx["can_chat"] = ctx["is_responsible"] or ctx["is_owner"]
         return ctx
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         client_request = self.get_object()
         action = request.POST.get("action")
+
+        # ---- Chat (manager -> client) ----
+        if action == "chat":
+            text = request.POST.get("text", "").strip()
+            can_chat = (
+                client_request.manager == request.user
+                or request.user.company_memberships.filter(
+                    company_id=client_request.company_id,
+                    is_approved=True,
+                    is_owner=True,
+                ).exists()
+            )
+            if text and can_chat:
+                Message.objects.create(request=client_request, author=request.user, text=text)
+                # Если заявка ещё "Новая", то переводим в "В обсуждении" при начале диалога
+                if client_request.status == ClientRequest.Status.NEW:
+                    client_request.status = ClientRequest.Status.DISCUSS
+                    client_request.save(update_fields=["status", "updated_at"])
+            return redirect("crm:manager_request_detail", pk=client_request.pk)
         
         if action == "take":
             # Менеджер берет заявку в работу
@@ -681,33 +716,41 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
         text = request.POST.get("text", "").strip()
         if text:
             Message.objects.create(request=obj, author=request.user, text=text)
+            # Начало обсуждения от клиента — переводим из NEW в DISCUSS
+            if obj.status == ClientRequest.Status.NEW:
+                obj.status = ClientRequest.Status.DISCUSS
+                obj.save(update_fields=["status", "updated_at"])
         return redirect("crm:client_request_detail", pk=obj.pk)
 
 
 class ClientCreateRequestView(ClientRequiredMixin, View):
     """
     Создание новой заявки клиентом с выбором компании.
-    Доступны только компании, в которые клиент уже подавал заявки.
+    Важно: клиент может создать и самую первую заявку (раньше это было заблокировано).
     """
 
     template_name = "crm/client/request_create.html"
 
     def get_client_companies(self, user):
-        return Company.objects.filter(client_requests__client=user).distinct().order_by("name")
+        # Для клиентского портала показываем все компании.
+        # Если нужно ограничивать видимость — здесь можно добавить фильтр (например, только активные компании).
+        return Company.objects.all().order_by("name")
 
     def get(self, request: HttpRequest) -> HttpResponse:
         companies = self.get_client_companies(request.user)
         if not companies.exists():
-            return redirect("crm:client_requests")
+            # В системе нет компаний — создавать заявку некуда
+            return render(request, self.template_name, {"companies": companies, "no_companies": True})
         ctx = {"companies": companies}
         return render(request, self.template_name, ctx)
 
     def post(self, request: HttpRequest) -> HttpResponse:
         companies = self.get_client_companies(request.user)
         if not companies.exists():
-            return redirect("crm:client_requests")
+            return render(request, self.template_name, {"companies": companies, "no_companies": True})
         company_id = request.POST.get("company")
         company = get_object_or_404(Company, pk=company_id)
+        # Безопасность: выбранная компания должна быть в доступном списке
         if not companies.filter(pk=company.pk).exists():
             return redirect("crm:client_request_create")
         data = request.POST

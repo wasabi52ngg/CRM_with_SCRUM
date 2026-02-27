@@ -1,0 +1,21 @@
+{% extends 'crm/base.html' %}
+{% block title %}Оставить заявку{% endblock %}
+{% block content %}
+<h1 class="page-title">Оставить заявку</h1>
+<p class="muted">Выберите компанию, для которой хотите оставить заявку. После отправки мы предложим зарегистрироваться, чтобы не потерять список заявок и иметь доступ к чату.</p>
+
+{% if not companies %}
+  <p class="muted">Пока нет компаний, доступных для заявок.</p>
+{% else %}
+  <div class="grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+    {% for c in companies %}
+      <div class="card">
+        <div style="font-weight:700; margin-bottom:6px;">{{ c.name }}</div>
+        {% if c.industry %}<div class="muted" style="margin-bottom:10px;">{{ c.industry }}</div>{% endif %}
+        <a class="btn" href="{% url 'crm:public_request_by_slug' c.slug %}">Оставить заявку →</a>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}
+

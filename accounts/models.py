@@ -69,9 +69,15 @@ class User(AbstractUser):
 
     def save(self, *args, **kwargs):
         # Обнуляем developer_type только если пользователь не разработчик (ни по роли, ни в компании)
-        is_dev_in_company = self.company_memberships.filter(
-            is_approved=True, is_developer=True
-        ).exists()
+        # ВАЖНО: для нового пользователя (ещё без pk) нельзя обращаться к reverse relation менеджерам,
+        # иначе Django выбросит:
+        # "'User' instance needs to have a primary key value before this relationship can be used."
+        if self.pk:
+            is_dev_in_company = self.company_memberships.filter(
+                is_approved=True, is_developer=True
+            ).exists()
+        else:
+            is_dev_in_company = False
         if self.role != self.Role.DEVELOPER and not is_dev_in_company:
             self.developer_type = self.DeveloperType.NONE
         super().save(*args, **kwargs)

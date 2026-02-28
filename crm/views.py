@@ -9,7 +9,16 @@ from django.utils.decorators import method_decorator
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
 from accounts.models import User
-from .models import Company, CompanyMembership, ClientRequest, Project, Task, RequestCheckpoint, TaskCheckpoint
+from .models import (
+    Company,
+    CompanyMembership,
+    ClientRequest,
+    Project,
+    Task,
+    RequestCheckpoint,
+    RequestCheckpointEdge,
+    TaskCheckpoint,
+)
 from .models import Message
 
 
@@ -151,11 +160,14 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         client_request = self.object
-        # Все чекпоинты заявки в удобном для таймлайна виде
+        # Узлы диаграммы (чекпоинты) с позициями и рёбра (связи)
         ctx["checkpoints"] = list(
             client_request.checkpoints.all().values(
-                "id", "title", "comment", "is_done", "order", "created_at", "updated_at"
+                "id", "title", "comment", "is_done", "order", "x", "y", "created_at", "updated_at"
             )
+        )
+        ctx["checkpoint_edges"] = list(
+            client_request.checkpoint_edges.select_related("source", "target").values("id", "source_id", "target_id")
         )
         # Проверяем, может ли текущий менеджер взять заявку
         ctx["can_take"] = (
@@ -834,11 +846,14 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
 @method_decorator(require_POST, name="dispatch")
 class RequestCheckpointApiView(LoginRequiredMixin, View):
     """
-    Простое JSON‑API для управления чекпоинтами заявки:
-    - action=create  (title, comment, is_done?)
+    JSON‑API для диаграммы чекпоинтов заявки:
+    - action=create  (title, comment, is_done?, x?, y?)
     - action=update  (id, title?, comment?, is_done?)
     - action=delete  (id)
-    - action=reorder (ids: [id1, id2, ...] в новом порядке)
+    - action=reorder (ids: [id1, id2, ...])
+    - action=position (id, x, y) — сдвиг узла на диаграмме
+    - action=edge_create (source_id, target_id)
+    - action=edge_delete (id) — id ребра
     """
 
     def post(self, request: HttpRequest, pk: int) -> JsonResponse:
@@ -856,6 +871,8 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
             title = (payload.get("title") or "").strip()
             comment = (payload.get("comment") or "").strip()
             is_done = payload.get("is_done", False)
+            x = payload.get("x")
+            y = payload.get("y")
             if not title:
                 return JsonResponse({"ok": False, "error": "title_required"}, status=400)
             last_order = (
@@ -870,6 +887,8 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
                 comment=comment,
                 is_done=bool(is_done),
                 order=last_order + 1,
+                x=int(x) if x is not None else 0,
+                y=int(y) if y is not None else 0,
             )
             return JsonResponse(
                 {
@@ -880,6 +899,8 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
                         "comment": cp.comment,
                         "is_done": cp.is_done,
                         "order": cp.order,
+                        "x": cp.x,
+                        "y": cp.y,
                     },
                 }
             )
@@ -919,6 +940,45 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
                 if cp.id in order_map:
                     cp.order = order_map[cp.id]
                     cp.save(update_fields=["order"])
+            return JsonResponse({"ok": True})
+
+        if action == "position":
+            cp_id = payload.get("id")
+            x = payload.get("x")
+            y = payload.get("y")
+            if cp_id is None or x is None or y is None:
+                return JsonResponse({"ok": False, "error": "id_x_y_required"}, status=400)
+            cp = get_object_or_404(RequestCheckpoint, pk=cp_id, request=client_request)
+            cp.x = int(x)
+            cp.y = int(y)
+            cp.save(update_fields=["x", "y"])
+            return JsonResponse({"ok": True})
+
+        if action == "edge_create":
+            source_id = payload.get("source_id")
+            target_id = payload.get("target_id")
+            if not source_id or not target_id:
+                return JsonResponse({"ok": False, "error": "source_id_target_id_required"}, status=400)
+            if source_id == target_id:
+                return JsonResponse({"ok": False, "error": "no_self_edge"}, status=400)
+            source = get_object_or_404(RequestCheckpoint, pk=source_id, request=client_request)
+            target = get_object_or_404(RequestCheckpoint, pk=target_id, request=client_request)
+            edge, created = RequestCheckpointEdge.objects.get_or_create(
+                request=client_request,
+                source=source,
+                target=target,
+            )
+            return JsonResponse({
+                "ok": True,
+                "edge": {"id": edge.id, "source_id": edge.source_id, "target_id": edge.target_id},
+            })
+
+        if action == "edge_delete":
+            edge_id = payload.get("id")
+            if not edge_id:
+                return JsonResponse({"ok": False, "error": "id_required"}, status=400)
+            edge = get_object_or_404(RequestCheckpointEdge, pk=edge_id, request=client_request)
+            edge.delete()
             return JsonResponse({"ok": True})
 
         return JsonResponse({"ok": False, "error": "bad_action"}, status=400)

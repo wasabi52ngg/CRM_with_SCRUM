@@ -72,14 +72,24 @@
       </div>
 
       {{ checkpoints|json_script:"cp-data" }}
+      {{ checkpoint_edges|json_script:"cp-edges-data" }}
 
       <div
         id="cp-timeline"
-        class="cp-timeline"
+        class="cp-timeline cp-diagram"
         data-request-id="{{ object.id }}"
         data-api-url="{% url 'crm:manager_request_checkpoints_api' object.id %}"
       >
         <!-- JS дорисует точки -->
+      </div>
+
+      <div id="cp-edge-editor" class="cp-editor cp-editor--hidden">
+        <div class="cp-editor-header">
+          <div class="cp-editor-title">Связь</div>
+          <button type="button" class="btn-ghost cp-editor-close" id="cp-edge-editor-close" title="Закрыть">✕</button>
+        </div>
+        <p class="cp-edge-editor__text muted" style="margin: 0 0 10px;"></p>
+        <button type="button" class="btn-ghost cp-edge-editor__delete" id="cp-edge-delete-btn" style="color: var(--danger);">Удалить связь</button>
       </div>
 
       <div id="cp-editor" class="cp-editor cp-editor--hidden">
@@ -113,6 +123,15 @@
           <div class="cp-editor-actions">
             <button type="submit">Сохранить</button>
             <button type="button" class="btn-ghost" id="cp-delete-btn">Удалить</button>
+          </div>
+          <div id="cp-add-edge-block" class="cp-add-edge-block" style="display: none;">
+            <label class="cp-field">Связать с этапом</label>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <select id="cp-edge-target" style="min-width: 180px;">
+                <option value="">— выберите этап —</option>
+              </select>
+              <button type="button" class="btn-ghost" id="cp-edge-create-btn">Создать связь</button>
+            </div>
           </div>
         </form>
       </div>

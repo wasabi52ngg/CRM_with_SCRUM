@@ -178,7 +178,7 @@ class Project(models.Model):
 
 class RequestCheckpoint(models.Model):
     """
-    Этапы обработки заявки менеджером, отображаются как чекпоинты на таймлайне.
+    Узел диаграммы этапов заявки. Имеет позицию (x, y) на холсте и связи через RequestCheckpointEdge.
     """
 
     request = models.ForeignKey(
@@ -190,6 +190,8 @@ class RequestCheckpoint(models.Model):
     comment = models.TextField("Комментарий / детали этапа", blank=True)
     is_done = models.BooleanField("Выполнен", default=False)
     order = models.PositiveIntegerField("Порядок", default=0)
+    x = models.IntegerField("Позиция X на диаграмме", default=0)
+    y = models.IntegerField("Позиция Y на диаграмме", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -198,6 +200,35 @@ class RequestCheckpoint(models.Model):
 
     def __str__(self) -> str:
         return f"{self.request_id}: {self.title}"
+
+
+class RequestCheckpointEdge(models.Model):
+    """
+    Связь между двумя чекпоинтами на диаграмме (как рёбра в графе).
+    """
+
+    request = models.ForeignKey(
+        ClientRequest,
+        on_delete=models.CASCADE,
+        related_name="checkpoint_edges",
+    )
+    source = models.ForeignKey(
+        RequestCheckpoint,
+        on_delete=models.CASCADE,
+        related_name="outgoing_edges",
+    )
+    target = models.ForeignKey(
+        RequestCheckpoint,
+        on_delete=models.CASCADE,
+        related_name="incoming_edges",
+    )
+
+    class Meta:
+        unique_together = ("request", "source", "target")
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.source_id} → {self.target_id}"
 
 
 class Sprint(models.Model):

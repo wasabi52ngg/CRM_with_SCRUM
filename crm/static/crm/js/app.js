@@ -244,7 +244,9 @@ function initKanbanTaskPanel(panel) {
 function initRequestTimeline(root) {
   const apiUrl = root.getAttribute('data-api-url');
   const scriptEl = document.getElementById('cp-data');
+  const edgesScriptEl = document.getElementById('cp-edges-data');
   let checkpoints = [];
+  let edges = [];
   if (scriptEl) {
     try {
       checkpoints = JSON.parse(scriptEl.textContent);
@@ -252,7 +254,15 @@ function initRequestTimeline(root) {
       checkpoints = [];
     }
   }
+  if (edgesScriptEl) {
+    try {
+      edges = JSON.parse(edgesScriptEl.textContent);
+    } catch (e) {
+      edges = [];
+    }
+  }
 
+  const isDiagram = root.classList.contains('cp-diagram');
   const editor = document.getElementById('cp-editor');
   const form = document.getElementById('cp-editor-form');
   const addBtn = document.getElementById('cp-add-btn');
@@ -261,109 +271,237 @@ function initRequestTimeline(root) {
   const editToggle = document.getElementById('cp-edit-toggle');
 
   let isEditMode = false;
+  let selectedEdgeId = null;
+
+  const NODE_WIDTH = 200;
+  const NODE_HEIGHT = 44;
 
   function applyEditMode() {
     const actions = document.querySelector('.cp-editor-actions');
     if (!actions) return;
-    // Поля всегда редактируемые, кнопки сохранения/удаления показываем только в режиме редактирования
     actions.style.display = isEditMode ? 'flex' : 'none';
   }
 
-  function render() {
+  function getNodeCenter(cp) {
+    const x = typeof cp.x === 'number' ? cp.x : 0;
+    const y = typeof cp.y === 'number' ? cp.y : 0;
+    return { x: x + NODE_WIDTH / 2, y: y + NODE_HEIGHT / 2 };
+  }
+
+  function edgePathD(sourceCp, targetCp) {
+    const s = getNodeCenter(sourceCp);
+    const t = getNodeCenter(targetCp);
+    const dx = t.x - s.x;
+    const dy = t.y - s.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const curvature = Math.min(40, dist * 0.3);
+    const cpx = (s.x + t.x) / 2 - (dy / dist) * curvature;
+    const cpy = (s.y + t.y) / 2 + (dx / dist) * curvature;
+    return `M ${s.x} ${s.y} Q ${cpx} ${cpy} ${t.x} ${t.y}`;
+  }
+
+  function redrawEdges() {
+    const svg = root.querySelector('.cp-diagram__edges');
+    if (!svg) return;
+    const pathMap = new Map();
+    checkpoints.forEach(c => pathMap.set(c.id, c));
+    edges.forEach(edge => {
+      const pathEl = svg.querySelector(`[data-edge-id="${edge.id}"]`);
+      if (!pathEl) return;
+      const src = pathMap.get(edge.source_id);
+      const tgt = pathMap.get(edge.target_id);
+      if (src && tgt) pathEl.setAttribute('d', edgePathD(src, tgt));
+    });
+  }
+
+  function renderDiagram() {
     root.innerHTML = '';
-    const list = document.createElement('div');
-    list.className = 'cp-points';
+    const wrap = document.createElement('div');
+    wrap.className = 'cp-diagram__wrap';
 
-    const sorted = checkpoints.slice().sort(
-      (a, b) => (a.order || 0) - (b.order || 0) || a.id - b.id,
-    );
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'cp-diagram__edges cp-diagram__edges--interactive');
+    svg.setAttribute('aria-hidden', 'true');
+    edges.forEach(edge => {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const src = checkpoints.find(c => c.id === edge.source_id);
+      const tgt = checkpoints.find(c => c.id === edge.target_id);
+      path.setAttribute('d', (src && tgt) ? edgePathD(src, tgt) : 'M 0 0');
+      path.setAttribute('class', 'cp-edge-path');
+      path.setAttribute('data-edge-id', edge.id);
+      path.setAttribute('data-source-id', edge.source_id);
+      path.setAttribute('data-target-id', edge.target_id);
+      path.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedEdgeId = edge.id;
+        root.querySelectorAll('.cp-edge-path').forEach(p => p.classList.remove('cp-edge-path--selected'));
+        path.classList.add('cp-edge-path--selected');
+        openEdgeEditor(edge);
+      });
+      svg.appendChild(path);
+    });
+    wrap.appendChild(svg);
 
-    sorted.forEach((cp, index) => {
-      const item = document.createElement('div');
-      item.className = 'cp-point';
-      if (index === 0) {
-        item.classList.add('cp-point--first');
+    const nodesWrap = document.createElement('div');
+    nodesWrap.className = 'cp-diagram__nodes';
+
+    checkpoints.forEach((cp, index) => {
+      let x = typeof cp.x === 'number' ? cp.x : index * (NODE_WIDTH + 40);
+      let y = typeof cp.y === 'number' ? cp.y : index * (NODE_HEIGHT + 24);
+      if (index > 0 && cp.x === 0 && cp.y === 0) {
+        x = index * (NODE_WIDTH + 40);
+        y = 0;
       }
-      item.setAttribute('data-id', cp.id);
-      item.setAttribute('draggable', 'true');
-      item.setAttribute('data-index', index);
+      cp.x = x;
+      cp.y = y;
+
+      const node = document.createElement('div');
+      node.className = 'cp-node' + (cp.is_done ? ' cp-node--done' : '');
+      node.setAttribute('data-id', cp.id);
+      node.style.left = cp.x + 'px';
+      node.style.top = cp.y + 'px';
 
       const dot = document.createElement('div');
-      dot.className = 'cp-dot' + (cp.is_done ? ' cp-dot--done' : '');
-
+      dot.className = 'cp-dot';
       const label = document.createElement('div');
       label.className = 'cp-label';
       label.textContent = cp.title || `Этап ${index + 1}`;
+      node.appendChild(dot);
+      node.appendChild(label);
+      nodesWrap.appendChild(node);
 
+      node.addEventListener('click', (e) => {
+        if (e.target.closest('.cp-editor')) return;
+        e.stopPropagation();
+        selectedEdgeId = null;
+        root.querySelectorAll('.cp-edge-path').forEach(p => p.classList.remove('cp-edge-path--selected'));
+        root.querySelectorAll('.cp-node').forEach(n => n.classList.remove('cp-node--active'));
+        node.classList.add('cp-node--active');
+        openEditor(cp, node);
+      });
+
+      let dragStartX = 0, dragStartY = 0, nodeStartX = 0, nodeStartY = 0;
+      node.addEventListener('mousedown', (e) => {
+        if (e.button !== 0 || e.target.closest('a, button')) return;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        nodeStartX = cp.x;
+        nodeStartY = cp.y;
+        const onMove = (e2) => {
+          const dx = e2.clientX - dragStartX;
+          const dy = e2.clientY - dragStartY;
+          cp.x = Math.max(0, nodeStartX + dx);
+          cp.y = Math.max(0, nodeStartY + dy);
+          node.style.left = cp.x + 'px';
+          node.style.top = cp.y + 'px';
+          redrawEdges();
+        };
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+            body: JSON.stringify({ action: 'position', id: cp.id, x: cp.x, y: cp.y }),
+          }).catch(() => {});
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    });
+
+    wrap.appendChild(nodesWrap);
+
+    let maxRight = 600, maxBottom = 280;
+    checkpoints.forEach(cp => {
+      const x = typeof cp.x === 'number' ? cp.x : 0;
+      const y = typeof cp.y === 'number' ? cp.y : 0;
+      if (x + NODE_WIDTH + 40 > maxRight) maxRight = x + NODE_WIDTH + 40;
+      if (y + NODE_HEIGHT + 40 > maxBottom) maxBottom = y + NODE_HEIGHT + 40;
+    });
+    wrap.style.width = maxRight + 'px';
+    wrap.style.height = maxBottom + 'px';
+    wrap.style.minWidth = maxRight + 'px';
+    wrap.style.minHeight = maxBottom + 'px';
+
+    root.appendChild(wrap);
+  }
+
+  function openEdgeEditor(edge) {
+    const el = document.getElementById('cp-edge-editor');
+    if (!el) return;
+    el.classList.remove('cp-editor--hidden');
+    const src = checkpoints.find(c => c.id === edge.source_id);
+    const tgt = checkpoints.find(c => c.id === edge.target_id);
+    el.querySelector('.cp-edge-editor__text').textContent =
+      `Связь: «${src ? src.title : '?'}» → «${tgt ? tgt.title : '?'}»`;
+    el.querySelector('.cp-edge-editor__delete').dataset.edgeId = edge.id;
+  }
+
+  function renderLegacy() {
+    root.innerHTML = '';
+    const list = document.createElement('div');
+    list.className = 'cp-points';
+    const sorted = checkpoints.slice().sort(
+      (a, b) => (a.order || 0) - (b.order || 0) || a.id - b.id,
+    );
+    sorted.forEach((cp, index) => {
+      const item = document.createElement('div');
+      item.className = 'cp-point' + (index === 0 ? ' cp-point--first' : '');
+      item.setAttribute('data-id', cp.id);
+      item.setAttribute('draggable', 'true');
+      item.setAttribute('data-index', index);
+      const dot = document.createElement('div');
+      dot.className = 'cp-dot' + (cp.is_done ? ' cp-dot--done' : '');
+      const label = document.createElement('div');
+      label.className = 'cp-label';
+      label.textContent = cp.title || `Этап ${index + 1}`;
       item.appendChild(dot);
       item.appendChild(label);
       list.appendChild(item);
-
-      // клик по точке или тексту открывает редактор
-      const openOnClick = (e) => {
+      item.addEventListener('click', (e) => {
         if (e.target.closest('.cp-editor')) return;
         e.stopPropagation();
         openEditor(cp, item);
         root.querySelectorAll('.cp-dot').forEach(d => d.classList.remove('cp-dot--active'));
         dot.classList.add('cp-dot--active');
-      };
-      item.addEventListener('click', openOnClick);
+      });
     });
-
     root.appendChild(list);
-
-    // drag & drop reordering
     let dragSrc = null;
-    let dragSrcIndex = -1;
     let draggedDot = null;
-
     list.querySelectorAll('.cp-point').forEach(el => {
-      el.addEventListener('dragstart', e => {
+      el.addEventListener('dragstart', (e) => {
         dragSrc = el;
-        dragSrcIndex = parseInt(el.getAttribute('data-index') || '0', 10);
         draggedDot = el.querySelector('.cp-dot');
         if (draggedDot) draggedDot.classList.add('cp-dot--dragging');
         e.dataTransfer.effectAllowed = 'move';
       });
-
-      el.addEventListener('dragover', e => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-
-      el.addEventListener('drop', e => {
+      el.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+      el.addEventListener('drop', (e) => {
         e.preventDefault();
         if (!dragSrc || dragSrc === el) return;
-
         const children = Array.from(list.children);
         const srcIndex = children.indexOf(dragSrc);
         const targetIndex = children.indexOf(el);
-        if (srcIndex < targetIndex) {
-          list.insertBefore(dragSrc, el.nextSibling);
-        } else {
-          list.insertBefore(dragSrc, el);
-        }
-
-        // Обновляем индексы и классы first/gap
+        list.insertBefore(dragSrc, srcIndex < targetIndex ? el.nextSibling : el);
         Array.from(list.children).forEach((child, idx) => {
           child.setAttribute('data-index', idx);
           child.classList.toggle('cp-point--first', idx === 0);
         });
-
         saveOrder(list);
       });
-
       el.addEventListener('dragend', () => {
         if (draggedDot) draggedDot.classList.remove('cp-dot--dragging');
         dragSrc = null;
-        dragSrcIndex = -1;
         draggedDot = null;
-        // На всякий случай обновим классы first после завершения
-        Array.from(list.children).forEach((child, idx) => {
-          child.classList.toggle('cp-point--first', idx === 0);
-        });
       });
     });
+  }
+
+  function render() {
+    if (isDiagram) renderDiagram();
+    else renderLegacy();
   }
 
   function setFieldsDisabled(disabled) {
@@ -377,6 +515,7 @@ function initRequestTimeline(root) {
 
   function openEditor(cp, pointElement) {
     if (!editor) return;
+    document.getElementById('cp-edge-editor') && document.getElementById('cp-edge-editor').classList.add('cp-editor--hidden');
     editor.classList.remove('cp-editor--hidden');
     const idEl = document.getElementById('cp-id');
     const titleEl = document.getElementById('cp-title');
@@ -388,17 +527,32 @@ function initRequestTimeline(root) {
     commentEl.value = cp ? (cp.comment || '') : '';
     doneEl.checked = cp ? !!cp.is_done : false;
 
-    // при открытии существующего чекпоинта по умолчанию режим просмотра (без кнопок),
-    // для нового сразу включаем редактирование
+    const addEdgeBlock = document.getElementById('cp-add-edge-block');
+    const edgeTargetSelect = document.getElementById('cp-edge-target');
+    if (isDiagram && addEdgeBlock && edgeTargetSelect) {
+      if (cp && checkpoints.length > 1) {
+        addEdgeBlock.style.display = 'block';
+        edgeTargetSelect.innerHTML = '<option value="">— выберите этап —</option>';
+        const existingTargets = new Set(edges.filter(e => e.source_id === cp.id).map(e => e.target_id));
+        checkpoints.forEach(c => {
+          if (c.id === cp.id) return;
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.title || 'Этап') + (existingTargets.has(c.id) ? ' (уже связан)' : '');
+          opt.disabled = existingTargets.has(c.id);
+          edgeTargetSelect.appendChild(opt);
+        });
+      } else {
+        addEdgeBlock.style.display = 'none';
+      }
+    }
+
     isEditMode = !cp;
-    
-    // Блокируем поля если это существующий чекпоинт и не режим редактирования
     if (cp && !isEditMode) {
       setFieldsDisabled(true);
     } else {
       setFieldsDisabled(false);
     }
-    
     applyEditMode();
 
     // позиционируем редактор справа от выбранного чекпоинта
@@ -444,6 +598,18 @@ function initRequestTimeline(root) {
     return checkpoints.find(c => c.id === id);
   }
 
+  function defaultNewNodePosition() {
+    if (checkpoints.length === 0) return { x: 40, y: 40 };
+    let maxX = 0, maxY = 0;
+    checkpoints.forEach(c => {
+      const x = typeof c.x === 'number' ? c.x : 0;
+      const y = typeof c.y === 'number' ? c.y : 0;
+      if (x + NODE_WIDTH > maxX) maxX = x + NODE_WIDTH;
+      if (y + NODE_HEIGHT > maxY) maxY = y + NODE_HEIGHT;
+    });
+    return { x: maxX + 30, y: 40 };
+  }
+
   function updateFromForm() {
     const id = parseInt(document.getElementById('cp-id').value || '0', 10);
     const title = document.getElementById('cp-title').value.trim();
@@ -457,6 +623,11 @@ function initRequestTimeline(root) {
       comment,
       is_done: isDone,
     };
+    if (!id && isDiagram) {
+      const pos = defaultNewNodePosition();
+      payload.x = pos.x;
+      payload.y = pos.y;
+    }
 
     fetch(apiUrl, {
       method: 'POST',
@@ -473,7 +644,6 @@ function initRequestTimeline(root) {
           checkpoints.push(resp.checkpoint);
           render();
           const newPoint = root.querySelector(`[data-id="${resp.checkpoint.id}"]`);
-          // После создания блокируем поля и выключаем режим редактирования
           isEditMode = false;
           setFieldsDisabled(true);
           applyEditMode();
@@ -487,7 +657,6 @@ function initRequestTimeline(root) {
           }
           render();
           const updatedPoint = root.querySelector(`[data-id="${id}"]`);
-          // После обновления блокируем поля и выключаем режим редактирования
           isEditMode = false;
           setFieldsDisabled(true);
           applyEditMode();
@@ -566,7 +735,6 @@ function initRequestTimeline(root) {
   if (editToggle) {
     editToggle.addEventListener('click', () => {
       isEditMode = !isEditMode;
-      // Разблокируем/блокируем поля в зависимости от режима редактирования
       setFieldsDisabled(!isEditMode);
       applyEditMode();
     });
@@ -576,6 +744,64 @@ function initRequestTimeline(root) {
     form.addEventListener('submit', e => {
       e.preventDefault();
       updateFromForm();
+    });
+  }
+
+  const edgeEditorClose = document.getElementById('cp-edge-editor-close');
+  const edgeDeleteBtn = document.getElementById('cp-edge-delete-btn');
+  if (edgeEditorClose) {
+    edgeEditorClose.addEventListener('click', () => {
+      document.getElementById('cp-edge-editor').classList.add('cp-editor--hidden');
+      selectedEdgeId = null;
+      root.querySelectorAll('.cp-edge-path').forEach(p => p.classList.remove('cp-edge-path--selected'));
+    });
+  }
+  if (edgeDeleteBtn) {
+    edgeDeleteBtn.addEventListener('click', () => {
+      const edgeId = edgeDeleteBtn.dataset.edgeId;
+      if (!edgeId) return;
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ action: 'edge_delete', id: parseInt(edgeId, 10) }),
+      })
+        .then(r => r.json())
+        .then(resp => {
+          if (resp.ok) {
+            edges = edges.filter(e => e.id !== parseInt(edgeId, 10));
+            render();
+            document.getElementById('cp-edge-editor').classList.add('cp-editor--hidden');
+          }
+        })
+        .catch(() => {});
+    });
+  }
+
+  const edgeCreateBtn = document.getElementById('cp-edge-create-btn');
+  if (edgeCreateBtn) {
+    edgeCreateBtn.addEventListener('click', () => {
+      const idEl = document.getElementById('cp-id');
+      const edgeTargetSelect = document.getElementById('cp-edge-target');
+      const sourceId = idEl ? parseInt(idEl.value || '0', 10) : 0;
+      const targetId = edgeTargetSelect ? parseInt(edgeTargetSelect.value || '0', 10) : 0;
+      if (!sourceId || !targetId || sourceId === targetId) return;
+      if (edges.some(e => e.source_id === sourceId && e.target_id === targetId)) return;
+      fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({ action: 'edge_create', source_id: sourceId, target_id: targetId }),
+      })
+        .then(r => r.json())
+        .then(resp => {
+          if (resp.ok && resp.edge) {
+            edges.push(resp.edge);
+            render();
+            const cp = findCheckpoint(sourceId);
+            const node = root.querySelector(`[data-id="${sourceId}"]`);
+            openEditor(cp, node);
+          }
+        })
+        .catch(() => {});
     });
   }
 

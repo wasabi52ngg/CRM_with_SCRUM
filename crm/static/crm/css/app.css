@@ -660,15 +660,117 @@ button:hover, .btn:hover {
   font-size: 18px;
 }
 
-/* Левая колонка с линией и точками */
-.cp-timeline {
+/* ——— Диаграмма чекпоинтов (узлы + связи как в редакторах диаграмм) ——— */
+.cp-timeline.cp-diagram {
   position: relative;
   grid-column: 1 / 2;
-  padding: 8px 0 8px 40px;
+  min-height: 320px;
+  padding: 24px;
+  overflow: auto;
 }
 
-/* Убрали вертикальную линию слева - теперь линии только между чекпоинтами */
+.cp-diagram__wrap {
+  position: relative;
+  min-width: 600px;
+  min-height: 280px;
+}
 
+/* SVG слой связей — под узлами */
+.cp-diagram__edges {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.cp-diagram__edges--interactive {
+  pointer-events: auto;
+}
+
+.cp-diagram__edges--interactive .cp-edge-path {
+  pointer-events: stroke;
+  cursor: pointer;
+  stroke-width: 12px;
+}
+
+.cp-diagram__edges--interactive .cp-edge-path:hover,
+.cp-edge-path.cp-edge-path--selected {
+  stroke: var(--primary);
+  stroke-width: 3px;
+}
+
+.cp-edge-path {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.6);
+  stroke-width: 2px;
+  transition: stroke 0.15s, stroke-width 0.15s;
+}
+
+/* Контейнер узлов */
+.cp-diagram__nodes {
+  position: relative;
+  z-index: 2;
+  min-width: 600px;
+  min-height: 280px;
+}
+
+/* Один узел диаграммы — карточка с фиксированным размером для стабильных связей */
+.cp-node {
+  position: absolute;
+  width: 200px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--card);
+  border: 2px solid var(--border-strong);
+  border-radius: 12px;
+  cursor: grab;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.cp-node:active {
+  cursor: grabbing;
+}
+
+.cp-node:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.cp-node.cp-node--active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+}
+
+.cp-node .cp-dot {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 2px solid var(--primary);
+  background: var(--card);
+}
+
+.cp-node.cp-node--done .cp-dot {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.cp-node .cp-label {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text);
+  min-width: 0;
+  max-width: none;
+}
+
+/* Старые классы для обратной совместимости (если не cp-diagram) */
 .cp-points {
   display: flex;
   flex-direction: column;
@@ -702,25 +804,19 @@ button:hover, .btn:hover {
 }
 
 .cp-point:not(.cp-point--first)::before {
-  /* Линия от центра нижней дуги предыдущего кружка к центру верхней дуги текущего */
   content: "";
   position: absolute;
-  left: 9px; /* Центр кружка: половина ширины кружка (18px / 2 = 9px) */
-  top: -32px; /* От центра текущего кружка вверх: 9px (до низа кружка) + 14px (gap) + 9px (до центра верхней части предыдущего) = 32px */
+  left: 9px;
+  top: -32px;
   width: 3px;
-  height: 32px; /* gap (14px) + половина высоты первого кружка (9px) + половина высоты второго кружка (9px) = 32px */
+  height: 32px;
   background: linear-gradient(180deg, rgba(148, 163, 184, .7), rgba(148, 163, 184, .15));
   border-radius: 999px;
   z-index: 0;
 }
 
-.cp-point--gap::before {
-  /* визуальный разрыв цепочки */
-  background: transparent;
-}
-
+.cp-point--gap::before,
 .cp-point--gap .cp-dot::before {
-  /* визуальный разрыв цепочки */
   background: transparent;
   box-shadow: none;
 }

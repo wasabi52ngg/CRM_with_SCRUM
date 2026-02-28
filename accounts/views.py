@@ -25,6 +25,10 @@ class LoginUser(LoginView):
     extra_context = {'title': 'Авторизация'}
 
     def get_success_url(self):
+        # Если есть параметр next, используем его
+        next_url = self.request.GET.get('next')
+        if next_url:
+            return next_url
         return reverse_lazy('crm:dashboard')
 
 
@@ -45,6 +49,13 @@ class RegisterUser(CreateView):
         # Если был указан код компании, показываем сообщение о подтверждении
         if hasattr(self, 'company_code_used') and self.company_code_used:
             return reverse_lazy('accounts:register_success')
+        # Если есть параметр next, логиним пользователя и редиректим туда
+        next_url = self.request.GET.get('next')
+        if next_url:
+            # Автоматически логиним пользователя после регистрации
+            from django.contrib.auth import login
+            login(self.request, self.object)
+            return next_url
         return reverse_lazy('accounts:login')
 
     def form_valid(self, form):

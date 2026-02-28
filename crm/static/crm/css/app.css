@@ -295,6 +295,19 @@ button, .btn {
   cursor: pointer;
   box-shadow: 0 10px 26px rgba(37, 99, 235, .18);
   transition: .2s;
+  text-decoration: none;
+}
+
+button:hover, .btn:hover {
+  text-decoration: none;
+}
+
+a.btn {
+  text-decoration: none;
+}
+
+a.btn:hover {
+  text-decoration: none;
 }
 
 button:hover, .btn:hover {

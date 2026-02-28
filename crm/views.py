@@ -727,31 +727,37 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
 class ClientCreateRequestView(ClientRequiredMixin, View):
     """
     Создание новой заявки клиентом с выбором компании.
-    Важно: клиент может создать и самую первую заявку (раньше это было заблокировано).
+    Показываем все компании, но есть фильтр по компаниям, куда уже отправлял заявки.
     """
 
     template_name = "crm/client/request_create.html"
 
-    def get_client_companies(self, user):
-        # Для клиентского портала показываем все компании.
-        # Если нужно ограничивать видимость — здесь можно добавить фильтр (например, только активные компании).
-        return Company.objects.all().order_by("name")
-
     def get(self, request: HttpRequest) -> HttpResponse:
-        companies = self.get_client_companies(request.user)
+        # Показываем все компании
+        companies = Company.objects.all().order_by("name")
         if not companies.exists():
-            # В системе нет компаний — создавать заявку некуда
             return render(request, self.template_name, {"companies": companies, "no_companies": True})
-        ctx = {"companies": companies}
+        
+        # Получаем ID компаний, куда клиент уже отправлял заявки
+        user_companies_ids = list(
+            Company.objects.filter(client_requests__client=request.user)
+            .distinct()
+            .values_list("id", flat=True)
+        )
+        
+        ctx = {
+            "companies": companies,
+            "user_companies_ids": user_companies_ids,
+        }
         return render(request, self.template_name, ctx)
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        companies = self.get_client_companies(request.user)
+        companies = Company.objects.all()
         if not companies.exists():
             return render(request, self.template_name, {"companies": companies, "no_companies": True})
         company_id = request.POST.get("company")
         company = get_object_or_404(Company, pk=company_id)
-        # Безопасность: выбранная компания должна быть в доступном списке
+        # Проверяем, что компания существует
         if not companies.filter(pk=company.pk).exists():
             return redirect("crm:client_request_create")
         data = request.POST

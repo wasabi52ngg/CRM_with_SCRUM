@@ -2,62 +2,103 @@
 {% load static %}
 {% block title %}Новая заявка{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
-<style>
-.request-create-page { max-width: 600px; margin: 0 auto; }
-.request-create-page .form-group { margin-bottom: 16px; }
-.request-create-page label { display: block; font-weight: 600; margin-bottom: 6px; }
-.request-create-page input, .request-create-page select, .request-create-page textarea {
-  width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
-}
-.request-create-page textarea { min-height: 120px; resize: vertical; }
-</style>
+<link rel="stylesheet" href="{% static 'crm/css/request_create.css' %}">
 {% endblock %}
 {% block content %}
-<h1 class="page-title">Новая заявка</h1>
-<p class="muted-text">Выберите компанию и заполните форму — после отправки вы увидите статус и сможете общаться с менеджером в чате.</p>
-{% if no_companies %}
-  <div class="card" style="margin: 16px 0; border-left: 4px solid var(--danger);">
-    <p class="muted" style="margin: 0;">Пока не создано ни одной компании — отправить заявку невозможно.</p>
-  </div>
-{% endif %}
-<form method="post" class="request-create-page">
-  {% csrf_token %}
-  <div class="form-group">
-    <label for="company">Компания</label>
-    <select name="company" id="company" required>
-      <option value="">— Выберите компанию —</option>
-      {% for c in companies %}
-      <option value="{{ c.pk }}">{{ c.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="form-group">
-    <label for="project_type">Тип проекта</label>
-    <select name="project_type" id="project_type" required>
-      <option value="">— Выберите тип —</option>
-      <option value="website">Сайт</option>
-      <option value="bot">Бот (Telegram и др.)</option>
-      <option value="mobile">Мобильное приложение</option>
-    </select>
-  </div>
-  <div class="form-group">
-    <label for="title">Заголовок заявки</label>
-    <input type="text" name="title" id="title" required placeholder="Краткое описание проекта">
-  </div>
-  <div class="form-group">
-    <label for="contact_email">Email для связи</label>
-    <input type="email" name="contact_email" id="contact_email" value="{{ user.email|default:'' }}" required>
-  </div>
-  <div class="form-group">
-    <label for="contact_telegram">Telegram (необязательно)</label>
-    <input type="text" name="contact_telegram" id="contact_telegram" placeholder="@username">
-  </div>
-  <div class="form-group">
-    <label for="description">Описание проекта</label>
-    <textarea name="description" id="description" placeholder="Опишите детали проекта..."></textarea>
-  </div>
-  <button type="submit" class="btn">Отправить заявку</button>
-  <a href="{% url 'crm:client_requests' %}" class="btn" style="background: var(--bg-secondary); color: var(--text); margin-left: 8px;">Отмена</a>
-</form>
+<div class="request-create-page">
+    <div class="request-create-header">
+        <h1>Новая заявка</h1>
+        <p>Выберите компанию и заполните форму — после отправки вы увидите статус и сможете общаться с менеджером в чате.</p>
+    </div>
+
+    {% if no_companies %}
+    <div class="card" style="margin: 16px 0; border-left: 4px solid var(--danger);">
+        <p class="muted" style="margin: 0;">Пока не создано ни одной компании — отправить заявку невозможно.</p>
+    </div>
+    {% else %}
+    <div class="search-filter-bar">
+        <input type="text" id="company-search" placeholder="Поиск по названию компании..." autocomplete="off">
+        {% if user_companies_ids %}
+        <div class="filter-checkbox-wrapper">
+            <input type="checkbox" id="filter-user-companies" checked>
+            <label for="filter-user-companies">Только компании, куда уже отправлял заявки</label>
+        </div>
+        {% endif %}
+        <button type="button" class="sort-button" id="sort-button">
+            <span class="sort-icon">
+                <span>A</span>
+                <span class="sort-arrow">↓</span>
+            </span>
+        </button>
+    </div>
+
+    <div class="no-results" id="no-results">
+        <p>Компании не найдены. Попробуйте изменить поисковый запрос или снять фильтр.</p>
+    </div>
+
+    <div class="companies-list" id="companies-list">
+        {% for c in companies %}
+        <div class="company-item" data-name="{{ c.name|lower }}" data-industry="{{ c.industry|lower|default:'' }}" data-user-company="{% if c.id in user_companies_ids %}true{% else %}false{% endif %}">
+            <input type="radio" name="company" id="company-{{ c.pk }}" value="{{ c.pk }}" required>
+            <div class="company-item-content">
+                <div class="company-radio-indicator"></div>
+                <div class="company-info">
+                    <div class="company-header">
+                        <h3 class="company-name">{{ c.name }}</h3>
+                        {% if c.id in user_companies_ids %}
+                        <span class="company-checkmark">✓</span>
+                        {% endif %}
+                    </div>
+                    {% if c.industry %}
+                    <div class="company-industry">{{ c.industry }}</div>
+                    {% endif %}
+                    {% if c.description %}
+                    <p class="company-description">{{ c.description|truncatewords:25 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form method="post" id="request-form">
+        {% csrf_token %}
+        <input type="hidden" name="company" id="selected-company" required>
+        
+        <div class="form-fields">
+            <div class="form-group">
+                <label for="project_type">Тип проекта</label>
+                <select name="project_type" id="project_type" required>
+                    <option value="">— Выберите тип —</option>
+                    <option value="website">Сайт</option>
+                    <option value="bot">Бот (Telegram и др.)</option>
+                    <option value="mobile">Мобильное приложение</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="title">Заголовок заявки</label>
+                <input type="text" name="title" id="title" required placeholder="Краткое описание проекта">
+            </div>
+            <div class="form-group">
+                <label for="contact_email">Email для связи</label>
+                <input type="email" name="contact_email" id="contact_email" value="{{ user.email|default:'' }}" required>
+            </div>
+            <div class="form-group">
+                <label for="contact_telegram">Telegram (необязательно)</label>
+                <input type="text" name="contact_telegram" id="contact_telegram" placeholder="@username">
+            </div>
+            <div class="form-group">
+                <label for="description">Описание проекта</label>
+                <textarea name="description" id="description" placeholder="Опишите детали проекта..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Отправить заявку</button>
+                <a href="{% url 'crm:client_requests' %}" class="btn btn-secondary">Отмена</a>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<script src="{% static 'crm/js/request_create.js' %}"></script>
 {% endblock %}

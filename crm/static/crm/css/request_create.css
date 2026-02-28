@@ -1,0 +1,343 @@
+.request-create-page { 
+    max-width: 900px; 
+    margin: 0 auto; 
+}
+
+.request-create-header {
+    margin-bottom: 24px;
+}
+
+.request-create-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.request-create-header p {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.search-filter-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-filter-bar input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+}
+
+.filter-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.filter-checkbox-wrapper:hover {
+    border-color: var(--primary);
+    background: rgba(96, 165, 250, 0.05);
+}
+
+.filter-checkbox-wrapper input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+.filter-checkbox-wrapper label {
+    margin: 0;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sort-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    color: var(--text);
+    text-decoration: none;
+    border: none;
+}
+
+.sort-button:hover {
+    border-color: var(--primary);
+    background: rgba(96, 165, 250, 0.05);
+    text-decoration: none;
+}
+
+.sort-button.active {
+    border-color: var(--primary);
+    background: rgba(96, 165, 250, 0.1);
+    color: var(--primary);
+}
+
+.sort-icon {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sort-arrow {
+    font-size: 12px;
+    transition: transform 0.2s ease;
+}
+
+.sort-button.active .sort-arrow {
+    transform: rotate(180deg);
+}
+
+.companies-list {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+    background: var(--card);
+}
+
+.company-item {
+    padding: 20px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--card);
+    position: relative;
+}
+
+.company-item:hover {
+    border-color: var(--primary);
+    background: rgba(96, 165, 250, 0.03);
+    box-shadow: 0 2px 8px rgba(96, 165, 250, 0.1);
+}
+
+.company-item.selected {
+    border-color: var(--primary);
+    background: rgba(96, 165, 250, 0.08);
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.15);
+}
+
+.company-item input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.company-item-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.company-radio-indicator {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.company-item.selected .company-radio-indicator {
+    border-color: var(--primary);
+    background: var(--primary);
+}
+
+.company-item.selected .company-radio-indicator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+}
+
+.company-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.company-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.company-name {
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text);
+    margin: 0;
+}
+
+.company-checkmark {
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.company-industry {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.company-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.no-results {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    display: none;
+}
+
+.no-results.show {
+    display: block;
+}
+
+.form-fields {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.form-group textarea {
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.btn {
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--accent);
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+}
+
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .search-filter-bar {
+        flex-direction: column;
+    }
+    
+    .search-filter-bar input,
+    .filter-checkbox-wrapper,
+    .sort-button {
+        width: 100%;
+    }
+    
+    .company-item {
+        padding: 16px;
+    }
+    
+    .company-name {
+        font-size: 16px;
+    }
+}

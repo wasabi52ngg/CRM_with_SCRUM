@@ -1,21 +1,55 @@
 {% extends 'crm/base.html' %}
+{% load static %}
 {% block title %}Оставить заявку{% endblock %}
-{% block content %}
-<h1 class="page-title">Оставить заявку</h1>
-<p class="muted">Выберите компанию, для которой хотите оставить заявку. После отправки мы предложим зарегистрироваться, чтобы не потерять список заявок и иметь доступ к чату.</p>
-
-{% if not companies %}
-  <p class="muted">Пока нет компаний, доступных для заявок.</p>
-{% else %}
-  <div class="grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
-    {% for c in companies %}
-      <div class="card">
-        <div style="font-weight:700; margin-bottom:6px;">{{ c.name }}</div>
-        {% if c.industry %}<div class="muted" style="margin-bottom:10px;">{{ c.industry }}</div>{% endif %}
-        <a class="btn" href="{% url 'crm:public_request_by_slug' c.slug %}">Оставить заявку →</a>
-      </div>
-    {% endfor %}
-  </div>
-{% endif %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'crm/css/company_select.css' %}">
 {% endblock %}
+{% block content %}
+<div class="company-select-page">
+    <div class="company-select-header">
+        <h1>Оставить заявку</h1>
+        <p>Выберите компанию, для которой хотите оставить заявку. После отправки мы предложим зарегистрироваться, чтобы не потерять список заявок и иметь доступ к чату.</p>
+    </div>
 
+    {% if not companies %}
+    <div class="no-companies">
+        <p>Пока нет компаний, доступных для заявок.</p>
+    </div>
+    {% else %}
+    <div class="search-filter-bar">
+        <input type="text" id="company-search" placeholder="Поиск по названию компании..." autocomplete="off">
+        <button type="button" class="sort-button" id="sort-button">
+            <span class="sort-icon">
+                <span>A</span>
+                <span class="sort-arrow">↓</span>
+            </span>
+        </button>
+    </div>
+
+    <div class="no-results" id="no-results">
+        <p>Компании не найдены. Попробуйте изменить поисковый запрос.</p>
+    </div>
+
+    <div class="companies-grid" id="companies-grid">
+        {% for c in companies %}
+        <div class="company-card" data-name="{{ c.name|lower }}" data-industry="{{ c.industry|lower|default:'' }}">
+            <div class="company-card-header">
+                <h3 class="company-card-name">{{ c.name }}</h3>
+            </div>
+            {% if c.industry %}
+            <p class="company-card-industry">{{ c.industry }}</p>
+            {% endif %}
+            {% if c.description %}
+            <p class="company-card-description">{{ c.description|truncatewords:20 }}</p>
+            {% endif %}
+            <div class="company-card-footer">
+                <a class="btn" href="{% url 'crm:public_request_by_slug' c.slug %}">Оставить заявку →</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<script src="{% static 'crm/js/company_select.js' %}"></script>
+{% endblock %}

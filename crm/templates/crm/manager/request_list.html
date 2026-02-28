@@ -17,7 +17,7 @@
             <td>{{ r.get_status_display }}</td>
             <td>{% if r.manager %}{{ r.manager.username }}{% else %}<span style="color: var(--muted);">Не назначен</span>{% endif %}</td>
             <td>
-                {% if not r.manager and r.status == 'new' %}
+                {% if not r.manager and r.status != 'done' %}
                 <form method="post" action="{% url 'crm:manager_request_detail' r.pk %}" style="display: inline;">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="take">
@@ -25,6 +25,8 @@
                 </form>
                 {% elif r.manager == user %}
                 <span style="color: var(--ok); font-size: 13px;">Вы ответственный</span>
+                {% else %}
+                <span style="color: var(--muted);">—</span>
                 {% endif %}
             </td>
         </tr>

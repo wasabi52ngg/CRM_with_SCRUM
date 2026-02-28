@@ -161,7 +161,7 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
         ctx["can_take"] = (
             _is_user_manager_in_company(self.request.user, client_request.company_id) and
             client_request.manager is None and
-            client_request.status == ClientRequest.Status.NEW
+            client_request.status in (ClientRequest.Status.NEW, ClientRequest.Status.DISCUSS)
         )
         ctx["is_responsible"] = client_request.manager == self.request.user
         ctx["is_owner"] = self.request.user.company_memberships.filter(
@@ -371,9 +371,10 @@ class DashboardView(LoginRequiredMixin, View):
                 projects = Project.objects.filter(company_id__in=company_ids).order_by("-updated_at")[:6]
             else:
                 # Обычный менеджер видит только свои заявки
-                requests = ClientRequest.objects.filter(company_id__in=company_ids, manager=user).order_by("-created_at")[:5]
-                project_ids = requests.values_list("project_id", flat=True).exclude(project_id__isnull=True)
-                projects = Project.objects.filter(id__in=project_ids).order_by("-updated_at")[:6]
+                requests_qs = ClientRequest.objects.filter(company_id__in=company_ids, manager=user).order_by("-created_at")
+                requests = requests_qs[:5]
+                # У ClientRequest нет поля project_id: проект связан через OneToOne Project.client_request (related_name='project')
+                projects = Project.objects.filter(client_request__in=requests_qs).order_by("-updated_at")[:6]
             
             ctx.update({
                 "recent_projects": projects,

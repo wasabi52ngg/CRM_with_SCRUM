@@ -273,8 +273,15 @@ function initRequestTimeline(root) {
   let isEditMode = false;
   let selectedEdgeId = null;
 
+  let diagramZoom = 1;
+  let diagramPanX = 0;
+  let diagramPanY = 0;
+
   const NODE_WIDTH = 200;
   const NODE_HEIGHT = 44;
+  const ZOOM_MIN = 0.25;
+  const ZOOM_MAX = 2;
+  const ZOOM_STEP = 0.15;
 
   function applyEditMode() {
     const actions = document.querySelector('.cp-editor-actions');
@@ -314,10 +321,88 @@ function initRequestTimeline(root) {
     });
   }
 
+  function getDiagramViewport() {
+    return root.querySelector('.cp-diagram__viewport');
+  }
+
+  function getDiagramTransformEl() {
+    return root.querySelector('.cp-diagram__transform');
+  }
+
+  function getDiagramWrap() {
+    return root.querySelector('.cp-diagram__wrap');
+  }
+
+  function applyDiagramTransform() {
+    const el = getDiagramTransformEl();
+    if (el) {
+      el.style.transform = `translate(${diagramPanX}px, ${diagramPanY}px) scale(${diagramZoom})`;
+    }
+    const val = root.querySelector('.cp-diagram__zoom-value');
+    if (val) val.textContent = Math.round(diagramZoom * 100) + '%';
+  }
+
+  function updateWrapSize() {
+    const wrap = getDiagramWrap();
+    const transformEl = getDiagramTransformEl();
+    if (!wrap || !transformEl) return;
+    let maxRight = 600, maxBottom = 280;
+    checkpoints.forEach(cp => {
+      const x = typeof cp.x === 'number' ? cp.x : 0;
+      const y = typeof cp.y === 'number' ? cp.y : 0;
+      if (x + NODE_WIDTH + 80 > maxRight) maxRight = x + NODE_WIDTH + 80;
+      if (y + NODE_HEIGHT + 80 > maxBottom) maxBottom = y + NODE_HEIGHT + 80;
+    });
+    wrap.style.width = maxRight + 'px';
+    wrap.style.height = maxBottom + 'px';
+    wrap.style.minWidth = maxRight + 'px';
+    wrap.style.minHeight = maxBottom + 'px';
+    transformEl.style.width = maxRight + 'px';
+    transformEl.style.height = maxBottom + 'px';
+  }
+
+  function diagramFitAll() {
+    const viewport = getDiagramViewport();
+    if (!viewport || checkpoints.length === 0) return;
+    const rect = viewport.getBoundingClientRect();
+    let minX = 0, minY = 0, maxX = 0, maxY = 0;
+    checkpoints.forEach(cp => {
+      const x = typeof cp.x === 'number' ? cp.x : 0;
+      const y = typeof cp.y === 'number' ? cp.y : 0;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x + NODE_WIDTH > maxX) maxX = x + NODE_WIDTH;
+      if (y + NODE_HEIGHT > maxY) maxY = y + NODE_HEIGHT;
+    });
+    const pad = 40;
+    const contentW = Math.max(maxX - minX + pad * 2, 200);
+    const contentH = Math.max(maxY - minY + pad * 2, 200);
+    diagramZoom = Math.min(rect.width / contentW, rect.height / contentH, ZOOM_MAX);
+    diagramZoom = Math.max(diagramZoom, ZOOM_MIN);
+    diagramPanX = pad - minX * diagramZoom;
+    diagramPanY = pad - minY * diagramZoom;
+    applyDiagramTransform();
+    const val = root.querySelector('.cp-diagram__zoom-value');
+    if (val) val.textContent = Math.round(diagramZoom * 100) + '%';
+  }
+
   function renderDiagram() {
     root.innerHTML = '';
+
+    const viewport = document.createElement('div');
+    viewport.className = 'cp-diagram__viewport';
+
+    const zoomPan = document.createElement('div');
+    zoomPan.className = 'cp-diagram__zoom-pan cp-diagram__zoom-pan--grab';
+
+    const transformEl = document.createElement('div');
+    transformEl.className = 'cp-diagram__transform';
+
     const wrap = document.createElement('div');
     wrap.className = 'cp-diagram__wrap';
+
+    const bg = document.createElement('div');
+    bg.className = 'cp-diagram__bg';
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'cp-diagram__edges cp-diagram__edges--interactive');
@@ -380,21 +465,22 @@ function initRequestTimeline(root) {
         openEditor(cp, node);
       });
 
-      let dragStartX = 0, dragStartY = 0, nodeStartX = 0, nodeStartY = 0;
       node.addEventListener('mousedown', (e) => {
         if (e.button !== 0 || e.target.closest('a, button')) return;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        nodeStartX = cp.x;
-        nodeStartY = cp.y;
+        e.stopPropagation();
+        const dragStartX = e.clientX;
+        const dragStartY = e.clientY;
+        const nodeStartX = cp.x;
+        const nodeStartY = cp.y;
         const onMove = (e2) => {
-          const dx = e2.clientX - dragStartX;
-          const dy = e2.clientY - dragStartY;
-          cp.x = Math.max(0, nodeStartX + dx);
-          cp.y = Math.max(0, nodeStartY + dy);
+          const screenDx = e2.clientX - dragStartX;
+          const screenDy = e2.clientY - dragStartY;
+          cp.x = Math.max(0, nodeStartX + screenDx / diagramZoom);
+          cp.y = Math.max(0, nodeStartY + screenDy / diagramZoom);
           node.style.left = cp.x + 'px';
           node.style.top = cp.y + 'px';
           redrawEdges();
+          updateWrapSize();
         };
         const onUp = () => {
           document.removeEventListener('mousemove', onMove);
@@ -411,20 +497,78 @@ function initRequestTimeline(root) {
     });
 
     wrap.appendChild(nodesWrap);
+    wrap.insertBefore(bg, wrap.firstChild);
 
-    let maxRight = 600, maxBottom = 280;
-    checkpoints.forEach(cp => {
-      const x = typeof cp.x === 'number' ? cp.x : 0;
-      const y = typeof cp.y === 'number' ? cp.y : 0;
-      if (x + NODE_WIDTH + 40 > maxRight) maxRight = x + NODE_WIDTH + 40;
-      if (y + NODE_HEIGHT + 40 > maxBottom) maxBottom = y + NODE_HEIGHT + 40;
+    transformEl.appendChild(wrap);
+    zoomPan.appendChild(transformEl);
+    viewport.appendChild(zoomPan);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'cp-diagram__zoom-toolbar';
+    toolbar.innerHTML = '<button type="button" class="cp-zoom-out" title="Уменьшить">−</button><span class="cp-diagram__zoom-value">100%</span><button type="button" class="cp-zoom-in" title="Увеличить">+</button><button type="button" class="cp-zoom-fit" title="Вместить всё">⊡</button>';
+    viewport.appendChild(toolbar);
+
+    root.appendChild(viewport);
+
+    updateWrapSize();
+    applyDiagramTransform();
+
+    zoomPan.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const vp = getDiagramViewport();
+      if (!vp) return;
+      const r = vp.getBoundingClientRect();
+      const cx = e.clientX - r.left - diagramPanX;
+      const cy = e.clientY - r.top - diagramPanY;
+      const contentX = cx / diagramZoom;
+      const contentY = cy / diagramZoom;
+      const prevZoom = diagramZoom;
+      if (e.deltaY < 0) diagramZoom = Math.min(ZOOM_MAX, diagramZoom + ZOOM_STEP);
+      else diagramZoom = Math.max(ZOOM_MIN, diagramZoom - ZOOM_STEP);
+      diagramPanX = e.clientX - r.left - contentX * diagramZoom;
+      diagramPanY = e.clientY - r.top - contentY * diagramZoom;
+      applyDiagramTransform();
+    }, { passive: false });
+
+    let panStartX = 0, panStartY = 0, panStartPanX = 0, panStartPanY = 0;
+    function startPan(e) {
+      if (e.button !== 0) return;
+      if (e.target.closest('.cp-node') || e.target.closest('.cp-edge-path')) return;
+      e.preventDefault();
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      panStartPanX = diagramPanX;
+      panStartPanY = diagramPanY;
+      zoomPan.classList.remove('cp-diagram__zoom-pan--grab');
+      zoomPan.classList.add('cp-diagram__zoom-pan--grabbing');
+      const onMove = (e2) => {
+        diagramPanX = panStartPanX + (e2.clientX - panStartX);
+        diagramPanY = panStartPanY + (e2.clientY - panStartY);
+        applyDiagramTransform();
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        zoomPan.classList.remove('cp-diagram__zoom-pan--grabbing');
+        zoomPan.classList.add('cp-diagram__zoom-pan--grab');
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+    bg.addEventListener('mousedown', startPan);
+    zoomPan.addEventListener('mousedown', (e) => {
+      if (e.target === zoomPan || e.target === transformEl || e.target === wrap || e.target === svg) startPan(e);
     });
-    wrap.style.width = maxRight + 'px';
-    wrap.style.height = maxBottom + 'px';
-    wrap.style.minWidth = maxRight + 'px';
-    wrap.style.minHeight = maxBottom + 'px';
 
-    root.appendChild(wrap);
+    toolbar.querySelector('.cp-zoom-out').addEventListener('click', () => {
+      diagramZoom = Math.max(ZOOM_MIN, diagramZoom - ZOOM_STEP);
+      applyDiagramTransform();
+    });
+    toolbar.querySelector('.cp-zoom-in').addEventListener('click', () => {
+      diagramZoom = Math.min(ZOOM_MAX, diagramZoom + ZOOM_STEP);
+      applyDiagramTransform();
+    });
+    toolbar.querySelector('.cp-zoom-fit').addEventListener('click', () => diagramFitAll());
   }
 
   function openEdgeEditor(edge) {

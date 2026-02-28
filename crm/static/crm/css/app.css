@@ -660,13 +660,50 @@ button:hover, .btn:hover {
   font-size: 18px;
 }
 
-/* ——— Диаграмма чекпоинтов (узлы + связи как в редакторах диаграмм) ——— */
+/* ——— Диаграмма чекпоинтов (зум, панорамирование, поле по вертикали и горизонтали) ——— */
 .cp-timeline.cp-diagram {
   position: relative;
   grid-column: 1 / 2;
-  min-height: 320px;
-  padding: 24px;
-  overflow: auto;
+  min-height: 380px;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-diagram__viewport {
+  position: relative;
+  flex: 1;
+  min-height: 360px;
+  height: 420px;
+  margin-top: 12px;
+  overflow: hidden;
+  background: var(--bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.cp-diagram__zoom-pan {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: default;
+}
+
+.cp-diagram__zoom-pan.cp-diagram__zoom-pan--grabbing {
+  cursor: grabbing;
+}
+
+.cp-diagram__zoom-pan.cp-diagram__zoom-pan--grab {
+  cursor: grab;
+}
+
+.cp-diagram__transform {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .cp-diagram__wrap {
@@ -675,7 +712,67 @@ button:hover, .btn:hover {
   min-height: 280px;
 }
 
-/* SVG слой связей — под узлами */
+.cp-diagram__bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  cursor: grab;
+}
+
+.cp-diagram__bg:active {
+  cursor: grabbing;
+}
+
+.cp-diagram__zoom-toolbar {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.cp-diagram__zoom-toolbar button {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cp-diagram__zoom-toolbar button:hover {
+  background: var(--border-strong);
+}
+
+.cp-diagram__zoom-toolbar button:active {
+  transform: scale(0.96);
+}
+
+.cp-diagram__zoom-toolbar .cp-diagram__zoom-value {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* SVG слой связей — под узлами, над фоном */
 .cp-diagram__edges {
   position: absolute;
   left: 0;
@@ -683,6 +780,7 @@ button:hover, .btn:hover {
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 1;
 }
 
 .cp-diagram__edges--interactive {
@@ -708,12 +806,17 @@ button:hover, .btn:hover {
   transition: stroke 0.15s, stroke-width 0.15s;
 }
 
-/* Контейнер узлов */
+/* Контейнер узлов — не перехватывает клики по пустому месту (панорамирование по фону) */
 .cp-diagram__nodes {
   position: relative;
   z-index: 2;
   min-width: 600px;
   min-height: 280px;
+  pointer-events: none;
+}
+
+.cp-diagram__nodes .cp-node {
+  pointer-events: auto;
 }
 
 /* Один узел диаграммы — карточка с фиксированным размером для стабильных связей */

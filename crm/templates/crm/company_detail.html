@@ -22,45 +22,37 @@
 
   {% if is_owner %}
   <!-- Статистика компании -->
-  <div class="grid-4" style="margin-bottom: 32px;">
-    <div class="card" style="text-align: center; padding: 20px;">
-      <div style="font-size: 32px; margin-bottom: 8px;">👥</div>
-      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.members.total }}</div>
-      <div class="muted-text">Сотрудников</div>
-      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
-        Менеджеров: {{ stats.members.managers }} • Разработчиков: {{ stats.members.developers }}
-      </div>
+  <div class="grid-4 stat-cards" style="margin-bottom: 32px;">
+    <div class="card stat-card">
+      <div class="stat-card__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="stat-card__value">{{ stats.members.total }}</div>
+      <div class="stat-card__label">Сотрудников</div>
+      <div class="stat-card__meta">Менеджеров: {{ stats.members.managers }} • Разработчиков: {{ stats.members.developers }}</div>
     </div>
-    <div class="card" style="text-align: center; padding: 20px;">
-      <div style="font-size: 32px; margin-bottom: 8px;">📁</div>
-      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.projects.total }}</div>
-      <div class="muted-text">Проектов</div>
-      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
-        Активных: {{ stats.projects.active }} • Архивированных: {{ stats.projects.archived }}
-      </div>
+    <div class="card stat-card">
+      <div class="stat-card__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></div>
+      <div class="stat-card__value">{{ stats.projects.total }}</div>
+      <div class="stat-card__label">Проектов</div>
+      <div class="stat-card__meta">Активных: {{ stats.projects.active }} • Архивированных: {{ stats.projects.archived }}</div>
     </div>
-    <div class="card" style="text-align: center; padding: 20px;">
-      <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
-      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.requests.total }}</div>
-      <div class="muted-text">Заявок</div>
-      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
-        Новых: {{ stats.requests.new }} • В работе: {{ stats.requests.in_progress }}
-      </div>
+    <div class="card stat-card">
+      <div class="stat-card__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14h6"/><path d="M9 18h6"/></svg></div>
+      <div class="stat-card__value">{{ stats.requests.total }}</div>
+      <div class="stat-card__label">Заявок</div>
+      <div class="stat-card__meta">Новых: {{ stats.requests.new }} • В работе: {{ stats.requests.in_progress }}</div>
     </div>
-    <div class="card" style="text-align: center; padding: 20px;">
-      <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
-      <div style="font-size: 24px; font-weight: bold; margin-bottom: 4px;">{{ stats.tasks.total }}</div>
-      <div class="muted-text">Задач</div>
-      <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
-        TODO: {{ stats.tasks.todo }} • В работе: {{ stats.tasks.in_progress }}
-      </div>
+    <div class="card stat-card">
+      <div class="stat-card__icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
+      <div class="stat-card__value">{{ stats.tasks.total }}</div>
+      <div class="stat-card__label">Задач</div>
+      <div class="stat-card__meta">TODO: {{ stats.tasks.todo }} • В работе: {{ stats.tasks.in_progress }}</div>
     </div>
   </div>
 
   <div class="grid-2" style="margin-bottom: 32px;">
     <!-- Публичные ссылки и коды -->
     <div class="card">
-      <h2 style="margin-bottom: 16px;">🔗 Публичные ссылки и коды</h2>
+      <h2 class="section-title"><span class="section-title__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span> Публичные ссылки и коды</h2>
       
       <div style="margin-bottom: 20px;">
         <h3 style="font-size: 16px; margin-bottom: 8px;">Ссылки для клиентов</h3>
@@ -85,8 +77,9 @@
         <form method="post" style="display: inline;">
           {% csrf_token %}
           <input type="hidden" name="action" value="regenerate_public_token">
-          <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px; background: var(--warn);" onclick="return confirm('Регенерировать публичный токен? Старая ссылка перестанет работать.');">
-            🔄 Регенерировать токен
+          <button type="submit" class="btn btn--icon" style="padding: 6px 12px; font-size: 12px; background: var(--warn);" onclick="return confirm('Регенерировать публичный токен? Старая ссылка перестанет работать.');">
+            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            Регенерировать токен
           </button>
         </form>
       </div>
@@ -104,8 +97,9 @@
         <form method="post" style="display: inline;">
           {% csrf_token %}
           <input type="hidden" name="action" value="regenerate_join_code">
-          <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px; background: var(--warn);" onclick="return confirm('Регенерировать код для сотрудников? Старый код перестанет работать.');">
-            🔄 Регенерировать код
+          <button type="submit" class="btn btn--icon" style="padding: 6px 12px; font-size: 12px; background: var(--warn);" onclick="return confirm('Регенерировать код для сотрудников? Старый код перестанет работать.');">
+            <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+            Регенерировать код
           </button>
         </form>
       </div>
@@ -115,7 +109,7 @@
     <div>
       {% if recent_requests %}
       <div class="card" style="margin-bottom: 20px;">
-        <h2 style="margin-bottom: 16px;">📋 Последние заявки</h2>
+        <h2 class="section-title"><span class="section-title__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14h6"/><path d="M9 18h6"/></svg></span> Последние заявки</h2>
         <ul class="plain-list">
           {% for req in recent_requests %}
           <li style="padding: 12px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 8px;{% endif %}">
@@ -141,7 +135,7 @@
 
       {% if recent_projects %}
       <div class="card">
-        <h2 style="margin-bottom: 16px;">📁 Последние проекты</h2>
+        <h2 class="section-title"><span class="section-title__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span> Последние проекты</h2>
         <ul class="plain-list">
           {% for proj in recent_projects %}
           <li style="padding: 12px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 8px;{% endif %}">
@@ -165,7 +159,7 @@
 
   <!-- Список сотрудников -->
   <div class="card">
-    <h2 style="margin-bottom: 16px;">👥 Сотрудники компании</h2>
+    <h2 class="section-title"><span class="section-title__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Сотрудники компании</h2>
     {% if memberships %}
       <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -251,7 +245,7 @@
   <!-- Ожидающие подтверждения -->
   {% if is_owner and pending_memberships %}
   <div class="card" style="margin-top: 24px; border-left: 4px solid var(--warn);">
-    <h2 style="margin-bottom: 16px; color: var(--warn);">⏳ Ожидают подтверждения</h2>
+    <h2 class="section-title section-title--warn"><span class="section-title__icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span> Ожидают подтверждения</h2>
     {% for m in pending_memberships %}
     <div style="padding: 16px; border-bottom: 1px solid var(--border); {% if not forloop.last %}margin-bottom: 16px;{% endif %}">
       <div style="margin-bottom: 12px;">

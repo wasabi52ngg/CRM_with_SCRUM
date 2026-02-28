@@ -106,11 +106,7 @@
 
 .sort-arrow {
     font-size: 12px;
-    transition: transform 0.2s ease;
-}
-
-.sort-button.active .sort-arrow {
-    transform: rotate(180deg);
+    transition: none;
 }
 
 .companies-list {

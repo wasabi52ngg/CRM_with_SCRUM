@@ -667,16 +667,7 @@ button:hover, .btn:hover {
   padding: 8px 0 8px 40px;
 }
 
-.cp-timeline::before {
-  content: "";
-  position: absolute;
-  left: 16px;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(148, 163, 184, .7), rgba(148, 163, 184, .15));
-}
+/* Убрали вертикальную линию слева - теперь линии только между чекпоинтами */
 
 .cp-points {
   display: flex;
@@ -710,20 +701,22 @@ button:hover, .btn:hover {
   margin-right: 12px;
 }
 
-.cp-dot::before {
-  /* кусок линии между точками — так можно «рвать» цепочку через класс */
+.cp-point:not(.cp-point--first)::before {
+  /* Линия от центра нижней дуги предыдущего кружка к центру верхней дуги текущего */
   content: "";
   position: absolute;
-  left: 50%;
-  top: -14px;
+  left: 9px; /* Центр кружка: половина ширины кружка (18px / 2 = 9px) */
+  top: -32px; /* От центра текущего кружка вверх: 9px (до низа кружка) + 14px (gap) + 9px (до центра верхней части предыдущего) = 32px */
   width: 3px;
-  height: 14px;
-  transform: translateX(-50%);
+  height: 32px; /* gap (14px) + половина высоты первого кружка (9px) + половина высоты второго кружка (9px) = 32px */
   background: linear-gradient(180deg, rgba(148, 163, 184, .7), rgba(148, 163, 184, .15));
+  border-radius: 999px;
+  z-index: 0;
 }
 
-.cp-point--first .cp-dot::before {
-  display: none;
+.cp-point--gap::before {
+  /* визуальный разрыв цепочки */
+  background: transparent;
 }
 
 .cp-point--gap .cp-dot::before {
@@ -794,6 +787,32 @@ button:hover, .btn:hover {
   color: var(--muted);
 }
 
+.cp-field input,
+.cp-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.cp-field input:disabled,
+.cp-field textarea:disabled {
+  background: var(--bg-secondary);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.cp-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
 .cp-field-inline {
   display: flex;
   align-items: center;
@@ -813,6 +832,11 @@ button:hover, .btn:hover {
   padding: 0;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.cp-checkbox input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .cp-checkbox span {

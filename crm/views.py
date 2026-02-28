@@ -855,6 +855,7 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
         if action == "create":
             title = (payload.get("title") or "").strip()
             comment = (payload.get("comment") or "").strip()
+            is_done = payload.get("is_done", False)
             if not title:
                 return JsonResponse({"ok": False, "error": "title_required"}, status=400)
             last_order = (
@@ -867,6 +868,7 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
                 request=client_request,
                 title=title,
                 comment=comment,
+                is_done=bool(is_done),
                 order=last_order + 1,
             )
             return JsonResponse(

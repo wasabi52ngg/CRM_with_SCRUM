@@ -366,6 +366,15 @@ function initRequestTimeline(root) {
     });
   }
 
+  function setFieldsDisabled(disabled) {
+    const titleEl = document.getElementById('cp-title');
+    const commentEl = document.getElementById('cp-comment');
+    const doneEl = document.getElementById('cp-is-done');
+    if (titleEl) titleEl.disabled = disabled;
+    if (commentEl) commentEl.disabled = disabled;
+    if (doneEl) doneEl.disabled = disabled;
+  }
+
   function openEditor(cp, pointElement) {
     if (!editor) return;
     editor.classList.remove('cp-editor--hidden');
@@ -382,6 +391,14 @@ function initRequestTimeline(root) {
     // при открытии существующего чекпоинта по умолчанию режим просмотра (без кнопок),
     // для нового сразу включаем редактирование
     isEditMode = !cp;
+    
+    // Блокируем поля если это существующий чекпоинт и не режим редактирования
+    if (cp && !isEditMode) {
+      setFieldsDisabled(true);
+    } else {
+      setFieldsDisabled(false);
+    }
+    
     applyEditMode();
 
     // позиционируем редактор справа от выбранного чекпоинта
@@ -456,6 +473,10 @@ function initRequestTimeline(root) {
           checkpoints.push(resp.checkpoint);
           render();
           const newPoint = root.querySelector(`[data-id="${resp.checkpoint.id}"]`);
+          // После создания блокируем поля и выключаем режим редактирования
+          isEditMode = false;
+          setFieldsDisabled(true);
+          applyEditMode();
           openEditor(resp.checkpoint, newPoint);
         } else if (payload.action === 'update' && id) {
           const cp = findCheckpoint(id);
@@ -466,6 +487,10 @@ function initRequestTimeline(root) {
           }
           render();
           const updatedPoint = root.querySelector(`[data-id="${id}"]`);
+          // После обновления блокируем поля и выключаем режим редактирования
+          isEditMode = false;
+          setFieldsDisabled(true);
+          applyEditMode();
           openEditor(cp || null, updatedPoint);
         }
       })
@@ -541,6 +566,8 @@ function initRequestTimeline(root) {
   if (editToggle) {
     editToggle.addEventListener('click', () => {
       isEditMode = !isEditMode;
+      // Разблокируем/блокируем поля в зависимости от режима редактирования
+      setFieldsDisabled(!isEditMode);
       applyEditMode();
     });
   }

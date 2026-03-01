@@ -807,10 +807,22 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         project: Project = self.object
-        ctx["todo"] = project.tasks.filter(status=Task.Status.TODO).order_by("order", "created_at")
-        ctx["in_progress"] = project.tasks.filter(status=Task.Status.IN_PROGRESS).order_by("order", "created_at")
-        ctx["review"] = project.tasks.filter(status=Task.Status.REVIEW).order_by("order", "created_at")
-        ctx["done"] = project.tasks.filter(status=Task.Status.DONE).order_by("order", "created_at")
+        ctx["todo"] = project.tasks.filter(status=Task.Status.TODO).select_related("assignee").order_by("order", "created_at")
+        ctx["in_progress"] = project.tasks.filter(status=Task.Status.IN_PROGRESS).select_related("assignee").order_by("order", "created_at")
+        ctx["review"] = project.tasks.filter(status=Task.Status.REVIEW).select_related("assignee").order_by("order", "created_at")
+        ctx["done"] = project.tasks.filter(status=Task.Status.DONE).select_related("assignee").order_by("order", "created_at")
+        dev_ids = list(
+            CompanyMembership.objects.filter(
+                company=project.company,
+                is_approved=True,
+                is_developer=True,
+            ).values_list("user_id", flat=True)
+        )
+        ctx["developers"] = (
+            User.objects.filter(id__in=dev_ids, is_active=True)
+            .order_by("username")
+            .only("id", "username", "developer_type")
+        )
         return ctx
 
 
@@ -841,6 +853,89 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
         task.order = last_order + 1
         task.save(update_fields=["status", "order", "updated_at"])
         return JsonResponse({"ok": True})
+
+
+@method_decorator(require_POST, name="dispatch")
+class KanbanCreateTaskApiView(LoginRequiredMixin, View):
+    """API создания задачи с канбана (модалка или кнопка в колонке)."""
+
+    def post(self, request: HttpRequest) -> JsonResponse:
+        import json
+
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
+
+        project_id = payload.get("project_id")
+        status = payload.get("status", Task.Status.TODO)
+        title = (payload.get("title") or "").strip()
+        description = (payload.get("description") or "").strip()
+        task_type = payload.get("task_type") or "fullstack"
+        assignee_id = payload.get("assignee") or None
+        due_date = payload.get("due_date") or None
+        story_points = int(payload.get("story_points") or 0)
+        story_points = max(0, min(100, story_points))
+
+        if not project_id or not title:
+            return JsonResponse({"ok": False, "error": "project_id_and_title_required"}, status=400)
+        if status not in dict(Task.Status.choices):
+            status = Task.Status.TODO
+
+        project = get_object_or_404(Project, pk=project_id)
+        if not (
+            _is_user_manager_in_company(request.user, project.company_id)
+            or (project.client_request and project.client_request.manager == request.user)
+        ):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+        assignee = None
+        if assignee_id and project.company_id:
+            dev_ids = list(
+                CompanyMembership.objects.filter(
+                    company=project.company,
+                    is_approved=True,
+                    is_developer=True,
+                ).values_list("user_id", flat=True)
+            )
+            if int(assignee_id) in dev_ids:
+                assignee = get_object_or_404(User, pk=assignee_id)
+
+        if task_type not in dict(Task.TaskType.choices):
+            task_type = "fullstack"
+
+        last_order = (
+            Task.objects.filter(project=project, status=status)
+            .order_by("-order")
+            .values_list("order", flat=True)
+            .first()
+        ) or 0
+
+        task = Task.objects.create(
+            project=project,
+            title=title,
+            description=description,
+            task_type=task_type,
+            status=status,
+            created_by=request.user,
+            assignee=assignee,
+            due_date=due_date,
+            story_points=story_points,
+            order=last_order + 1,
+        )
+        return JsonResponse({
+            "ok": True,
+            "task": {
+                "id": task.id,
+                "title": task.title,
+                "task_type": task.task_type,
+                "task_type_label": task.get_task_type_display(),
+                "status": task.status,
+                "story_points": task.story_points,
+                "assignee": getattr(task.assignee, "username", None),
+                "due_date": task.due_date.isoformat() if task.due_date else None,
+            },
+        })
 
 
 @method_decorator(require_POST, name="dispatch")
@@ -1024,6 +1119,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         "task_type_label": task.get_task_type_display(),
                         "story_points": task.story_points,
                         "assignee": getattr(task.assignee, "username", None),
+                        "assignee_id": task.assignee_id,
                         "created_by": getattr(task.created_by, "username", None),
                         "due_date": task.due_date.isoformat() if task.due_date else None,
                         "project_id": task.project_id,
@@ -1032,6 +1128,61 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                     "chat": chat,
                 }
             )
+
+        # ---- Обновление полей задачи ----
+        if action == "task_update":
+            assignee_id = payload.get("assignee")
+            due_date_raw = payload.get("due_date")
+            story_points_raw = payload.get("story_points")
+            title_new = payload.get("title")
+
+            if not _is_user_manager_in_company(request.user, task.project.company_id) and request.user != task.assignee:
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+            changed = False
+            if assignee_id is not None:
+                if assignee_id in (None, "", 0):
+                    task.assignee = None
+                    changed = True
+                else:
+                    try:
+                        aid = int(assignee_id)
+                    except (ValueError, TypeError):
+                        aid = None
+                    if aid and task.project.company_id:
+                        dev_ids = list(
+                            CompanyMembership.objects.filter(
+                                company=task.project.company,
+                                is_approved=True,
+                                is_developer=True,
+                            ).values_list("user_id", flat=True)
+                        )
+                        if aid in dev_ids:
+                            task.assignee = get_object_or_404(User, pk=aid)
+                            changed = True
+            if due_date_raw is not None:
+                from datetime import date
+                if due_date_raw:
+                    try:
+                        task.due_date = date.fromisoformat(str(due_date_raw))
+                    except (ValueError, TypeError):
+                        pass
+                else:
+                    task.due_date = None
+                changed = True
+            if story_points_raw is not None:
+                sp = max(0, min(100, int(story_points_raw)))
+                task.story_points = sp
+                changed = True
+            if title_new is not None:
+                t = (title_new or "").strip()
+                if t:
+                    task.title = t
+                    changed = True
+
+            if changed:
+                task.save()
+            return JsonResponse({"ok": True})
 
         # ---- Checkpoints ----
         if action == "checkpoint_create":

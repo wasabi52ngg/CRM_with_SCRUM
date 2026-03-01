@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const cols = document.querySelectorAll('[data-col]');
   let dragged = null;
 
-  document.querySelectorAll('[data-task]').forEach(card => {
+  document.querySelectorAll('.task[data-task]').forEach(card => {
     card.draggable = true;
     card.addEventListener('dragstart', e => {
       dragged = card;
@@ -36,6 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const taskPanel = document.getElementById('task-panel');
   if (taskPanel) {
     initKanbanTaskPanel(taskPanel);
+  }
+
+  // Kanban extras: create modal, filters, list view, inline edit
+  if (document.querySelector('.kanban-wrap')) {
+    initKanbanExtras();
   }
 
   // Request checkpoints timeline (manager request detail)
@@ -188,6 +193,12 @@ function initKanbanTaskPanel(panel) {
       if (createdByEl) createdByEl.textContent = t.created_by || '—';
       if (dueEl) dueEl.textContent = t.due_date || '—';
       if (spEl) spEl.textContent = String(t.story_points ?? 0);
+      const assigneeSelect = document.getElementById('tp-assignee-select');
+      const dueInput = document.getElementById('tp-due-input');
+      const spInput = document.getElementById('tp-sp-input');
+      if (assigneeSelect) assigneeSelect.value = t.assignee_id ? String(t.assignee_id) : '';
+      if (dueInput) dueInput.value = t.due_date || '';
+      if (spInput) spInput.value = String(t.story_points ?? 0);
       checkpoints = resp.checkpoints || [];
       chat = resp.chat || [];
       renderCheckpoints();
@@ -206,6 +217,13 @@ function initKanbanTaskPanel(panel) {
     card.addEventListener('dragstart', () => {
       window.__kanbanDragged = card;
       setTimeout(() => { window.__kanbanDragged = null; }, 50);
+    });
+  });
+
+  document.querySelectorAll('.task-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const id = parseInt(row.getAttribute('data-task') || '0', 10);
+      if (id) loadTask(id).catch(() => {});
     });
   });
 
@@ -272,6 +290,50 @@ function initKanbanTaskPanel(panel) {
         .catch(() => {});
     });
   }
+
+  function saveTaskField(field, value) {
+    if (!apiUrl || !currentTaskId) return;
+    const payload = { action: 'task_update' };
+    payload[field] = value;
+    apiRequest(payload).then(resp => {
+      if (resp.ok) loadTask(currentTaskId);
+    });
+  }
+
+  document.querySelectorAll('.task-panel__row--editable').forEach(row => {
+    const field = row.getAttribute('data-field');
+    const valueEl = row.querySelector('.tp-value');
+    const inputEl = row.querySelector('.tp-edit-input, .tp-edit-select');
+    if (!valueEl || !inputEl) return;
+    row.addEventListener('click', (e) => {
+      if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return;
+      valueEl.style.display = 'none';
+      inputEl.style.display = 'block';
+      inputEl.focus();
+    });
+    const finishEdit = () => {
+      valueEl.style.display = '';
+      inputEl.style.display = 'none';
+      if (field === 'assignee') {
+        const v = inputEl.value;
+        saveTaskField('assignee', v || null);
+        const opt = inputEl.selectedOptions[0];
+        valueEl.textContent = (opt && v) ? opt.text : '—';
+      } else if (field === 'due_date') {
+        saveTaskField('due_date', inputEl.value || null);
+        valueEl.textContent = inputEl.value || '—';
+      } else if (field === 'story_points') {
+        saveTaskField('story_points', parseInt(inputEl.value, 10) || 0);
+        valueEl.textContent = inputEl.value || '0';
+      }
+    };
+    inputEl.addEventListener('change', finishEdit);
+    inputEl.addEventListener('blur', finishEdit);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); finishEdit(); }
+      if (e.key === 'Escape') { valueEl.style.display = ''; inputEl.style.display = 'none'; }
+    });
+  });
 }
 
 function initRequestTimeline(root) {
@@ -983,6 +1045,128 @@ function initRequestTimeline(root) {
   }
 
   render();
+}
+
+function initKanbanExtras() {
+  const projectId = window.__kanbanProjectId;
+  if (!projectId) return;
+
+  const board = document.getElementById('kanban-board');
+  const listView = document.getElementById('kanban-list-view');
+  const filterAssignee = document.getElementById('kanban-filter-assignee');
+  const filterType = document.getElementById('kanban-filter-type');
+  const viewBtns = document.querySelectorAll('.kanban-view-btn');
+  const modal = document.getElementById('task-create-modal');
+  const modalClose = modal && modal.querySelector('.modal__close');
+  const modalCancel = modal && modal.querySelector('.modal__cancel');
+  const modalBackdrop = modal && modal.querySelector('.modal__backdrop');
+  const createForm = document.getElementById('task-create-form');
+  const statusInput = document.getElementById('task-create-status');
+
+  function applyFilters() {
+    const assigneeVal = filterAssignee ? filterAssignee.value : '';
+    const typeVal = filterType ? filterType.value : '';
+    document.querySelectorAll('.task[data-task]').forEach(card => {
+      const a = card.getAttribute('data-assignee') || '';
+      const t = card.getAttribute('data-task-type') || '';
+      const matchA = !assigneeVal || a === assigneeVal;
+      const matchT = !typeVal || t === typeVal;
+      card.style.display = matchA && matchT ? '' : 'none';
+    });
+    document.querySelectorAll('.task-row').forEach(row => {
+      const a = row.getAttribute('data-assignee') || '';
+      const t = row.getAttribute('data-task-type') || '';
+      const matchA = !assigneeVal || a === assigneeVal;
+      const matchT = !typeVal || t === typeVal;
+      row.style.display = matchA && matchT ? '' : 'none';
+    });
+  }
+
+  function updateCounts() {
+    ['todo','in_progress','review','done'].forEach(status => {
+      const list = board ? board.querySelector(`[data-col="${status}"] [data-list]`) : null;
+      const countEl = document.querySelector(`.col-count[data-count="${status}"]`);
+      if (countEl && list) {
+        const visible = Array.from(list.querySelectorAll('.task')).filter(t => t.style.display !== 'none').length;
+        countEl.textContent = visible;
+      }
+    });
+  }
+
+  if (filterAssignee) filterAssignee.addEventListener('change', () => { applyFilters(); updateCounts(); });
+  if (filterType) filterType.addEventListener('change', () => { applyFilters(); updateCounts(); });
+
+  viewBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.getAttribute('data-view');
+      viewBtns.forEach(b => b.classList.remove('kanban-view-btn--active'));
+      btn.classList.add('kanban-view-btn--active');
+      if (view === 'list') {
+        if (board) board.style.display = 'none';
+        if (listView) listView.style.display = 'block';
+      } else {
+        if (board) board.style.display = '';
+        if (listView) listView.style.display = 'none';
+      }
+    });
+  });
+
+  function openCreateModal(status) {
+    if (!modal) return;
+    if (statusInput) statusInput.value = status || 'todo';
+    modal.classList.remove('modal--hidden');
+  }
+
+  function closeCreateModal() {
+    if (modal) modal.classList.add('modal--hidden');
+  }
+
+  document.querySelectorAll('.col-add-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.getAttribute('data-status');
+      openCreateModal(status);
+    });
+  });
+
+  if (modalClose) modalClose.addEventListener('click', closeCreateModal);
+  if (modalCancel) modalCancel.addEventListener('click', closeCreateModal);
+  if (modalBackdrop) modalBackdrop.addEventListener('click', closeCreateModal);
+
+  if (createForm) {
+    createForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const status = statusInput ? statusInput.value : 'todo';
+      const title = (document.getElementById('task-create-title')?.value || '').trim();
+      const description = (document.getElementById('task-create-description')?.value || '').trim();
+      const taskType = document.getElementById('task-create-type')?.value || 'fullstack';
+      const assignee = document.getElementById('task-create-assignee')?.value || null;
+      const dueDate = document.getElementById('task-create-due')?.value || null;
+      const sp = parseInt(document.getElementById('task-create-sp')?.value || '0', 10);
+      if (!title) return;
+      fetch('/kanban/create/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+        body: JSON.stringify({
+          project_id: projectId,
+          status,
+          title,
+          description,
+          task_type: taskType,
+          assignee: assignee || undefined,
+          due_date: dueDate || undefined,
+          story_points: sp,
+        }),
+      })
+        .then(r => r.json())
+        .then(resp => {
+          if (!resp.ok) return;
+          closeCreateModal();
+          createForm.reset();
+          window.location.reload();
+        })
+        .catch(() => {});
+    });
+  }
 }
 
 function getCsrfToken() {

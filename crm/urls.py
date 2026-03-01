@@ -11,6 +11,7 @@ from .views import (
     DashboardView,
     KanbanBoardView,
     KanbanMoveApiView,
+    KanbanCreateTaskApiView,
     TaskPanelApiView,
     LandingView,
     ClientRequestListView,
@@ -49,6 +50,7 @@ urlpatterns = [
     path("manager/projects/<int:pk>/board/", KanbanBoardView.as_view(), name="kanban_board"),
     path("manager/tasks/<int:pk>/panel/", TaskPanelApiView.as_view(), name="task_panel_api"),
     path("kanban/move/", KanbanMoveApiView.as_view(), name="kanban_move"),
+    path("kanban/create/", KanbanCreateTaskApiView.as_view(), name="kanban_create_task"),
     # Developer area
     path("dev/open/", DeveloperOpenTasksView.as_view(), name="dev_open_tasks"),
     path("dev/take/<int:pk>/", DeveloperTakeTaskView.as_view(), name="dev_take_task"),

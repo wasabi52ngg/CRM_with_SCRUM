@@ -11,7 +11,7 @@ class User(AbstractUser):
         DEVELOPER = "developer", "Разработчик"
 
     class DeveloperType(models.TextChoices):
-        NONE = "none", "Не задано"
+        NONE = "none", "Профиль не указан"
         FRONTEND = "frontend", "Фронтенд"
         BACKEND = "backend", "Бэкенд"
         FULLSTACK = "fullstack", "Фулстек"
@@ -34,7 +34,7 @@ class User(AbstractUser):
         max_length=20,
         choices=DeveloperType.choices,
         default=DeveloperType.NONE,
-        help_text="Тип разработчика, актуально для роли 'Разработчик'",
+        help_text="Профиль разработчика, актуально для роли 'Разработчик'",
     )
 
     phone = models.CharField(

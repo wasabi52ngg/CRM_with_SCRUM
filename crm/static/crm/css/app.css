@@ -276,12 +276,19 @@ tr {
 input, textarea, select {
   width: 100%;
   padding: 14px 16px;
+  margin-bottom: 14px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--text);
   font-size: 14px;
   font-family: inherit;
+}
+
+/* Кнопка в форме не липнет к последнему полю */
+form button[type="submit"],
+form input[type="submit"] {
+  margin-top: 4px;
 }
 
 input:focus, textarea:focus, select:focus {

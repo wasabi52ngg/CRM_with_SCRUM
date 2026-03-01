@@ -17,7 +17,7 @@
       <th>Постановщик</th>
       <th>Исполнитель</th>
       <th>Дедлайн</th>
-      <th>SP</th>
+      <th>Важность</th>
     </tr>
     </thead>
     <tbody>
@@ -46,25 +46,21 @@
 <form method="post">
     {% csrf_token %}
     <input type="text" name="title" placeholder="Название" required>
-    <br>
     <textarea name="description" placeholder="Описание"></textarea>
-    <br>
     <label class="muted" style="display:block;margin:8px 0 4px;">Исполнитель (опционально)</label>
     <select name="assignee">
       <option value="">— не назначать —</option>
       {% for u in developers %}
         <option value="{{ u.id }}">
-          {{ u.username }}{% if u.developer_type %} ({{ u.get_developer_type_display }}){% endif %}
+          {{ u.username }} ({% if u.developer_type and u.developer_type != 'none' %}{{ u.get_developer_type_display }}{% else %}профиль не указан{% endif %})
         </option>
       {% endfor %}
     </select>
-    <br>
     <label class="muted" style="display:block;margin:8px 0 4px;">Дедлайн</label>
     <input type="date" name="due_date">
-    <br>
-    <label class="muted" style="display:block;margin:8px 0 4px;">Story points</label>
-    <input type="number" name="story_points" min="0" max="100" value="0">
-    <br>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Важность задачи (1–100)</label>
+    <input type="number" name="story_points" min="0" max="100" value="0" placeholder="0" title="Чем выше число, тем важнее задача">
+    <label class="muted" style="display:block;margin:8px 0 4px;">Тип задачи</label>
     <select name="task_type" required>
         <option value="frontend">Фронтенд</option>
         <option value="backend">Бэкенд</option>
@@ -74,9 +70,8 @@
         <option value="android">Android</option>
         <option value="db">База данных</option>
     </select>
-    <br>
     <button type="submit">Создать</button>
- </form>
+</form>
 
 {% endblock %}
 

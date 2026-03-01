@@ -13,7 +13,7 @@
           <div>{{ t.title }}</div>
           <div class="meta">
             <span>{{ t.get_task_type_display }}</span>
-            <span>SP: {{ t.story_points }}</span>
+            <span>Важность: {{ t.story_points }}</span>
           </div>
           <div class="meta">
             <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
@@ -31,7 +31,7 @@
           <div>{{ t.title }}</div>
           <div class="meta">
             <span>{{ t.get_task_type_display }}</span>
-            <span>SP: {{ t.story_points }}</span>
+            <span>Важность: {{ t.story_points }}</span>
           </div>
           <div class="meta">
             <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
@@ -49,7 +49,7 @@
           <div>{{ t.title }}</div>
           <div class="meta">
             <span>{{ t.get_task_type_display }}</span>
-            <span>SP: {{ t.story_points }}</span>
+            <span>Важность: {{ t.story_points }}</span>
           </div>
           <div class="meta">
             <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
@@ -67,7 +67,7 @@
           <div>{{ t.title }}</div>
           <div class="meta">
             <span>{{ t.get_task_type_display }}</span>
-            <span>SP: {{ t.story_points }}</span>
+            <span>Важность: {{ t.story_points }}</span>
           </div>
           <div class="meta">
             <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
@@ -92,7 +92,7 @@
     <div class="task-panel__row"><span class="muted">Исполнитель</span><span id="tp-assignee">—</span></div>
     <div class="task-panel__row"><span class="muted">Постановщик</span><span id="tp-created-by">—</span></div>
     <div class="task-panel__row"><span class="muted">Дедлайн</span><span id="tp-due">—</span></div>
-    <div class="task-panel__row"><span class="muted">SP</span><span id="tp-sp">0</span></div>
+    <div class="task-panel__row"><span class="muted">Важность</span><span id="tp-sp">0</span></div>
   </div>
 
   <div class="task-panel__tabs">

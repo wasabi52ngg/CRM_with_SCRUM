@@ -321,7 +321,7 @@ class ProfileUserForm(forms.ModelForm):
             'first_name': 'Имя',
             'last_name': 'Фамилия',
             'phone': 'Телефон',
-            'developer_type': 'Тип разработчика',
+            'developer_type': 'Профиль разработчика',
         }
         widgets = {
             'first_name': forms.TextInput(attrs={'class': 'form-input'}),
@@ -333,7 +333,7 @@ class ProfileUserForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         UserModel = get_user_model()
-        # Тип разработчика показываем только разработчикам (по роли или по участию в компании)
+        # Профиль разработчика показываем только разработчикам (по роли или по участию в компании)
         if self.instance:
             is_dev = (
                 self.instance.role == UserModel.Role.DEVELOPER

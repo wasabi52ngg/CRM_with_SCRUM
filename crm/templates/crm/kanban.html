@@ -105,6 +105,13 @@
       <div class="task-panel__toolbar">
         <button type="button" class="btn-ghost" id="tp-cp-add">Добавить чекпоинт</button>
       </div>
+      <div id="tp-cp-add-form" class="tp-cp-add-form tp-cp-add-form--hidden">
+        <input type="text" id="tp-cp-add-input" placeholder="Название чекпоинта" autocomplete="off">
+        <div class="tp-cp-add-form__actions">
+          <button type="button" class="btn" id="tp-cp-add-submit">Добавить</button>
+          <button type="button" class="btn-ghost" id="tp-cp-add-cancel">Отмена</button>
+        </div>
+      </div>
       <div id="tp-cp-list" class="tp-list"></div>
     </div>
     <div class="task-tabpane" data-tabpane="chat">

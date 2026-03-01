@@ -96,6 +96,7 @@ function initKanbanTaskPanel(panel) {
     panel.classList.add('task-panel--hidden');
     currentTaskId = null;
     apiUrl = null;
+    if (typeof hideCpAddForm === 'function') hideCpAddForm();
   }
 
   function setActiveTab(name) {
@@ -173,6 +174,7 @@ function initKanbanTaskPanel(panel) {
   }
 
   function loadTask(taskId) {
+    hideCpAddForm();
     currentTaskId = taskId;
     apiUrl = `/manager/tasks/${taskId}/panel/`;
     show();
@@ -210,17 +212,48 @@ function initKanbanTaskPanel(panel) {
   if (closeBtn) closeBtn.addEventListener('click', () => hide());
   tabBtns.forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.getAttribute('data-tab'))));
 
+  const cpAddForm = document.getElementById('tp-cp-add-form');
+  const cpAddInput = document.getElementById('tp-cp-add-input');
+  const cpAddSubmit = document.getElementById('tp-cp-add-submit');
+  const cpAddCancel = document.getElementById('tp-cp-add-cancel');
+
+  function showCpAddForm() {
+    if (!cpAddForm || !cpAddInput) return;
+    cpAddForm.classList.remove('tp-cp-add-form--hidden');
+    cpAddInput.value = '';
+    cpAddInput.focus();
+  }
+
+  function hideCpAddForm() {
+    if (cpAddForm) cpAddForm.classList.add('tp-cp-add-form--hidden');
+  }
+
+  function submitCpAdd() {
+    const title = (cpAddInput && cpAddInput.value || '').trim();
+    if (!title) return;
+    hideCpAddForm();
+    apiRequest({ action: 'checkpoint_create', title, comment: '' })
+      .then(resp => {
+        if (!resp.ok) return;
+        checkpoints.push(resp.checkpoint);
+        renderCheckpoints();
+      })
+      .catch(() => {});
+  }
+
   if (cpAddBtn) {
     cpAddBtn.addEventListener('click', () => {
-      const title = prompt('Название чекпоинта');
-      if (!title) return;
-      apiRequest({ action: 'checkpoint_create', title, comment: '' })
-        .then(resp => {
-          if (!resp.ok) return;
-          checkpoints.push(resp.checkpoint);
-          renderCheckpoints();
-        })
-        .catch(() => {});
+      if (!apiUrl) return;
+      showCpAddForm();
+    });
+  }
+
+  if (cpAddSubmit) cpAddSubmit.addEventListener('click', submitCpAdd);
+  if (cpAddCancel) cpAddCancel.addEventListener('click', hideCpAddForm);
+  if (cpAddInput) {
+    cpAddInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submitCpAdd(); }
+      if (e.key === 'Escape') { e.preventDefault(); hideCpAddForm(); }
     });
   }
 

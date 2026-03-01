@@ -365,37 +365,41 @@ button:hover, .btn:hover {
 .kanban-wrap {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 18px;
+  grid-template-columns: 1fr 400px;
+  gap: 20px;
   align-items: start;
 }
 
 .kanban {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(280px, 1fr));
+  gap: 20px;
   margin-top: 16px;
+  min-width: 0;
 }
 
 .col {
   background: var(--panel);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 16px;
   border: 1px solid var(--border);
+  min-width: 0;
 }
 
 .col h3 {
-  margin: 6px 6px 12px;
-  font-size: 14px;
-  color: rgba(15, 23, 42, .72);
+  margin: 4px 4px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(15, 23, 42, .8);
 }
 
 .task {
   background: var(--card);
   border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
   border: 1px solid var(--border);
+  min-height: 72px;
 }
 
 .task .meta {
@@ -488,6 +492,32 @@ button:hover, .btn:hover {
   display: flex;
   justify-content: flex-end;
   margin-bottom: 8px;
+}
+
+.tp-cp-add-form {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: rgba(96, 165, 250, .06);
+  border: 1px solid rgba(96, 165, 250, .25);
+  border-radius: 12px;
+}
+
+.tp-cp-add-form--hidden {
+  display: none;
+}
+
+.tp-cp-add-form input {
+  margin-bottom: 10px;
+}
+
+.tp-cp-add-form__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tp-cp-add-form__actions .btn,
+.tp-cp-add-form__actions .btn-ghost {
+  margin: 0;
 }
 
 .tp-list .tp-item {

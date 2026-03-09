@@ -1337,13 +1337,67 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             )[::-1]
             # Готовим человекочитаемый текст для фронта
             activity_payload = []
+            status_labels = dict(Task.Status.choices)
+            field_labels = {
+                "task": "Задача",
+                "status": "Статус",
+                "assignee": "Исполнитель",
+                "due_date": "Дедлайн",
+                "story_points": "Важность",
+                "title": "Название",
+            }
+            action_prefixes = {
+                "create": "Создана задача",
+                "status_change": "Изменён статус",
+                "assignee_change": "Изменён исполнитель",
+                "field_change": "Изменено поле",
+            }
+
+            from datetime import datetime
+
+            def _fmt_date(val: str) -> str:
+                if not val:
+                    return "—"
+                try:
+                    dt = datetime.fromisoformat(str(val))
+                    return dt.strftime("%d.%m.%Y")
+                except Exception:
+                    try:
+                        dt = datetime.strptime(str(val), "%Y-%m-%d")
+                        return dt.strftime("%d.%m.%Y")
+                    except Exception:
+                        return str(val)
+
             for a in activity:
-                field = a.get("field") or ""
-                action_label = a.get("action") or ""
-                if field:
-                    text = f"{action_label} {field}: {a.get('old_value') or '—'} → {a.get('new_value') or '—'}"
+                raw_field = (a.get("field") or "").strip()
+                action_code = (a.get("action") or "").strip()
+                raw_old = a.get("old_value") or ""
+                raw_new = a.get("new_value") or ""
+
+                if raw_field == "status":
+                    old_val = status_labels.get(raw_old, raw_old or "—")
+                    new_val = status_labels.get(raw_new, raw_new or "—")
+                elif raw_field == "due_date":
+                    old_val = _fmt_date(raw_old)
+                    new_val = _fmt_date(raw_new)
+                elif raw_field == "story_points":
+                    old_val = str(raw_old or "0")
+                    new_val = str(raw_new or "0")
                 else:
-                    text = f"{action_label}: {a.get('new_value') or ''}"
+                    old_val = str(raw_old or "—")
+                    new_val = str(raw_new or "—")
+
+                if action_code == "create":
+                    title_part = new_val if new_val != "—" else task.title
+                    text = f"Создана задача «{title_part}»"
+                elif raw_field:
+                    field_label = field_labels.get(raw_field, raw_field)
+                    prefix = action_prefixes.get(action_code, "Изменено поле")
+                    text = f"{prefix} «{field_label}»: «{old_val}» → «{new_val}»"
+                else:
+                    prefix = action_prefixes.get(action_code, "Действие")
+                    text = f"{prefix}: «{new_val or '—'}»"
+
                 activity_payload.append(
                     {
                         "id": a["id"],
@@ -1465,23 +1519,27 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                             )
             if due_date_raw is not None:
                 from datetime import date
-                old_due = task.due_date.isoformat() if task.due_date else ""
+                old_due_date = task.due_date
+                old_due = old_due_date.isoformat() if old_due_date else ""
                 if due_date_raw:
                     try:
-                        task.due_date = date.fromisoformat(str(due_date_raw))
+                        new_due_date = date.fromisoformat(str(due_date_raw))
                     except (ValueError, TypeError):
-                        pass
+                        new_due_date = task.due_date
                 else:
-                    task.due_date = None
-                changed = True
-                _log_task_activity(
-                    task=task,
-                    user=request.user,
-                    action="field_change",
-                    field="due_date",
-                    old_value=old_due,
-                    new_value=task.due_date.isoformat() if task.due_date else "",
-                )
+                    new_due_date = None
+
+                if new_due_date != task.due_date:
+                    task.due_date = new_due_date
+                    changed = True
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="field_change",
+                        field="due_date",
+                        old_value=old_due,
+                        new_value=task.due_date.isoformat() if task.due_date else "",
+                    )
             if story_points_raw is not None:
                 old_sp = task.story_points
                 sp = max(0, min(100, int(story_points_raw)))

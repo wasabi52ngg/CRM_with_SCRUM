@@ -4,49 +4,69 @@
 <h1 class="page-title">Доска проекта: {{ object.name }}</h1>
 
 <div class="kanban-toolbar">
-  <div class="kanban-toolbar__filters">
-    <select id="kanban-filter-assignee" class="kanban-filter">
-      <option value="">Все исполнители</option>
-      {% for u in developers %}
-        <option value="{{ u.id }}">{{ u.username }}</option>
-      {% endfor %}
-    </select>
-    <select id="kanban-filter-type" class="kanban-filter">
-      <option value="">Все типы</option>
-      <option value="frontend">Фронтенд</option>
-      <option value="backend">Бэкенд</option>
-      <option value="fullstack">Фулстек</option>
-      <option value="devops">DevOps</option>
-      <option value="qa">Тестирование</option>
-      <option value="android">Android</option>
-      <option value="db">База данных</option>
-    </select>
-  </div>
-  <div class="kanban-toolbar__presets">
-    <select id="kanban-preset-select" class="kanban-filter">
-      <option value="">Фильтр не выбран</option>
-      {% for p in filter_presets %}
-        <option value="{{ p.id }}" data-assignee="{{ p.assignee_id|default:'' }}" data-type="{{ p.task_type|default:'' }}">
-          {{ p.name }}
-        </option>
-      {% endfor %}
-    </select>
-    <button type="button" class="kanban-preset-save btn-ghost" id="kanban-save-preset">Сохранить фильтр</button>
-  </div>
-  <div class="kanban-toolbar__quick">
-    <button type="button" class="kanban-quick-filter" data-qf="my">Мои задачи</button>
-    <button type="button" class="kanban-quick-filter" data-qf="unassigned">Без исполнителя</button>
-    <button type="button" class="kanban-quick-filter" data-qf="overdue">Просроченные</button>
-  </div>
-  <div class="kanban-toolbar__views">
-    <button type="button" class="kanban-view-btn kanban-view-btn--active" data-view="kanban" title="Канбан">⊞</button>
-    <button type="button" class="kanban-view-btn" data-view="list" title="Список">≡</button>
+  <div class="kanban-toolbar-main">
+    <div class="kanban-toolbar-left">
+      <div class="kanban-toolbar__filters">
+        <div class="kanban-filter-group">
+          <span class="kanban-filter-label muted">Фильтры</span>
+          <div class="kanban-filter-row">
+            <select id="kanban-filter-assignee" class="kanban-filter">
+              <option value="">Все исполнители</option>
+              {% for u in developers %}
+                <option value="{{ u.id }}">{{ u.username }}</option>
+              {% endfor %}
+            </select>
+            <select id="kanban-filter-type" class="kanban-filter">
+              <option value="">Все типы</option>
+              <option value="frontend">Фронтенд</option>
+              <option value="backend">Бэкенд</option>
+              <option value="fullstack">Фулстек</option>
+              <option value="devops">DevOps</option>
+              <option value="qa">Тестирование</option>
+              <option value="android">Android</option>
+              <option value="db">База данных</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="kanban-toolbar__quick">
+        <span class="kanban-filter-label muted">Быстрые фильтры</span>
+        <div class="kanban-quick-row">
+          <button type="button" class="kanban-quick-filter" data-qf="my">Мои задачи</button>
+          <button type="button" class="kanban-quick-filter" data-qf="unassigned">Без исполнителя</button>
+          <button type="button" class="kanban-quick-filter" data-qf="overdue">Просроченные</button>
+        </div>
+      </div>
+    </div>
+    <div class="kanban-toolbar-right">
+      <div class="kanban-toolbar__presets">
+        <span class="kanban-filter-label muted">Сохранённые фильтры</span>
+        <div class="kanban-presets-row">
+          <select id="kanban-preset-select" class="kanban-filter kanban-filter--compact">
+            <option value="">Не выбран</option>
+            {% for p in filter_presets %}
+              <option value="{{ p.id }}" data-assignee="{{ p.assignee_id|default:'' }}" data-type="{{ p.task_type|default:'' }}">
+                {{ p.name }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="button" class="kanban-preset-save btn-ghost" id="kanban-save-preset">Сохранить</button>
+        </div>
+      </div>
+      <div class="kanban-toolbar__views">
+        <span class="kanban-filter-label muted">Вид</span>
+        <div class="kanban-views-row">
+          <button type="button" class="kanban-view-btn kanban-view-btn--active" data-view="kanban" title="Канбан">⊞</button>
+          <button type="button" class="kanban-view-btn" data-view="list" title="Список">≡</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
 {% if can_edit_kanban %}
 <div class="kanban-config-toggle">
-  <button type="button" class="btn-ghost" id="kanban-config-toggle">Редактировать канбан</button>
+  <button type="button" class="btn-ghost" id="kanban-config-toggle">Настроить стадии канбана</button>
 </div>
 <div id="kanban-config-panel" class="kanban-config kanban-config--hidden">
   <form method="post">
@@ -82,6 +102,10 @@
         {% endfor %}
       </tbody>
     </table>
+    <p class="muted" style="margin-top:8px;font-size:12px;">
+      Стадии (статусы) задач фиксированы: К выполнению, В работе, К проверке, Готово.
+      Здесь можно переименовать колонки, поменять порядок, скрыть ненужные и задать WIP‑лимиты.
+    </p>
     <div style="margin-top:10px;">
       <button type="submit" class="btn">Сохранить настройки</button>
     </div>

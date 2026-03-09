@@ -467,29 +467,9 @@ button:hover, .btn:hover {
   margin-bottom: 18px;
 }
 
-.kanban-toolbar-main {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  gap: 16px;
-}
-
-.kanban-toolbar-left {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1 1 auto;
-}
-
-.kanban-toolbar-right {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-end;
-}
-
 .kanban-toolbar__filters {
-  display: block;
+  display: flex;
+  gap: 10px;
 }
 
 .kanban-toolbar__presets {
@@ -500,42 +480,7 @@ button:hover, .btn:hover {
 
 .kanban-toolbar__quick {
   display: flex;
-  flex-direction: column;
   gap: 6px;
-}
-
-.kanban-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.kanban-filter-row {
-  display: flex;
-  gap: 8px;
-}
-
-.kanban-quick-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.kanban-presets-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.kanban-views-row {
-  display: flex;
-  gap: 6px;
-}
-
-.kanban-filter-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .08em;
 }
 
 .kanban-quick-filter {
@@ -567,10 +512,6 @@ button:hover, .btn:hover {
   background: var(--card);
   font-size: 13px;
   min-width: 140px;
-}
-
-.kanban-filter--compact {
-  min-width: 120px;
 }
 
 .kanban-view-btn {

@@ -22,90 +22,126 @@
       <option value="db">База данных</option>
     </select>
   </div>
+  <div class="kanban-toolbar__presets">
+    <select id="kanban-preset-select" class="kanban-filter">
+      <option value="">Фильтр не выбран</option>
+      {% for p in filter_presets %}
+        <option value="{{ p.id }}" data-assignee="{{ p.assignee_id|default:'' }}" data-type="{{ p.task_type|default:'' }}">
+          {{ p.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="button" class="kanban-preset-save btn-ghost" id="kanban-save-preset">Сохранить фильтр</button>
+  </div>
+  <div class="kanban-toolbar__quick">
+    <button type="button" class="kanban-quick-filter" data-qf="my">Мои задачи</button>
+    <button type="button" class="kanban-quick-filter" data-qf="unassigned">Без исполнителя</button>
+    <button type="button" class="kanban-quick-filter" data-qf="overdue">Просроченные</button>
+  </div>
   <div class="kanban-toolbar__views">
     <button type="button" class="kanban-view-btn kanban-view-btn--active" data-view="kanban" title="Канбан">⊞</button>
     <button type="button" class="kanban-view-btn" data-view="list" title="Список">≡</button>
   </div>
 </div>
 
+{% if can_edit_kanban %}
+<div class="kanban-config-toggle">
+  <button type="button" class="btn-ghost" id="kanban-config-toggle">Редактировать канбан</button>
+</div>
+<div id="kanban-config-panel" class="kanban-config kanban-config--hidden">
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_kanban_columns">
+    <table class="kanban-config-table">
+      <thead>
+        <tr>
+          <th>Статус</th>
+          <th>Название колонки</th>
+          <th>Порядок</th>
+          <th>Видима</th>
+          <th>WIP‑лимит</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for col in kanban_columns %}
+          <tr>
+            <td>{{ col.config.get_status_display }}</td>
+            <td>
+              <input type="text" name="col_{{ col.config.id }}_title" value="{{ col.config.title }}">
+            </td>
+            <td>
+              <input type="number" name="col_{{ col.config.id }}_order" value="{{ col.config.order }}" min="0" style="width:70px;">
+            </td>
+            <td style="text-align:center;">
+              <input type="checkbox" name="col_{{ col.config.id }}_visible" {% if col.config.is_visible %}checked{% endif %}>
+            </td>
+            <td>
+              <input type="number" name="col_{{ col.config.id }}_wip" value="{{ col.config.wip_limit }}" min="0" style="width:80px;" title="0 — без ограничения">
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="margin-top:10px;">
+      <button type="submit" class="btn">Сохранить настройки</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
 <div class="kanban-wrap">
+
+<div class="backlog">
+  <h3 class="backlog-title">Беклог проекта</h3>
+  <p class="backlog-subtitle muted">Все задачи без спринта. Отсюда обычно набирают спринт.</p>
+  <div class="backlog-list">
+    {% for t in backlog %}
+      <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}" data-due="{{ t.due_date|date:'Y-m-d'|default:'' }}">
+        <div class="task__title">{{ t.title }}</div>
+        <div class="meta">
+          <span>{{ t.get_task_type_display }}</span>
+          <span>Важность: {{ t.story_points }}</span>
+        </div>
+        <div class="meta">
+          <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
+          <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+        </div>
+      </div>
+    {% empty %}
+      <div class="backlog-empty muted">В беклоге пока нет задач.</div>
+    {% endfor %}
+  </div>
+  <button type="button" class="backlog-add-btn">+ Создать задачу в беклоге</button>
+</div>
+
 <div id="kanban-board" class="kanban">
-  <div class="col" data-col="todo">
-    <h3 class="col-title">К выполнению <span class="col-count" data-count="todo">{{ todo|length }}</span></h3>
-    <div data-list>
-      {% for t in todo %}
-        <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}">
-          <div class="task__title">{{ t.title }}</div>
-          <div class="meta">
-            <span>{{ t.get_task_type_display }}</span>
-            <span>Важность: {{ t.story_points }}</span>
-          </div>
-          <div class="meta">
-            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
-            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
-          </div>
+  {% for col in kanban_columns %}
+    {% if col.config.is_visible %}
+      <div class="col" data-col="{{ col.config.status }}" data-wip="{{ col.config.wip_limit|default:0 }}">
+        <h3 class="col-title">
+          {{ col.config.title }}
+          <span class="col-count" data-count="{{ col.config.status }}">{{ col.count }}</span>
+          <span class="col-sp" data-sp="{{ col.config.status }}">SP: {{ col.story_points_sum }}</span>
+        </h3>
+        <div data-list>
+          {% for t in col.tasks %}
+            <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}" data-due="{{ t.due_date|date:'Y-m-d'|default:'' }}">
+              <div class="task__title">{{ t.title }}</div>
+              <div class="meta">
+                <span>{{ t.get_task_type_display }}</span>
+                <span>Важность: {{ t.story_points }}</span>
+              </div>
+              <div class="meta">
+                <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
+                <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+              </div>
+            </div>
+          {% empty %}
+          {% endfor %}
         </div>
-      {% endfor %}
-    </div>
-    <button type="button" class="col-add-btn" data-status="todo">+ Создать</button>
-  </div>
-  <div class="col" data-col="in_progress">
-    <h3 class="col-title">В работе <span class="col-count" data-count="in_progress">{{ in_progress|length }}</span></h3>
-    <div data-list>
-      {% for t in in_progress %}
-        <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}">
-          <div class="task__title">{{ t.title }}</div>
-          <div class="meta">
-            <span>{{ t.get_task_type_display }}</span>
-            <span>Важность: {{ t.story_points }}</span>
-          </div>
-          <div class="meta">
-            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
-            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    <button type="button" class="col-add-btn" data-status="in_progress">+ Создать</button>
-  </div>
-  <div class="col" data-col="review">
-    <h3 class="col-title">К проверке <span class="col-count" data-count="review">{{ review|length }}</span></h3>
-    <div data-list>
-      {% for t in review %}
-        <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}">
-          <div class="task__title">{{ t.title }}</div>
-          <div class="meta">
-            <span>{{ t.get_task_type_display }}</span>
-            <span>Важность: {{ t.story_points }}</span>
-          </div>
-          <div class="meta">
-            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
-            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    <button type="button" class="col-add-btn" data-status="review">+ Создать</button>
-  </div>
-  <div class="col" data-col="done">
-    <h3 class="col-title">Готово <span class="col-count" data-count="done">{{ done|length }}</span></h3>
-    <div data-list>
-      {% for t in done %}
-        <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}">
-          <div class="task__title">{{ t.title }}</div>
-          <div class="meta">
-            <span>{{ t.get_task_type_display }}</span>
-            <span>Важность: {{ t.story_points }}</span>
-          </div>
-          <div class="meta">
-            <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
-            <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    <button type="button" class="col-add-btn" data-status="done">+ Создать</button>
-  </div>
+      </div>
+    {% endif %}
+  {% endfor %}
 </div>
 
 <div id="kanban-list-view" class="kanban-list-view" style="display:none;">
@@ -147,6 +183,26 @@
   </div>
 
   <div class="task-panel__info" id="tp-info">
+    <div class="task-panel__row task-panel__row--editable" data-field="sprint">
+      <span class="muted">Спринт</span>
+      <span id="tp-sprint" class="tp-value">Беклог</span>
+      <select id="tp-sprint-select" class="tp-edit-select" style="display:none;">
+        <option value="">Беклог (без спринта)</option>
+        {% for s in sprints %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="task-panel__row task-panel__row--editable" data-field="status">
+      <span class="muted">Статус</span>
+      <span id="tp-status" class="tp-value">К выполнению</span>
+      <select id="tp-status-select" class="tp-edit-select" style="display:none;">
+        <option value="todo">К выполнению</option>
+        <option value="in_progress">В работе</option>
+        <option value="review">К проверке/QA</option>
+        <option value="done">Готово</option>
+      </select>
+    </div>
     <div class="task-panel__row task-panel__row--editable" data-field="assignee">
       <span class="muted">Исполнитель</span>
       <span id="tp-assignee" class="tp-value">—</span>
@@ -172,7 +228,8 @@
 
   <div class="task-panel__tabs">
     <button type="button" class="task-tab task-tab--active" data-tab="checkpoints">Чекпоинты</button>
-    <button type="button" class="task-tab" data-tab="chat">Чат</button>
+        <button type="button" class="task-tab" data-tab="chat">Чат</button>
+        <button type="button" class="task-tab" data-tab="history">История</button>
   </div>
 
   <div class="task-panel__body">
@@ -196,6 +253,9 @@
         <input type="text" id="tp-chat-text" placeholder="Сообщение..." autocomplete="off">
         <button type="submit">Отправить</button>
       </form>
+    </div>
+    <div class="task-tabpane" data-tabpane="history">
+      <div id="tp-activity-list" class="tp-activity"></div>
     </div>
   </div>
 </aside>
@@ -257,7 +317,8 @@
 
 <script>
   window.__kanbanProjectId = {{ object.id }};
+  window.__currentUserId = {{ request.user.id }};
 </script>
 
-<p class="muted" style="margin-top:14px">Подсказка: перетащите карточку в нужную колонку. Нажмите «+ Создать» в колонке для быстрого добавления задачи.</p>
+<p class="muted" style="margin-top:14px">Подсказка: задачи сначала создаются в беклоге, затем попадают в спринт и переходят между колонками.</p>
 {% endblock %}

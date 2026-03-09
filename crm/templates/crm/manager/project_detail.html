@@ -4,6 +4,31 @@
 <h1 class="page-title">{{ object.name }}</h1>
 <p class="muted">{{ object.description }}</p>
 
+<div class="project-progress-card">
+  <div class="project-progress-row">
+    <div>
+      <div class="meta-label">Всего задач</div>
+      <div class="meta-value">{{ task_stats.total }}</div>
+    </div>
+    <div>
+      <div class="meta-label">К выполнению</div>
+      <div class="meta-value">{{ task_stats.todo }}</div>
+    </div>
+    <div>
+      <div class="meta-label">В работе</div>
+      <div class="meta-value">{{ task_stats.in_progress }}</div>
+    </div>
+    <div>
+      <div class="meta-label">К проверке</div>
+      <div class="meta-value">{{ task_stats.review }}</div>
+    </div>
+    <div>
+      <div class="meta-label">Готово</div>
+      <div class="meta-value">{{ task_stats.done }}</div>
+    </div>
+  </div>
+</div>
+
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
   <h2>Задачи</h2>
   <a class="btn" href="{% url 'crm:kanban_board' object.pk %}">Открыть доску</a>

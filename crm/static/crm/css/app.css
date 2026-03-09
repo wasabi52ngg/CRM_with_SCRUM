@@ -43,7 +43,7 @@ body {
 
 /* Layout */
 .container {
-  width: min(1100px, 92%);
+  width: min(1300px, 96%);
   margin: 0 auto;
 }
 
@@ -365,15 +365,15 @@ button:hover, .btn:hover {
 .kanban-wrap {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1.6fr) minmax(280px, 340px);
   gap: 20px;
   align-items: start;
 }
 
 .kanban {
   display: grid;
-  grid-template-columns: repeat(4, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  gap: 18px;
   margin-top: 16px;
   min-width: 0;
 }
@@ -431,6 +431,16 @@ button:hover, .btn:hover {
   color: var(--text-secondary);
 }
 
+.col-sp {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.col--wip-over {
+  border-color: rgba(220, 38, 38, .7);
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, .18);
+}
+
 .col-add-btn {
   width: 100%;
   padding: 10px 14px;
@@ -451,15 +461,48 @@ button:hover, .btn:hover {
 
 .kanban-toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 16px;
   margin-bottom: 18px;
 }
 
 .kanban-toolbar__filters {
   display: flex;
   gap: 10px;
+}
+
+.kanban-toolbar__presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kanban-toolbar__quick {
+  display: flex;
+  gap: 6px;
+}
+
+.kanban-quick-filter {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.kanban-quick-filter--active {
+  border-color: var(--primary);
+  background: rgba(96, 165, 250, .12);
+  color: var(--primary);
+}
+
+.kanban-toolbar__sprint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .kanban-filter {
@@ -489,6 +532,54 @@ button:hover, .btn:hover {
 
 .kanban-list-view {
   margin-top: 16px;
+}
+
+.backlog {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+}
+
+.backlog-title {
+  margin: 4px 4px 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.backlog-subtitle {
+  margin: 0 4px 10px;
+  font-size: 12px;
+}
+
+.backlog-list {
+  max-height: 420px;
+  overflow-y: auto;
+  margin-right: -6px;
+  padding-right: 2px;
+}
+
+.backlog-empty {
+  font-size: 13px;
+  padding: 6px 4px 10px;
+}
+
+.backlog-add-btn {
+  width: 100%;
+  padding: 10px 14px;
+  margin-top: 10px;
+  background: rgba(96, 165, 250, .08);
+  border: 1px dashed rgba(96, 165, 250, .4);
+  border-radius: 10px;
+  color: var(--primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.backlog-add-btn:hover {
+  background: rgba(96, 165, 250, .14);
+  border-color: var(--primary);
 }
 
 .kanban-table {
@@ -799,6 +890,61 @@ button:hover, .btn:hover {
   flex: 1;
 }
 
+.tp-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.tp-activity-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, .02);
+}
+
+.tp-activity-item__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.tp-activity-item__text {
+  color: var(--text);
+}
+
+.kanban-config-toggle {
+  margin-bottom: 8px;
+}
+
+.kanban-config {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.kanban-config--hidden {
+  display: none;
+}
+
+.kanban-config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.kanban-config-table th,
+.kanban-config-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
 @media (max-width: 1050px) {
   .kanban-wrap {
     grid-template-columns: 1fr;
@@ -860,6 +1006,22 @@ button:hover, .btn:hover {
 
 .request-project-link {
   margin-top: 10px;
+}
+
+.project-progress-card {
+  margin-top: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.project-progress-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
 }
 
 .status-pill {

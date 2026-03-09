@@ -288,6 +288,103 @@ class Task(models.Model):
         return f"[{self.get_task_type_display()}] {self.title}"
 
 
+class KanbanColumnConfig(models.Model):
+    """
+    Настройки колонок канбана для проекта.
+    Колонки привязаны к фиксированным статусам задачи, но можно настраивать
+    их название, порядок отображения, видимость и WIP‑лимит.
+    """
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="kanban_columns",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Task.Status.choices,
+        help_text="Какой статус задач отображается в колонке",
+    )
+    title = models.CharField(
+        max_length=255,
+        help_text="Отображаемое название колонки на доске",
+    )
+    order = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Порядок отображения колонки слева направо",
+    )
+    is_visible = models.BooleanField(
+        default=True,
+        help_text="Показывать ли колонку на доске",
+    )
+    wip_limit = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Максимальное количество задач в колонке (0 — без ограничения)",
+    )
+
+    class Meta:
+        ordering = ["order", "id"]
+        unique_together = ("project", "status")
+
+    def __str__(self) -> str:
+        return f"{self.project}: {self.title} ({self.status})"
+
+
+class KanbanFilterPreset(models.Model):
+    """
+    Сохранённый фильтр доски канбана для конкретного пользователя и проекта.
+    Хранит выбранного исполнителя и тип задачи.
+    """
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="kanban_filter_presets",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="kanban_filter_presets",
+    )
+    name = models.CharField(max_length=100)
+    assignee_id = models.IntegerField(null=True, blank=True)
+    task_type = models.CharField(max_length=20, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("project", "user", "name")
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f"{self.project}: {self.name}"
+
+
+class TaskActivity(models.Model):
+    """
+    История изменений задачи: кто и что поменял.
+    """
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="activities")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="task_activities",
+    )
+    action = models.CharField(max_length=64)
+    field = models.CharField(max_length=64, blank=True)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.task_id}: {self.action} {self.field}"
+
+
 class TaskCheckpoint(models.Model):
     """
     Чекпоинты/этапы внутри задачи (для менеджера и исполнителя).

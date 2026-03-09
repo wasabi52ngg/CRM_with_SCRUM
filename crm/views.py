@@ -5,6 +5,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
+from django.db import models
 # Импорты login, validate_password, ValidationError удалены - больше не используются после удаления SignupView
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
@@ -15,11 +16,15 @@ from .models import (
     ClientRequest,
     Project,
     Task,
+    Sprint,
     RequestCheckpoint,
     RequestCheckpointEdge,
     TaskCheckpoint,
+    KanbanColumnConfig,
+    KanbanFilterPreset,
+    TaskActivity,
+    Message,
 )
-from .models import Message
 
 
 def _get_user_company_ids(user: User) -> list[int]:
@@ -57,6 +62,28 @@ def _is_user_developer_in_company(user: User, company_id: int | None = None) -> 
     if company_id:
         qs = qs.filter(company_id=company_id)
     return qs.filter(is_developer=True).exists() or qs.filter(is_owner=True).exists()
+
+
+def _log_task_activity(
+    *,
+    task: Task,
+    user: User | None,
+    action: str,
+    field: str = "",
+    old_value: str | None = "",
+    new_value: str | None = "",
+) -> None:
+    """
+    Создаёт запись в истории изменений задачи.
+    """
+    TaskActivity.objects.create(
+        task=task,
+        author=user if user and user.is_authenticated else None,
+        action=action,
+        field=field,
+        old_value=str(old_value or ""),
+        new_value=str(new_value or ""),
+    )
 
 
 class PublicRequestView(View):
@@ -271,6 +298,15 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
             .order_by("username")
             .only("id", "username", "first_name", "last_name", "developer_type")
         )
+        # Статистика задач проекта для виджета прогресса
+        tasks_qs = project.tasks.all()
+        ctx["task_stats"] = {
+            "total": tasks_qs.count(),
+            "todo": tasks_qs.filter(status=Task.Status.TODO).count(),
+            "in_progress": tasks_qs.filter(status=Task.Status.IN_PROGRESS).count(),
+            "review": tasks_qs.filter(status=Task.Status.REVIEW).count(),
+            "done": tasks_qs.filter(status=Task.Status.DONE).count(),
+        }
         return ctx
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
@@ -300,7 +336,7 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
         story_points = max(0, min(100, story_points))
 
         if title and task_type in dict(Task.TaskType.choices):
-            Task.objects.create(
+            task = Task.objects.create(
                 project=project,
                 title=title,
                 description=description,
@@ -309,6 +345,14 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
                 assignee=assignee,
                 due_date=due_date,
                 story_points=story_points,
+            )
+            _log_task_activity(
+                task=task,
+                user=request.user,
+                action="create",
+                field="task",
+                old_value="",
+                new_value=task.title,
             )
         return redirect("crm:manager_project_detail", pk=project.pk)
 
@@ -358,6 +402,22 @@ class DeveloperTakeTaskView(LoginRequiredMixin, View):
         task.assignee = request.user
         task.status = Task.Status.IN_PROGRESS
         task.save()
+        _log_task_activity(
+            task=task,
+            user=request.user,
+            action="assignee_change",
+            field="assignee",
+            old_value="",
+            new_value=request.user.username,
+        )
+        _log_task_activity(
+            task=task,
+            user=request.user,
+            action="status_change",
+            field="status",
+            old_value=Task.Status.TODO,
+            new_value=Task.Status.IN_PROGRESS,
+        )
         return redirect("crm:dev_open_tasks")
 
 
@@ -807,10 +867,61 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         project: Project = self.object
-        ctx["todo"] = project.tasks.filter(status=Task.Status.TODO).select_related("assignee").order_by("order", "created_at")
-        ctx["in_progress"] = project.tasks.filter(status=Task.Status.IN_PROGRESS).select_related("assignee").order_by("order", "created_at")
-        ctx["review"] = project.tasks.filter(status=Task.Status.REVIEW).select_related("assignee").order_by("order", "created_at")
-        ctx["done"] = project.tasks.filter(status=Task.Status.DONE).select_related("assignee").order_by("order", "created_at")
+        base_qs = project.tasks.select_related("assignee").order_by("order", "created_at")
+
+        # Спринты пока не используем в логике канбана: доска показывает все задачи проекта по статусам.
+        ctx["sprints"] = []
+        ctx["active_sprint"] = None
+
+        # Конфигурация колонок канбана: если нет — создаём дефолтную для проекта.
+        default_columns = [
+            (Task.Status.TODO, "К выполнению", 1),
+            (Task.Status.IN_PROGRESS, "В работе", 2),
+            (Task.Status.REVIEW, "К проверке", 3),
+            (Task.Status.DONE, "Готово", 4),
+        ]
+        if not project.kanban_columns.exists():
+            for status, title, order in default_columns:
+                KanbanColumnConfig.objects.create(
+                    project=project,
+                    status=status,
+                    title=title,
+                    order=order,
+                    is_visible=True,
+                    wip_limit=0,
+                )
+
+        columns = []
+        for col in project.kanban_columns.all():
+            col_tasks = base_qs.filter(status=col.status)
+            sp_sum = col_tasks.aggregate(models.Sum("story_points"))["story_points__sum"] or 0
+            columns.append(
+                {
+                    "config": col,
+                    "tasks": col_tasks,
+                    "count": col_tasks.count(),
+                    "story_points_sum": sp_sum,
+                }
+            )
+        ctx["kanban_columns"] = columns
+
+        # Сохранённые фильтры текущего пользователя
+        ctx["filter_presets"] = KanbanFilterPreset.objects.filter(
+            project=project, user=self.request.user
+        ).order_by("name")
+
+        # Может ли пользователь редактировать настройки канбана
+        ctx["can_edit_kanban"] = _is_user_manager_in_company(self.request.user, project.company_id)
+
+        # Для обратной совместимости: отдельные списки по статусам (по текущей конфигурации).
+        board_qs = base_qs
+        ctx["todo"] = board_qs.filter(status=Task.Status.TODO)
+        ctx["in_progress"] = board_qs.filter(status=Task.Status.IN_PROGRESS)
+        ctx["review"] = board_qs.filter(status=Task.Status.REVIEW)
+        ctx["done"] = board_qs.filter(status=Task.Status.DONE)
+
+        # Беклог: задачи без исполнителя в статусе TODO (пул для набора работы).
+        ctx["backlog"] = base_qs.filter(status=Task.Status.TODO, assignee__isnull=True)
         dev_ids = list(
             CompanyMembership.objects.filter(
                 company=project.company,
@@ -825,6 +936,66 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
         )
         return ctx
 
+    def post(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        """
+        Обработка настроек канбана (редактирование колонок, сохранение пресетов фильтра).
+        """
+        self.object = self.get_object()
+        project: Project = self.object
+
+        action = request.POST.get("action")
+
+        # Разрешаем редактирование только менеджерам/владельцам компании
+        if not _is_user_manager_in_company(request.user, project.company_id):
+            return redirect("crm:kanban_board", pk=project.pk)
+
+        if action == "update_kanban_columns":
+            for col in project.kanban_columns.all():
+                prefix = f"col_{col.id}_"
+                title = (request.POST.get(prefix + "title") or "").strip() or col.title
+                order_raw = request.POST.get(prefix + "order") or col.order
+                visible_val = request.POST.get(prefix + "visible")
+                wip_raw = request.POST.get(prefix + "wip") or col.wip_limit
+                try:
+                    order_val = int(order_raw)
+                except (TypeError, ValueError):
+                    order_val = col.order
+                try:
+                    wip_val = int(wip_raw)
+                except (TypeError, ValueError):
+                    wip_val = col.wip_limit
+                col.title = title
+                col.order = max(0, order_val)
+                col.is_visible = bool(visible_val)
+                col.wip_limit = max(0, wip_val)
+                col.save()
+            return redirect("crm:kanban_board", pk=project.pk)
+
+        if action == "save_filter_preset":
+            name = (request.POST.get("name") or "").strip()
+            if not name:
+                return JsonResponse({"ok": False, "error": "name_required"}, status=400)
+            assignee_raw = request.POST.get("assignee") or ""
+            task_type = (request.POST.get("task_type") or "").strip()
+            assignee_id = None
+            try:
+                if assignee_raw:
+                    assignee_id = int(assignee_raw)
+            except (TypeError, ValueError):
+                assignee_id = None
+            preset, _created = KanbanFilterPreset.objects.update_or_create(
+                project=project,
+                user=request.user,
+                name=name,
+                defaults={
+                    "assignee_id": assignee_id,
+                    "task_type": task_type,
+                },
+            )
+            return JsonResponse({"ok": True, "id": preset.id})
+
+        return redirect("crm:kanban_board", pk=project.pk)
+
 
 @method_decorator(require_POST, name='dispatch')
 class KanbanMoveApiView(LoginRequiredMixin, View):
@@ -834,6 +1005,7 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
             payload = json.loads(request.body.decode("utf-8"))
             task_id = int(payload.get("id"))
             new_status = payload.get("status")
+            sprint_raw = payload.get("sprint") or payload.get("sprint_id")
         except Exception:
             return JsonResponse({"ok": False, "error": "invalid_payload"}, status=400)
 
@@ -841,7 +1013,32 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": "bad_status"}, status=400)
 
         task = get_object_or_404(Task, pk=task_id)
+        # Проверка зависимости: если задача зависит от другой, не даём закрыть раньше неё
+        if (
+            new_status == Task.Status.DONE
+            and task.starts_after_task_id
+            and task.starts_after_task.status != Task.Status.DONE
+        ):
+            return JsonResponse(
+                {"ok": False, "error": "dependency_not_done", "blocker_id": task.starts_after_task_id},
+                status=400,
+            )
+        old_status = task.status
         task.status = new_status
+
+        # Если с фронта передали активный спринт — привязываем задачу к нему (вывод из беклога в текущий спринт)
+        if sprint_raw not in (None, "", 0):
+            try:
+                sid = int(sprint_raw)
+            except (TypeError, ValueError):
+                sid = None
+            if sid:
+                try:
+                    sprint_obj = Sprint.objects.get(pk=sid, project=task.project)
+                except Sprint.DoesNotExist:
+                    sprint_obj = None
+                if sprint_obj is not None:
+                    task.sprint = sprint_obj
         # Простое переупорядочивание: помещаем в конец колонки
         last_order = (
             Task.objects.filter(project=task.project, status=new_status)
@@ -852,6 +1049,15 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
         ) or 0
         task.order = last_order + 1
         task.save(update_fields=["status", "order", "updated_at"])
+        if old_status != new_status:
+            _log_task_activity(
+                task=task,
+                user=request.user,
+                action="status_change",
+                field="status",
+                old_value=old_status,
+                new_value=new_status,
+            )
         return JsonResponse({"ok": True})
 
 
@@ -876,6 +1082,7 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
         due_date = payload.get("due_date") or None
         story_points = int(payload.get("story_points") or 0)
         story_points = max(0, min(100, story_points))
+        sprint_id = payload.get("sprint") or payload.get("sprint_id") or None
 
         if not project_id or not title:
             return JsonResponse({"ok": False, "error": "project_id_and_title_required"}, status=400)
@@ -904,6 +1111,14 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
         if task_type not in dict(Task.TaskType.choices):
             task_type = "fullstack"
 
+        sprint = None
+        if sprint_id:
+            try:
+                sprint_obj = Sprint.objects.get(pk=int(sprint_id), project=project)
+            except (ValueError, TypeError, Sprint.DoesNotExist):
+                sprint_obj = None
+            sprint = sprint_obj
+
         last_order = (
             Task.objects.filter(project=project, status=status)
             .order_by("-order")
@@ -913,6 +1128,7 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
 
         task = Task.objects.create(
             project=project,
+            sprint=sprint,
             title=title,
             description=description,
             task_type=task_type,
@@ -922,6 +1138,14 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
             due_date=due_date,
             story_points=story_points,
             order=last_order + 1,
+        )
+        _log_task_activity(
+            task=task,
+            user=request.user,
+            action="create",
+            field="task",
+            old_value="",
+            new_value=task.title,
         )
         return JsonResponse({
             "ok": True,
@@ -1106,6 +1330,28 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 .order_by("-created_at")[:50]
                 .values("id", "text", "created_at", "author__username")
             )[::-1]
+            activity = list(
+                task.activities.select_related("author")
+                .order_by("-created_at")[:30]
+                .values("id", "action", "field", "old_value", "new_value", "created_at", "author__username")
+            )[::-1]
+            # Готовим человекочитаемый текст для фронта
+            activity_payload = []
+            for a in activity:
+                field = a.get("field") or ""
+                action_label = a.get("action") or ""
+                if field:
+                    text = f"{action_label} {field}: {a.get('old_value') or '—'} → {a.get('new_value') or '—'}"
+                else:
+                    text = f"{action_label}: {a.get('new_value') or ''}"
+                activity_payload.append(
+                    {
+                        "id": a["id"],
+                        "text": text,
+                        "created_at": a["created_at"],
+                        "author__username": a["author__username"],
+                    }
+                )
             return JsonResponse(
                 {
                     "ok": True,
@@ -1122,10 +1368,13 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         "assignee_id": task.assignee_id,
                         "created_by": getattr(task.created_by, "username", None),
                         "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "sprint_id": task.sprint_id,
+                        "sprint_name": task.sprint.name if task.sprint_id else None,
                         "project_id": task.project_id,
                     },
                     "checkpoints": checkpoints,
                     "chat": chat,
+                    "activity": activity_payload,
                 }
             )
 
@@ -1135,13 +1384,57 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             due_date_raw = payload.get("due_date")
             story_points_raw = payload.get("story_points")
             title_new = payload.get("title")
+            sprint_raw = payload.get("sprint") or payload.get("sprint_id")
+            status_raw = payload.get("status")
 
             if not _is_user_manager_in_company(request.user, task.project.company_id) and request.user != task.assignee:
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
             changed = False
+            # Проверяем зависимость перед сменой статуса
+            # Статус / стадия задачи
+            if status_raw is not None and status_raw in dict(Task.Status.choices):
+                if (
+                    status_raw == Task.Status.DONE
+                    and task.starts_after_task_id
+                    and task.starts_after_task.status != Task.Status.DONE
+                ):
+                    return JsonResponse(
+                        {"ok": False, "error": "dependency_not_done", "blocker_id": task.starts_after_task_id},
+                        status=400,
+                    )
+                if status_raw != task.status:
+                    old_status = task.status
+                    task.status = status_raw
+                    # Помещаем задачу в конец соответствующей колонки
+                    last_order = (
+                        Task.objects.filter(project=task.project, status=status_raw)
+                        .exclude(pk=task.pk)
+                        .order_by("-order")
+                        .values_list("order", flat=True)
+                        .first()
+                    ) or 0
+                    task.order = last_order + 1
+                    changed = True
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="status_change",
+                        field="status",
+                        old_value=old_status,
+                        new_value=status_raw,
+                    )
             if assignee_id is not None:
                 if assignee_id in (None, "", 0):
+                    if task.assignee_id:
+                        _log_task_activity(
+                            task=task,
+                            user=request.user,
+                            action="assignee_change",
+                            field="assignee",
+                            old_value=getattr(task.assignee, "username", ""),
+                            new_value="",
+                        )
                     task.assignee = None
                     changed = True
                 else:
@@ -1158,10 +1451,21 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                             ).values_list("user_id", flat=True)
                         )
                         if aid in dev_ids:
-                            task.assignee = get_object_or_404(User, pk=aid)
+                            old_name = getattr(task.assignee, "username", "")
+                            new_user = get_object_or_404(User, pk=aid)
+                            task.assignee = new_user
                             changed = True
+                            _log_task_activity(
+                                task=task,
+                                user=request.user,
+                                action="assignee_change",
+                                field="assignee",
+                                old_value=old_name,
+                                new_value=new_user.username,
+                            )
             if due_date_raw is not None:
                 from datetime import date
+                old_due = task.due_date.isoformat() if task.due_date else ""
                 if due_date_raw:
                     try:
                         task.due_date = date.fromisoformat(str(due_date_raw))
@@ -1170,15 +1474,60 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 else:
                     task.due_date = None
                 changed = True
+                _log_task_activity(
+                    task=task,
+                    user=request.user,
+                    action="field_change",
+                    field="due_date",
+                    old_value=old_due,
+                    new_value=task.due_date.isoformat() if task.due_date else "",
+                )
             if story_points_raw is not None:
+                old_sp = task.story_points
                 sp = max(0, min(100, int(story_points_raw)))
                 task.story_points = sp
                 changed = True
+                if old_sp != sp:
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="field_change",
+                        field="story_points",
+                        old_value=str(old_sp),
+                        new_value=str(sp),
+                    )
             if title_new is not None:
                 t = (title_new or "").strip()
                 if t:
+                    old_title = task.title
                     task.title = t
                     changed = True
+                    if old_title != t:
+                        _log_task_activity(
+                            task=task,
+                            user=request.user,
+                            action="field_change",
+                            field="title",
+                            old_value=old_title,
+                            new_value=t,
+                        )
+            if sprint_raw is not None:
+                if sprint_raw in ("", None, 0):
+                    task.sprint = None
+                    changed = True
+                else:
+                    try:
+                        sid = int(sprint_raw)
+                    except (TypeError, ValueError):
+                        sid = None
+                    if sid:
+                        try:
+                            sprint_obj = Sprint.objects.get(pk=sid, project=task.project)
+                        except Sprint.DoesNotExist:
+                            sprint_obj = None
+                        if sprint_obj is not None:
+                            task.sprint = sprint_obj
+                            changed = True
 
             if changed:
                 task.save()

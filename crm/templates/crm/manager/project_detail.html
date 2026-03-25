@@ -33,7 +33,7 @@
   <h2>Задачи</h2>
   <div style="display:flex;gap:8px;">
     <a class="btn" href="{% url 'crm:kanban_board' object.pk %}">Доска</a>
-    <a class="btn-ghost" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты по спринтам</a>
+    <a class="btn" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты по спринтам</a>
   </div>
 </div>
 <table>
@@ -67,13 +67,16 @@
 
 {% if can_manage_scrum %}
 <h3 style="margin-top:20px;">Роли в Scrum и критерии готовности</h3>
-<p class="muted" style="font-size:13px;margin:0 0 12px;">Эти поля не блокируют работу, но отображаются на доске (DoD в панели планирования) и помогают команде помнить, кто владелец продукта и кто фасилитирует процесс.</p>
+<p class="muted" style="font-size:13px;margin:0 0 12px;">Эти поля не блокируют работу, но отображаются на доске (DoD в панели планирования) и помогают команде помнить, кто владелец продукта и кто фасилитирует процесс.
+  <a href="{% url 'crm:scrum_glossary' %}">Справочник терминов</a>.
+</p>
 <form method="post" class="scrum-project-form" style="max-width:640px;">
   {% csrf_token %}
   <input type="hidden" name="action" value="scrum_project_save">
   <label class="muted">Префикс ключа задачи (например PRJ для PRJ-12)</label>
   <input type="text" name="issue_key_prefix" value="{{ object.issue_key_prefix }}" maxlength="16" style="display:block;width:100%;margin-bottom:8px;">
   <label class="muted">Владелец продукта (Product Owner)</label>
+  <p class="muted" style="font-size:12px;margin:-4px 0 6px;"><a href="{% url 'crm:scrum_glossary' %}#term-product-owner">Кто такой PO</a></p>
   <select name="product_owner_id" style="display:block;width:100%;margin-bottom:8px;">
     <option value="">— не назначен —</option>
     {% for u in company_staff %}
@@ -81,6 +84,7 @@
     {% endfor %}
   </select>
   <label class="muted">Мастер процесса (Scrum Master)</label>
+  <p class="muted" style="font-size:12px;margin:-4px 0 6px;"><a href="{% url 'crm:scrum_glossary' %}#term-scrum-master">Кто такой SM</a></p>
   <select name="scrum_master_id" style="display:block;width:100%;margin-bottom:8px;">
     <option value="">— не назначен —</option>
     {% for u in company_staff %}

@@ -23,6 +23,9 @@
             <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg></span>
             <span>Управление</span>
           </a>
+          {% if not user|is_manager_in_company and not user|is_developer_in_company %}
+          {% include 'crm/snippets/nav_glossary_link.html' %}
+          {% endif %}
           {% endif %}
           {% endwith %}
         {% endif %}
@@ -35,12 +38,16 @@
             <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
             <span>Дашборд</span>
           </a>
+          {% if not user|is_developer_in_company %}
+          {% include 'crm/snippets/nav_glossary_link.html' %}
+          {% endif %}
         {% endif %}
         {% if user|is_developer_in_company %}
           <a href="{% url 'crm:dev_open_tasks' %}" class="nav-btn {% if request.resolver_match.url_name == 'dev_open_tasks' or request.resolver_match.url_name == 'dev_take_task' %} active{% endif %}">
             <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span>
             <span>Задачи</span>
           </a>
+          {% include 'crm/snippets/nav_glossary_link.html' %}
           {% if not user|is_manager_in_company %}
           <a href="{% url 'crm:dashboard' %}" class="nav-btn {% if request.resolver_match.url_name == 'dashboard' %} active{% endif %}">
             <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
@@ -53,6 +60,9 @@
             <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg></span>
             <span>Мои заявки</span>
           </a>
+          {% if not user|is_owner_in_company %}
+          {% include 'crm/snippets/nav_glossary_link.html' %}
+          {% endif %}
         {% endif %}
       {% else %}
         <a href="{% url 'crm:landing' %}" class="nav-btn {% if request.resolver_match.url_name == 'landing' %} active{% endif %}">

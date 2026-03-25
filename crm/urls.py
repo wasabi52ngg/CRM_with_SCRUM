@@ -15,6 +15,7 @@ from .views import (
     TaskPanelApiView,
     ScrumApiView,
     ScrumReportsView,
+    ScrumGlossaryView,
     LandingView,
     ClientRequestListView,
     ClientRequestDetailView,
@@ -40,6 +41,7 @@ urlpatterns = [
     path("client/requests/<int:pk>/", ClientRequestDetailView.as_view(), name="client_request_detail"),
     path("client/request/session/<int:pk>/", ClientRequestBySessionView.as_view(), name="client_request_by_session"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("help/scrum/", ScrumGlossaryView.as_view(), name="scrum_glossary"),
     # Manager area
     path("manager/requests/", ManagerRequestListView.as_view(), name="manager_request_list"),
     path("manager/requests/<int:pk>/", ManagerRequestDetailView.as_view(), name="manager_request_detail"),

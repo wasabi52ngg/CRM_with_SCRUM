@@ -1,11 +1,12 @@
 {% extends 'crm/base.html' %}
 {% block title %}Отчёты Scrum — {{ object.name }}{% endblock %}
 {% block content %}
+<div id="retro-toast" class="retro-toast" role="status" aria-live="polite" hidden>Сохранено</div>
 <h1 class="page-title">Отчёты Scrum: {{ object.name }}</h1>
-<p class="muted" style="margin: 10px 0 14px;">
-  <a class="btn-ghost link-no-underline" href="{% url 'crm:manager_project_detail' object.pk %}">← К проекту</a>
-  <a class="link-no-underline" href="{% url 'crm:kanban_board' object.pk %}" style="margin-left: 12px;">← К доске</a>
-</p>
+<div class="scrum-nav-buttons">
+  <a class="cmd-btn link-no-underline" href="{% url 'crm:manager_project_detail' object.pk %}">← К проекту</a>
+  <a class="cmd-btn link-no-underline" href="{% url 'crm:kanban_board' object.pk %}">← К доске</a>
+</div>
 
 <div class="scrum-report-sprint-picker">
   <span class="muted" style="font-size:13px;">Спринт</span>
@@ -115,13 +116,16 @@
   </p>
   <form id="retro-form" class="retro-form">
     <input type="hidden" name="sprint_id" value="{{ active_sprint.id }}">
-    {% if can_manage_scrum %}
+    {% if can_manage_sprints %}
       <label>Что прошло хорошо</label>
       <textarea name="went_well" rows="3" style="width:100%;">{% if retro %}{{ retro.went_well }}{% endif %}</textarea>
       <label>Что улучшить</label>
       <textarea name="to_improve" rows="3" style="width:100%;">{% if retro %}{{ retro.to_improve }}{% endif %}</textarea>
-      <label>Действия</label>
-      <textarea name="action_items" rows="3" style="width:100%;">{% if retro %}{{ retro.action_items }}{% endif %}</textarea>
+      <div class="retro-label-row">
+        <label>Действия после ретро</label>
+        <a href="{% url 'crm:scrum_glossary' %}#term-retro-actions" class="muted tiny">Справочник</a>
+      </div>
+      <textarea name="action_items" rows="3" style="width:100%;" placeholder="Например: настроить CI для ветки develop — Иван; добавить чеклист в PR — Мария">{% if retro %}{{ retro.action_items }}{% endif %}</textarea>
       <button type="submit" class="btn" style="margin-top:8px;">Сохранить</button>
     {% else %}
       <div class="muted" style="font-size:13px; margin-bottom: 12px;">
@@ -136,7 +140,7 @@
         <div style="white-space: pre-wrap;">{% if retro %}{{ retro.to_improve }}{% endif %}</div>
       </div>
       <div style="margin-bottom: 8px;">
-        <div class="muted">Действия</div>
+        <div class="muted">Действия после ретро</div>
         <div style="white-space: pre-wrap;">{% if retro %}{{ retro.action_items }}{% endif %}</div>
       </div>
     {% endif %}
@@ -145,7 +149,7 @@
   (function() {
     const f = document.getElementById('retro-form');
     if (!f) return;
-    const canEdit = {{ can_manage_scrum|yesno:"true,false" }};
+    const canEdit = {{ can_manage_sprints|yesno:"true,false" }};
     if (!canEdit) return;
     f.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -161,7 +165,19 @@
           to_improve: fd.get('to_improve'),
           action_items: fd.get('action_items'),
         }),
-      }).then(r => r.json()).then(resp => { if (resp.ok) alert('Сохранено'); });
+      }).then(r => r.json()).then(resp => {
+        if (!resp.ok) return;
+        const toast = document.getElementById('retro-toast');
+        if (toast) {
+          toast.hidden = false;
+          toast.classList.add('retro-toast--show');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setTimeout(() => {
+            toast.classList.remove('retro-toast--show');
+            toast.hidden = true;
+          }, 3500);
+        }
+      });
     });
   })();
   </script>

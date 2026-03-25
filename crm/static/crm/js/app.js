@@ -90,6 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initKanbanTaskPanel(panel) {
+  const mainWrap = document.getElementById('kanban-main-wrap');
+
   const closeBtn = document.getElementById('tp-close');
   const titleEl = document.getElementById('tp-title');
   const metaEl = document.getElementById('tp-meta');
@@ -116,9 +118,11 @@ function initKanbanTaskPanel(panel) {
 
   function show() {
     panel.classList.remove('task-panel--hidden');
+    if (mainWrap) mainWrap.classList.add('kanban-wrap--task-panel-open');
   }
   function hide() {
     panel.classList.add('task-panel--hidden');
+    if (mainWrap) mainWrap.classList.remove('kanban-wrap--task-panel-open');
     currentTaskId = null;
     apiUrl = null;
     if (typeof hideCpAddForm === 'function') hideCpAddForm();
@@ -452,6 +456,10 @@ function initKanbanTaskPanel(panel) {
       if (e.key === 'Escape') { valueEl.style.display = ''; inputEl.style.display = 'none'; }
     });
   });
+
+  if (mainWrap && !panel.classList.contains('task-panel--hidden')) {
+    mainWrap.classList.add('kanban-wrap--task-panel-open');
+  }
 }
 
 function initRequestTimeline(root) {
@@ -1477,7 +1485,7 @@ function initKanbanExtras() {
   }
 
   const scrCreate = document.getElementById('scrum-create-sprint');
-  if (scrCreate && window.__canEditKanban) {
+  if (scrCreate && window.__canEditSprints) {
     scrCreate.addEventListener('click', () => {
       const name = (document.getElementById('scrum-new-sprint-name')?.value || '').trim();
       if (!name) return;
@@ -1493,7 +1501,7 @@ function initKanbanExtras() {
     });
   }
   const scrAct = document.getElementById('scrum-activate-sprint');
-  if (scrAct && window.__canEditKanban) {
+  if (scrAct && window.__canEditSprints) {
     scrAct.addEventListener('click', () => {
       const sid = parseInt(document.getElementById('scrum-pick-sprint')?.value || '0', 10);
       if (!sid) return;
@@ -1503,7 +1511,7 @@ function initKanbanExtras() {
     });
   }
   const scrDone = document.getElementById('scrum-complete-sprint');
-  if (scrDone && window.__canEditKanban) {
+  if (scrDone && window.__canEditSprints) {
     scrDone.addEventListener('click', () => {
       const sid = parseInt(document.getElementById('scrum-pick-sprint')?.value || '0', 10);
       if (!sid) return;
@@ -1514,7 +1522,7 @@ function initKanbanExtras() {
     });
   }
   const epicBtn = document.getElementById('scrum-create-epic');
-  if (epicBtn && window.__canEditKanban) {
+  if (epicBtn && window.__canEditEpics) {
     epicBtn.addEventListener('click', () => {
       const title = (document.getElementById('scrum-new-epic-title')?.value || '').trim();
       if (!title) return;
@@ -1525,7 +1533,7 @@ function initKanbanExtras() {
   }
 
   const backlogList = document.querySelector('.backlog-list');
-  if (backlogList && window.__canEditKanban) {
+  if (backlogList && window.__canEditEpics) {
     let draggedBk = null;
     backlogList.querySelectorAll('.backlog-task').forEach(el => {
       el.addEventListener('dragstart', e => {
@@ -1599,6 +1607,8 @@ function initKanbanExtras() {
     backlogToggleBtn.addEventListener('click', () => {
       const collapsed = mainWrapEl.classList.toggle('kanban-wrap--backlog-collapsed');
       backlogToggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      backlogToggleBtn.title = collapsed ? 'Показать беклог слева' : 'Скрыть беклог слева';
+      backlogToggleBtn.classList.toggle('kanban-backlog-toggle-btn--collapsed', collapsed);
     });
   }
 }

@@ -10,8 +10,17 @@
       <p class="kanban-page__project muted">{{ object.name }}</p>
     </div>
 
-    <div class="kanban-command-bar">
-      <button type="button" class="cmd-icon-btn" id="kanban-backlog-toggle" title="Показать или скрыть беклог" aria-expanded="true" aria-controls="kanban-backlog">☰</button>
+    <div class="scrum-nav-buttons">
+      <a class="cmd-btn link-no-underline" href="{% url 'crm:manager_project_detail' object.pk %}">← К проекту</a>
+    </div>
+
+      <div class="kanban-command-bar">
+      <button type="button" class="cmd-icon-btn kanban-backlog-toggle-btn" id="kanban-backlog-toggle" title="Скрыть беклог слева" aria-expanded="true" aria-controls="kanban-backlog">
+        <svg class="kanban-backlog-toggle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="8" height="16" rx="2"/>
+          <path d="M14 8l4 4-4 4"/>
+        </svg>
+      </button>
       <span class="cmd-bar__label muted">Доска</span>
       <select id="kanban-board-scope" class="cmd-select" title="Область отображаемых задач">
         <option value="all" {% if board_scope == 'all' %}selected{% endif %}>Весь проект</option>
@@ -21,7 +30,7 @@
         {% endfor %}
       </select>
       {% if active_sprint %}
-        <span class="sprint-chip" title="{{ active_sprint.goal|default:'' }}">{{ active_sprint.name }}</span>
+        <span class="sprint-chip" title="{{ active_sprint.name }}">{{ active_sprint.name }}</span>
       {% else %}
         <span class="sprint-chip sprint-chip--idle">Нет активного спринта</span>
       {% endif %}
@@ -122,6 +131,7 @@
             <p class="muted tiny"><a href="{% url 'crm:manager_project_detail' object.pk %}">Редактировать в карточке проекта →</a></p>
           </section>
           {% endif %}
+          {% if can_manage_sprints %}
           <section class="drawer-section">
             <h3 class="drawer-section__h">Новый спринт</h3>
             <div class="drawer-form-grid">
@@ -152,9 +162,16 @@
               <button type="button" class="cmd-btn cmd-btn--danger-outline" id="scrum-complete-sprint">Завершить</button>
             </div>
           </section>
+          {% endif %}
+
+          {% if can_manage_epics %}
           <section class="drawer-section">
             <h3 class="drawer-section__h">Эпики</h3>
-            <p class="muted tiny" style="margin:0 0 8px;">Крупные цели: привяжите к эпику задачи в карточке или отфильтруйте доску по эпику сверху.</p>
+            <p class="muted tiny" style="margin:0 0 8px;">
+              Эпик — крупная тема или цель продукта; к ней привязывают много задач, чтобы видеть прогресс по направлению.
+              В карточке задачи выберите эпик; сверху на доске можно фильтровать задачи одного эпика.
+              <a href="{% url 'crm:scrum_glossary' %}#term-epic">Подробнее в справочнике</a>.
+            </p>
             <div class="drawer-form-row">
               <input type="text" id="scrum-new-epic-title" class="kf-control kf-control--fluid" placeholder="Название эпика">
               <button type="button" class="cmd-btn" id="scrum-create-epic">Добавить</button>
@@ -173,22 +190,36 @@
             <p class="muted tiny">Пока нет эпиков — создайте первый.</p>
             {% endif %}
           </section>
+          {% endif %}
         </div>
         {% if can_edit_kanban %}
         <div class="kanban-drawer__pane kanban-drawer__pane--hidden" data-drawer-pane="columns">
-          <p class="muted tiny">Политика колонки — правило для команды (кто двигает карточку, что значит колонка).</p>
+          <p class="muted tiny" style="margin:0 0 10px;">
+            Ниже задаётся отображение колонок канбана. Подсказки по терминам —
+            <a href="{% url 'crm:scrum_glossary' %}#term-wip">WIP</a>,
+            <a href="{% url 'crm:scrum_glossary' %}#term-column-policy">политика колонки</a>.
+          </p>
+          <ul class="muted tiny" style="margin:0 0 14px;padding-left:1.2em;line-height:1.5;">
+            <li><strong>Статус</strong> — внутренний тип этапа (Todo / In progress / Done и т.д.), меняется только логикой системы.</li>
+            <li><strong>Колонка</strong> — заголовок на доске (можно переименовать под ваш процесс).</li>
+            <li><strong>#</strong> — порядок слева направо; меньшее число — левее.</li>
+            <li><strong>Видим.</strong> — показывать ли колонку на доске (скрытые не удаляются, их можно снова включить).</li>
+            <li><strong>WIP</strong> — максимум карточек одновременно в колонке; <strong>0</strong> = без лимита.</li>
+            <li><strong>Политика</strong> — краткое правило для команды: кто переводит дальше, что считается «готово» на этом шаге.</li>
+          </ul>
           <form method="post" class="kanban-drawer__config-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="update_kanban_columns">
+            <div class="kanban-config-table-wrap">
             <table class="kanban-config-table kanban-config-table--compact">
               <thead>
                 <tr>
-                  <th>Статус</th>
-                  <th>Колонка</th>
-                  <th title="Порядок слева направо">#</th>
-                  <th>Видим.</th>
-                  <th>WIP</th>
-                  <th>Политика</th>
+                  <th>Статус<span class="th-hint">Тип этапа в системе</span></th>
+                  <th>Колонка<span class="th-hint">Заголовок на доске</span></th>
+                  <th>#<span class="th-hint">Порядок слева направо</span></th>
+                  <th>Видим.<span class="th-hint">Показать на доске</span></th>
+                  <th>WIP<span class="th-hint">Лимит карточек, 0 = нет</span></th>
+                  <th>Политика<span class="th-hint">Правило для команды</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -196,14 +227,15 @@
                   <tr>
                     <td class="muted small">{{ col.config.get_status_display }}</td>
                     <td><input type="text" name="col_{{ col.config.id }}_title" value="{{ col.config.title }}"></td>
-                    <td><input type="number" name="col_{{ col.config.id }}_order" value="{{ col.config.order }}" min="0" style="width:52px;"></td>
+                    <td><input type="number" name="col_{{ col.config.id }}_order" value="{{ col.config.order }}" min="0"></td>
                     <td style="text-align:center;"><input type="checkbox" name="col_{{ col.config.id }}_visible" {% if col.config.is_visible %}checked{% endif %}></td>
-                    <td><input type="number" name="col_{{ col.config.id }}_wip" value="{{ col.config.wip_limit }}" min="0" style="width:52px;"></td>
+                    <td><input type="number" name="col_{{ col.config.id }}_wip" value="{{ col.config.wip_limit }}" min="0"></td>
                     <td><textarea name="col_{{ col.config.id }}_policy" rows="2" placeholder="Например: только QA переводит в Готово">{{ col.config.policy_note }}</textarea></td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
+            </div>
             <button type="submit" class="cmd-btn cmd-btn--primary" style="margin-top:12px;">Сохранить колонки</button>
           </form>
         </div>
@@ -452,8 +484,10 @@
   window.__currentUserId = {{ request.user.id }};
   window.__activeSprintId = {% if active_sprint %}{{ active_sprint.id }}{% else %}null{% endif %};
   window.__boardSprintIdForMove = {% if board_sprint_id %}{{ board_sprint_id }}{% elif active_sprint %}{{ active_sprint.id }}{% else %}null{% endif %};
-  // Для фронта: можно ли управлять спринтами/эпиками/созданием задач (по ролям)
-  window.__canEditKanban = {{ can_manage_scrum|yesno:"true,false" }};
+  // Для фронта: права по ролям (PO/SM у проекта)
+  window.__canEditSprints = {{ can_manage_sprints|yesno:"true,false" }};
+  window.__canEditEpics = {{ can_manage_epics|yesno:"true,false" }};
+  window.__canEditBacklog = {{ can_manage_scrum|yesno:"true,false" }};
 </script>
 
 <p class="kanban-foot-hint muted">В боковом беклоге — задачи без спринта. Перетаскивание в колонку привязывает к активному спринту или к спринту, который выбран в переключателе доски (если открыт конкретный спринт). Иначе укажите спринт в карточке задачи.</p>

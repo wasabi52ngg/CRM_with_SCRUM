@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
-from django.views.generic import ListView, DetailView
+from django.views.generic import ListView, DetailView, TemplateView
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -99,10 +99,45 @@ def _is_user_developer_in_company(user: User, company_id: int | None = None) -> 
     return qs.filter(is_developer=True).exists() or qs.filter(is_owner=True).exists()
 
 
-def _can_manage_project_scrum(user: User, project: Project) -> bool:
-    return _is_user_manager_in_company(user, project.company_id) or (
-        project.client_request and project.client_request.manager == user
+def _is_project_product_owner(user: User, project: Project) -> bool:
+    return bool(user.is_authenticated and project.product_owner_id and project.product_owner_id == user.id)
+
+
+def _is_project_scrum_master(user: User, project: Project) -> bool:
+    return bool(user.is_authenticated and project.scrum_master_id and project.scrum_master_id == user.id)
+
+
+def _can_manage_project_sprints(user: User, project: Project) -> bool:
+    """
+    Управление спринтами и ретроспективой:
+    - Scrum Master проекта
+    - менеджер/владелец компании
+    - менеджер, создавший проект из клиентской заявки
+    """
+    return (
+        _is_user_manager_in_company(user, project.company_id)
+        or (project.client_request and project.client_request.manager == user)
+        or _is_project_scrum_master(user, project)
     )
+
+
+def _can_manage_project_epics(user: User, project: Project) -> bool:
+    """
+    Управление эпиками и бэклогом:
+    - Product Owner проекта
+    - менеджер/владелец компании
+    - менеджер, создавший проект из клиентской заявки
+    """
+    return (
+        _is_user_manager_in_company(user, project.company_id)
+        or (project.client_request and project.client_request.manager == user)
+        or _is_project_product_owner(user, project)
+    )
+
+
+def _can_manage_project_scrum(user: User, project: Project) -> bool:
+    # Любой из PO/SM или внутренний менеджер = может управлять процессом в целом
+    return _can_manage_project_sprints(user, project) or _can_manage_project_epics(user, project)
 
 
 def _log_task_activity(
@@ -493,6 +528,12 @@ class DeveloperTakeTaskView(LoginRequiredMixin, View):
             new_value=Task.Status.IN_PROGRESS,
         )
         return redirect("crm:dev_open_tasks")
+
+
+class ScrumGlossaryView(LoginRequiredMixin, TemplateView):
+    """Справочник терминов Scrum и канбана для пользователей сервиса."""
+
+    template_name = "crm/scrum_glossary.html"
 
 
 class DashboardView(LoginRequiredMixin, View):
@@ -1090,10 +1131,12 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
             project=project, user=self.request.user
         ).order_by("name")
 
-        # Роли для процесса разработки
-        # - can_manage_scrum: может создавать/активировать/закрывать спринты и редактировать эпики
-        # - can_edit_kanban: может править настройки колонок (строго менеджер/владелец компании)
+        # Роли процесса разработки (должны идти от PO/SM у проекта)
+        ctx["can_manage_sprints"] = _can_manage_project_sprints(self.request.user, project)
+        ctx["can_manage_epics"] = _can_manage_project_epics(self.request.user, project)
+        # Для общих действий/перетаскивания: если пользователь может хотя бы часть процесса
         ctx["can_manage_scrum"] = _can_manage_project_scrum(self.request.user, project)
+        # Настройки колонок: только менеджер/владелец компании
         ctx["can_edit_kanban"] = _is_user_manager_in_company(self.request.user, project.company_id)
 
         # Список (табличный вид) — те же правила, что и колонки: только задачи со спринтом.
@@ -1208,7 +1251,7 @@ class ScrumReportsView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         project: Project = self.object
-        can_manage_scrum = _can_manage_project_scrum(self.request.user, project)
+        can_manage_sprints = _can_manage_project_sprints(self.request.user, project)
 
         # Поддерживаем выбор спринта через GET-параметр, чтобы можно было смотреть
         # отчёты и ретроспективу по закрытым спринтам.
@@ -1225,7 +1268,7 @@ class ScrumReportsView(LoginRequiredMixin, DetailView):
 
         ctx["active_sprint"] = selected
         ctx["selected_sprint_id"] = selected.id if selected else None
-        ctx["can_manage_scrum"] = can_manage_scrum
+        ctx["can_manage_sprints"] = can_manage_sprints
         burndown_labels = []
         burndown_actual = []
         burndown_ideal = []
@@ -1304,18 +1347,23 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": "project_id_required"}, status=400)
         project = get_object_or_404(Project, pk=project_id)
 
-        if not (
-            _is_user_manager_in_company(request.user, project.company_id)
-            or (project.client_request and project.client_request.manager == request.user)
-            or _is_user_developer_in_company(request.user, project.company_id)
-        ):
+        if not (_can_manage_project_scrum(request.user, project) or _is_user_developer_in_company(request.user, project.company_id)):
             return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
-        def require_manager() -> bool:
+        def require_process() -> bool:
             return _can_manage_project_scrum(request.user, project)
 
+        # Оставляем старое имя, чтобы не размазывать вызовы ниже по коду.
+        require_manager = require_process
+
+        def require_sprints() -> bool:
+            return _can_manage_project_sprints(request.user, project)
+
+        def require_epics() -> bool:
+            return _can_manage_project_epics(request.user, project)
+
         if action == "sprint_create":
-            if not require_manager():
+            if not require_sprints():
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             name = (payload.get("name") or "").strip()
             if not name:
@@ -1334,7 +1382,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True, "sprint": {"id": sp.id, "name": sp.name}})
 
         if action == "sprint_activate":
-            if not require_manager():
+            if not require_sprints():
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             sid = int(payload.get("sprint_id") or 0)
             sp = get_object_or_404(Sprint, pk=sid, project=project)
@@ -1345,7 +1393,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
 
         if action == "sprint_complete":
-            if not require_manager():
+            if not require_sprints():
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             sid = int(payload.get("sprint_id") or 0)
             sp = get_object_or_404(Sprint, pk=sid, project=project)
@@ -1360,7 +1408,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
 
         if action == "backlog_reorder":
-            if not require_manager():
+            if not require_epics():
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             ids = payload.get("task_ids") or []
             if not isinstance(ids, list):
@@ -1372,7 +1420,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
 
         if action == "epic_create":
-            if not require_manager():
+            if not require_epics():
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             title = (payload.get("title") or "").strip()
             if not title:
@@ -1436,10 +1484,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
 
         if action == "retro_save":
-            if not (
-                _is_user_manager_in_company(request.user, project.company_id)
-                or _is_user_developer_in_company(request.user, project.company_id)
-            ):
+            if not require_sprints():
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             sid = int(payload.get("sprint_id") or 0)
             sp = get_object_or_404(Sprint, pk=sid, project=project)
@@ -1631,10 +1676,7 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
             status = Task.Status.TODO
 
         project = get_object_or_404(Project, pk=project_id)
-        if not (
-            _is_user_manager_in_company(request.user, project.company_id)
-            or (project.client_request and project.client_request.manager == request.user)
-        ):
+        if not _can_manage_project_scrum(request.user, project):
             return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
         assignee = None
@@ -2041,7 +2083,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             sprint_raw = payload.get("sprint") or payload.get("sprint_id")
             status_raw = payload.get("status")
 
-            if not _is_user_manager_in_company(request.user, task.project.company_id) and request.user != task.assignee:
+            if not _can_manage_project_scrum(request.user, task.project) and request.user != task.assignee:
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
             changed = False

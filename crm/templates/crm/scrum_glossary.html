@@ -1,0 +1,131 @@
+{% extends "crm/base.html" %}
+{% block title %}Справочник: Scrum и канбан — CRM{% endblock %}
+{% block content %}
+<div class="glossary-page">
+  <h1>Справочник терминов</h1>
+  <p class="glossary-page__intro">
+    Краткие пояснения ролей и понятий, которые встречаются в проекте, на доске и в отчётах.
+    Если что-то непонятно в настройках — загляните сюда.
+  </p>
+
+  <div class="glossary-grid">
+    <article class="glossary-card" id="term-product-owner">
+      <h2 class="glossary-card__h">Владелец продукта</h2>
+      <p class="glossary-card__term-en">Product Owner, PO</p>
+      <p class="glossary-card__p">
+        Отвечает за ценность продукта для бизнеса и пользователей: формулирует цели, расставляет приоритеты в бэклоге,
+        принимает решения «что делать дальше». В этом сервисе PO указывается в настройках проекта для прозрачности команды.
+      </p>
+      <p class="glossary-card__p">
+        <strong>Что может:</strong> задавать направление и приоритеты (в реальной команде — утверждать бэклог и критерии приёмки).
+        В CRM поле информационное: кто «голос» по продукту на доске и в отчётах.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-scrum-master">
+      <h2 class="glossary-card__h">Мастер процесса</h2>
+      <p class="glossary-card__term-en">Scrum Master, SM</p>
+      <p class="glossary-card__p">
+        Помогает команде работать по Scrum: убирает препятствия, фасилитирует церемонии (планирование, дейли, ретро),
+        следит за тем, чтобы процесс был понятен и соблюдался — без управления задачами вместо команды.
+      </p>
+      <p class="glossary-card__p">
+        <strong>Что может:</strong> координировать процесс, защищать команду от хаоса, улучшать взаимодействие.
+        В CRM поле показывает, к кому обращаться по процессу; права в системе задаются ролью (менеджер / разработчик), а не этим полем.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-sprint">
+      <h2 class="glossary-card__h">Спринт</h2>
+      <p class="glossary-card__term-en">Sprint</p>
+      <p class="glossary-card__p">
+        Короткий фиксированный период (например 1–2 недели), в течение которого команда берёт на себя ограниченный набор задач
+        и стремится завершить инкремент. На доске активный спринт задаёт контекст колонок и фильтров.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-backlog">
+      <h2 class="glossary-card__h">Бэклог</h2>
+      <p class="glossary-card__term-en">Product backlog</p>
+      <p class="glossary-card__p">
+        Упорядоченный список всего, что может понадобиться продукту. Верх списка — то, что планируют делать раньше.
+        Задачи без спринта в сервисе попадают в бэклог доски.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-epic">
+      <h2 class="glossary-card__h">Эпик</h2>
+      <p class="glossary-card__term-en">Epic</p>
+      <p class="glossary-card__p">
+        Крупная цель или тема, на которую «навешивают» много задач (например «Личный кабинет» или «Интеграция с оплатой»).
+        Эпик помогает видеть прогресс по направлению и фильтровать доску по одной крупной инициативе.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-dod">
+      <h2 class="glossary-card__h">Критерии готовности</h2>
+      <p class="glossary-card__term-en">Definition of Done, DoD</p>
+      <p class="glossary-card__p">
+        Общий чеклист: задача считается завершённой только если выполнены все пункты (код, тесты, ревью, документация и т.д.).
+        В проекте DoD задаётся в настройках и может показываться в панели планирования.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-story-points">
+      <h2 class="glossary-card__h">Баллы / оценка</h2>
+      <p class="glossary-card__term-en">Story points</p>
+      <p class="glossary-card__p">
+        Относительная оценка объёма и риска задачи (не «часы»). Команда согласует шкалу и использует баллы для планирования спринта и velocity.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-wip">
+      <h2 class="glossary-card__h">WIP</h2>
+      <p class="glossary-card__term-en">Work In Progress limit</p>
+      <p class="glossary-card__p">
+        Лимит одновременно находящихся в колонке карточек (кроме завершённых по смыслу политики).
+        <strong>0</strong> в настройках колонки означает «без лимита». Помогает не перегружать этап и видеть узкие места.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-column-policy">
+      <h2 class="glossary-card__h">Политика колонки</h2>
+      <p class="glossary-card__term-en">Column policy</p>
+      <p class="glossary-card__p">
+        Короткое правило для команды: что значит колонка, кто переводит карточки дальше, какие условия «готово» на этом шаге.
+        Отображается как подсказка рядом с настройками канбана.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-retrospective">
+      <h2 class="glossary-card__h">Ретроспектива</h2>
+      <p class="glossary-card__term-en">Retrospective</p>
+      <p class="glossary-card__p">
+        Встреча в конце спринта: что прошло хорошо, что улучшить, какие действия взять в следующий спринт.
+        В отчётах ретро привязана к выбранному спринту.
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-retro-actions">
+      <h2 class="glossary-card__h">Действия после ретро</h2>
+      <p class="glossary-card__term-en">Action items</p>
+      <p class="glossary-card__p">
+        Конкретные шаги с ответственными: не общие пожелания, а «кто что сделает до следующей ретро».
+        Удобный формат: одна строка — одно действие; можно указать имя или роль и срок.
+      </p>
+      <p class="glossary-card__p">
+        Пример: «Настроить CI для develop — Иван до пятницы», «Чеклист в PR — Мария».
+      </p>
+    </article>
+
+    <article class="glossary-card" id="term-issue-prefix">
+      <h2 class="glossary-card__h">Префикс ключа задачи</h2>
+      <p class="glossary-card__term-en">Issue key prefix</p>
+      <p class="glossary-card__p">
+        Короткий код проекта для номеров задач (например <code>PRJ</code> для ключей вида PRJ-12). Задаётся в настройках проекта
+        и помогает отличать задачи разных продуктов в переписке и интеграциях.
+      </p>
+    </article>
+  </div>
+</div>
+{% endblock %}

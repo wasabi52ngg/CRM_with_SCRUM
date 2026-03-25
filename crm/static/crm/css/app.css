@@ -374,6 +374,24 @@ a.link-no-underline:hover {
   font-size: 0.9em;
 }
 
+.retro-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0 0 6px;
+}
+
+.retro-label-row .muted.tiny {
+  text-decoration: none;
+}
+
+.retro-label-row .muted.tiny:hover {
+  text-decoration: underline;
+  color: var(--primary);
+}
+
 /* Kanban Board — layout & planning drawer */
 .kanban-page {
   max-width: 100%;
@@ -416,6 +434,7 @@ a.link-no-underline:hover {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  line-height: 1;
 }
 
 .cmd-bar__grow {
@@ -424,6 +443,7 @@ a.link-no-underline:hover {
 }
 
 .cmd-select {
+  display: block;
   padding: 8px 11px;
   border-radius: 9px;
   border: 1px solid var(--border);
@@ -434,6 +454,7 @@ a.link-no-underline:hover {
   height: 36px;
   line-height: 1;
   align-self: center;
+  margin: 0;
 }
 
 .cmd-btn {
@@ -489,6 +510,22 @@ a.link-no-underline:hover {
   color: var(--primary);
 }
 
+.kanban-backlog-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.kanban-backlog-toggle-icon {
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.kanban-backlog-toggle-btn--collapsed .kanban-backlog-toggle-icon {
+  transform: scaleX(-1);
+}
+
 .sprint-chip {
   font-size: 11px;
   font-weight: 600;
@@ -496,12 +533,14 @@ a.link-no-underline:hover {
   border-radius: 999px;
   background: rgba(99, 102, 241, 0.12);
   color: #4f46e5;
-  max-width: 280px;
+  max-width: 520px;
   display: inline-block;
   flex: 0 1 auto;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 .sprint-chip--idle {
@@ -553,6 +592,10 @@ a.link-no-underline:hover {
 .kf-control--narrow {
   width: 140px;
   min-width: 100px;
+  height: 36px;
+  line-height: 1;
+  align-self: center;
+  margin: 0;
 }
 
 .kf-chip {
@@ -633,6 +676,38 @@ a.link-no-underline:hover {
   text-decoration: underline;
 }
 
+.scrum-nav-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0 14px;
+}
+
+.retro-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  z-index: 2000;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #059669;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(5, 150, 105, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.retro-toast--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
 .kanban-drawer {
   position: fixed;
   inset: 0;
@@ -662,7 +737,7 @@ a.link-no-underline:hover {
   position: fixed;
   top: 24px;
   left: 50%;
-  width: min(560px, calc(100vw - 48px));
+  width: min(1120px, calc(100vw - 24px));
   height: auto;
   max-height: calc(100vh - 48px);
   background: var(--panel);
@@ -826,6 +901,116 @@ body.kanban-drawer-lock {
   font-size: 12px;
 }
 
+.kanban-config-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.kanban-config-table-wrap .kanban-config-table--compact {
+  min-width: 980px;
+}
+
+.kanban-config-table .th-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.kanban-config-table--compact td:nth-child(6) textarea {
+  min-width: 280px;
+  min-height: 56px;
+}
+
+.kanban-config-table--compact td:nth-child(3) input[type="number"],
+.kanban-config-table--compact td:nth-child(5) input[type="number"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.kanban-config-table--compact th:nth-child(3),
+.kanban-config-table--compact td:nth-child(3),
+.kanban-config-table--compact th:nth-child(5),
+.kanban-config-table--compact td:nth-child(5) {
+  min-width: 3.75rem;
+}
+
+/* Справочник терминов */
+.glossary-page {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.glossary-page__intro {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.glossary-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  border-left: 4px solid var(--primary);
+  scroll-margin-top: 96px;
+}
+
+.glossary-card__h {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.glossary-card__term-en {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 0;
+}
+
+.glossary-card__p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.glossary-card__p + .glossary-card__p {
+  margin-top: 10px;
+}
+
+.glossary-card code {
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.06);
+  font-family: ui-monospace, monospace;
+}
+
+.kanban-config-table thead th {
+  vertical-align: top;
+}
+
 .kanban-foot-hint {
   margin-top: 20px;
   font-size: 12px;
@@ -833,17 +1018,28 @@ body.kanban-drawer-lock {
   max-width: 720px;
 }
 
+/* Две колонки: беклог | доска. Третья (панель задачи) только когда панель открыта — иначе доска занимает всё до края контейнера. */
 .kanban-wrap {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, 296px) minmax(0, 1fr) minmax(270px, 320px);
+  grid-template-columns: minmax(260px, 296px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.kanban-wrap.kanban-wrap--task-panel-open {
+  grid-template-columns: minmax(260px, 296px) minmax(0, 1fr) minmax(270px, 320px);
 }
 
 .kanban-wrap--backlog-collapsed {
-  grid-template-columns: 0 minmax(0, 1fr) minmax(270px, 320px);
+  grid-template-columns: 0 minmax(0, 1fr);
   gap: 12px;
+}
+
+.kanban-wrap--backlog-collapsed.kanban-wrap--task-panel-open {
+  grid-template-columns: 0 minmax(0, 1fr) minmax(270px, 320px);
 }
 
 .kanban-wrap--backlog-collapsed .backlog {
@@ -865,6 +1061,12 @@ body.kanban-drawer-lock {
 .kanban-board-area {
   grid-column: 2;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
 }
 
 aside#task-panel {
@@ -873,10 +1075,13 @@ aside#task-panel {
 
 .kanban {
   display: grid;
-  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 18px;
   margin-top: 0;
   min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .col {
@@ -1285,6 +1490,11 @@ aside#task-panel {
 
 .kanban-list-view {
   margin-top: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+  box-sizing: border-box;
 }
 
 .backlog {
@@ -1337,6 +1547,8 @@ aside#task-panel {
 
 .kanban-table {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   border-collapse: collapse;
   background: var(--card);
   border-radius: 12px;

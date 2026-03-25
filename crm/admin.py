@@ -1,8 +1,21 @@
 from django.contrib import admin
 
 from .models import (
-    Company, CompanyMembership,
-    ClientRequest, Project, Sprint, Task, Comment, Attachment, Message
+    Company,
+    CompanyMembership,
+    ClientRequest,
+    Project,
+    Sprint,
+    Task,
+    Comment,
+    Attachment,
+    Message,
+    Epic,
+    Release,
+    TaskLink,
+    TaskWatcher,
+    SprintRetrospective,
+    SprintBurndownSnapshot,
 )
 
 
@@ -15,15 +28,48 @@ class ClientRequestAdmin(admin.ModelAdmin):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("name", "is_archived", "created_at")
+    list_display = ("name", "is_archived", "issue_key_prefix", "created_at")
     list_filter = ("is_archived",)
     search_fields = ("name", "description")
 
 
+@admin.register(Epic)
+class EpicAdmin(admin.ModelAdmin):
+    list_display = ("title", "project", "order")
+    list_filter = ("project",)
+
+
+@admin.register(Release)
+class ReleaseAdmin(admin.ModelAdmin):
+    list_display = ("name", "version", "project", "released_at")
+    list_filter = ("project",)
+    filter_horizontal = ("tasks",)
+
+
 @admin.register(Sprint)
 class SprintAdmin(admin.ModelAdmin):
-    list_display = ("project", "name", "start_date", "end_date", "is_active")
+    list_display = ("project", "name", "start_date", "end_date", "is_active", "completed_at")
     list_filter = ("is_active", "project")
+
+
+@admin.register(SprintRetrospective)
+class SprintRetrospectiveAdmin(admin.ModelAdmin):
+    list_display = ("sprint", "updated_at")
+
+
+@admin.register(SprintBurndownSnapshot)
+class SprintBurndownSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("sprint", "day", "remaining_points")
+
+
+@admin.register(TaskLink)
+class TaskLinkAdmin(admin.ModelAdmin):
+    list_display = ("source", "link_type", "target")
+
+
+@admin.register(TaskWatcher)
+class TaskWatcherAdmin(admin.ModelAdmin):
+    list_display = ("task", "user")
 
 
 @admin.register(Task)

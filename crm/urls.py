@@ -13,6 +13,8 @@ from .views import (
     KanbanMoveApiView,
     KanbanCreateTaskApiView,
     TaskPanelApiView,
+    ScrumApiView,
+    ScrumReportsView,
     LandingView,
     ClientRequestListView,
     ClientRequestDetailView,
@@ -48,7 +50,9 @@ urlpatterns = [
     ),
     path("manager/projects/<int:pk>/", ManagerProjectDetailView.as_view(), name="manager_project_detail"),
     path("manager/projects/<int:pk>/board/", KanbanBoardView.as_view(), name="kanban_board"),
+    path("manager/projects/<int:pk>/reports/", ScrumReportsView.as_view(), name="scrum_reports"),
     path("manager/tasks/<int:pk>/panel/", TaskPanelApiView.as_view(), name="task_panel_api"),
+    path("scrum/api/", ScrumApiView.as_view(), name="scrum_api"),
     path("kanban/move/", KanbanMoveApiView.as_view(), name="kanban_move"),
     path("kanban/create/", KanbanCreateTaskApiView.as_view(), name="kanban_create_task"),
     # Developer area

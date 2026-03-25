@@ -29,9 +29,12 @@
   </div>
 </div>
 
-<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
   <h2>Задачи</h2>
-  <a class="btn" href="{% url 'crm:kanban_board' object.pk %}">Открыть доску</a>
+  <div style="display:flex;gap:8px;">
+    <a class="btn" href="{% url 'crm:kanban_board' object.pk %}">Доска</a>
+    <a class="btn-ghost" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты по спринтам</a>
+  </div>
 </div>
 <table>
     <thead>
@@ -62,12 +65,35 @@
     </tbody>
  </table>
 
-<div style="margin-top:10px;">
-  <span class="muted">Фишки на будущее:</span>
-  <span class="muted">шаблоны задач по типу проекта, приоритет, чеклист подзадач, вложения, оценка + авто-дедлайн, зависимости между задачами и уведомления исполнителю.</span>
-</div>
+{% if can_manage_scrum %}
+<h3 style="margin-top:20px;">Роли в Scrum и критерии готовности</h3>
+<p class="muted" style="font-size:13px;margin:0 0 12px;">Эти поля не блокируют работу, но отображаются на доске (DoD в панели планирования) и помогают команде помнить, кто владелец продукта и кто фасилитирует процесс.</p>
+<form method="post" class="scrum-project-form" style="max-width:640px;">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="scrum_project_save">
+  <label class="muted">Префикс ключа задачи (например PRJ для PRJ-12)</label>
+  <input type="text" name="issue_key_prefix" value="{{ object.issue_key_prefix }}" maxlength="16" style="display:block;width:100%;margin-bottom:8px;">
+  <label class="muted">Владелец продукта (Product Owner)</label>
+  <select name="product_owner_id" style="display:block;width:100%;margin-bottom:8px;">
+    <option value="">— не назначен —</option>
+    {% for u in company_staff %}
+      <option value="{{ u.id }}" {% if object.product_owner_id == u.id %}selected{% endif %}>{{ u.username }}</option>
+    {% endfor %}
+  </select>
+  <label class="muted">Мастер процесса (Scrum Master)</label>
+  <select name="scrum_master_id" style="display:block;width:100%;margin-bottom:8px;">
+    <option value="">— не назначен —</option>
+    {% for u in company_staff %}
+      <option value="{{ u.id }}" {% if object.scrum_master_id == u.id %}selected{% endif %}>{{ u.username }}</option>
+    {% endfor %}
+  </select>
+  <label class="muted">Общие критерии готовности (Definition of Done)</label>
+  <textarea name="definition_of_done" rows="4" style="width:100%;" placeholder="Например: код в репозитории, тесты проходят, ревью выполнено…">{{ object.definition_of_done }}</textarea>
+  <button type="submit" class="btn" style="margin-top:8px;">Сохранить настройки процесса</button>
+</form>
+{% endif %}
 
-<h3>Добавить задачу</h3>
+<h3 style="margin-top:24px;">Добавить задачу</h3>
 <form method="post">
     {% csrf_token %}
     <input type="text" name="title" placeholder="Название" required>

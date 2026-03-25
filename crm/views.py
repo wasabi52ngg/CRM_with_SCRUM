@@ -5,7 +5,11 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
+from collections import defaultdict
+
 from django.db import models
+from django.db.models import Prefetch
+from django.utils import timezone
 # Импорты login, validate_password, ValidationError удалены - больше не используются после удаления SignupView
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
@@ -14,17 +18,48 @@ from .models import (
     Company,
     CompanyMembership,
     ClientRequest,
+    Epic,
     Project,
-    Task,
-    Sprint,
+    Release,
     RequestCheckpoint,
     RequestCheckpointEdge,
+    Sprint,
+    SprintBurndownSnapshot,
+    SprintRetrospective,
+    Task,
     TaskCheckpoint,
+    TaskLink,
+    TaskWatcher,
     KanbanColumnConfig,
     KanbanFilterPreset,
     TaskActivity,
     Message,
 )
+from .scrum_helpers import remaining_story_points_in_sprint, velocity_for_completed_sprints
+
+from datetime import date
+
+
+def _parse_due_date(raw):
+    """Превращает значение из JSON/формы в date или None."""
+    if raw in (None, "", 0):
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        return date.fromisoformat(s[:10])
+    except ValueError:
+        return None
+
+
+def _due_date_to_json(d):
+    """Безопасная сериализация дедлайна в строку YYYY-MM-DD для JSON."""
+    if d is None:
+        return None
+    if hasattr(d, "isoformat"):
+        return d.isoformat()
+    return str(d)[:10]
 
 
 def _get_user_company_ids(user: User) -> list[int]:
@@ -62,6 +97,12 @@ def _is_user_developer_in_company(user: User, company_id: int | None = None) -> 
     if company_id:
         qs = qs.filter(company_id=company_id)
     return qs.filter(is_developer=True).exists() or qs.filter(is_owner=True).exists()
+
+
+def _can_manage_project_scrum(user: User, project: Project) -> bool:
+    return _is_user_manager_in_company(user, project.company_id) or (
+        project.client_request and project.client_request.manager == user
+    )
 
 
 def _log_task_activity(
@@ -307,10 +348,43 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
             "review": tasks_qs.filter(status=Task.Status.REVIEW).count(),
             "done": tasks_qs.filter(status=Task.Status.DONE).count(),
         }
+        if project.company_id:
+            ctx["company_staff"] = (
+                User.objects.filter(
+                    company_memberships__company_id=project.company_id,
+                    company_memberships__is_approved=True,
+                )
+                .distinct()
+                .order_by("username")
+            )
+        else:
+            ctx["company_staff"] = User.objects.none()
+        ctx["epics"] = project.epics.all().order_by("order", "id")
+        ctx["sprints"] = project.sprints.order_by("-start_date", "-id")[:15]
+        ctx["releases"] = project.releases.all()[:20]
+        ctx["can_manage_scrum"] = _can_manage_project_scrum(self.request.user, project)
         return ctx
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         project = self.get_object()
+        if request.POST.get("action") == "scrum_project_save" and _can_manage_project_scrum(request.user, project):
+            project.definition_of_done = (request.POST.get("definition_of_done") or "").strip()
+            prefix = (request.POST.get("issue_key_prefix") or "PRJ").strip()[:16] or "PRJ"
+            project.issue_key_prefix = prefix
+            po = request.POST.get("product_owner_id") or ""
+            sm = request.POST.get("scrum_master_id") or ""
+            project.product_owner_id = int(po) if po.isdigit() else None
+            project.scrum_master_id = int(sm) if sm.isdigit() else None
+            project.save(
+                update_fields=[
+                    "definition_of_done",
+                    "issue_key_prefix",
+                    "product_owner_id",
+                    "scrum_master_id",
+                    "updated_at",
+                ]
+            )
+            return redirect("crm:manager_project_detail", pk=project.pk)
         title = request.POST.get("title", "").strip()
         description = request.POST.get("description", "").strip()
         task_type = request.POST.get("task_type")
@@ -867,11 +941,78 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         project: Project = self.object
-        base_qs = project.tasks.select_related("assignee").order_by("order", "created_at")
+        sprints = list(project.sprints.order_by("-start_date", "-id"))
+        ctx["sprints"] = sprints
+        active_sprint = (
+            Sprint.objects.filter(project=project, is_active=True, completed_at__isnull=True)
+            .order_by("-id")
+            .first()
+        )
+        ctx["active_sprint"] = active_sprint
+        board_scope = (self.request.GET.get("board") or "").strip()
+        if not board_scope:
+            board_scope = "active" if active_sprint else "all"
+        ctx["board_scope"] = board_scope
+        board_sprint_id = None
+        if board_scope.startswith("sprint_"):
+            try:
+                board_sprint_id = int(board_scope.replace("sprint_", ""))
+            except ValueError:
+                board_sprint_id = None
+        ctx["board_sprint_id"] = board_sprint_id
 
-        # Спринты пока не используем в логике канбана: доска показывает все задачи проекта по статусам.
-        ctx["sprints"] = []
-        ctx["active_sprint"] = None
+        child_qs = Task.objects.only("id", "status", "title")
+        prefetch_children = Prefetch("children", queryset=child_qs)
+
+        base_qs = (
+            project.tasks.select_related("assignee", "epic")
+            .prefetch_related(prefetch_children)
+            .order_by("order", "created_at")
+        )
+        if board_scope == "active":
+            if active_sprint:
+                base_qs = base_qs.filter(sprint_id=active_sprint.id)
+            else:
+                # Нет активного спринта — колонки пусты (режим «активный» из URL без смысла)
+                base_qs = base_qs.none()
+        elif board_scope.startswith("sprint_"):
+            try:
+                sid = int(board_scope.replace("sprint_", ""))
+                if project.sprints.filter(pk=sid).exists():
+                    base_qs = base_qs.filter(sprint_id=sid)
+            except ValueError:
+                pass
+
+        epic_raw = (self.request.GET.get("epic") or "").strip()
+        epic_filter_id = None
+        if epic_raw.isdigit():
+            e_try = int(epic_raw)
+            if project.epics.filter(pk=e_try).exists():
+                epic_filter_id = e_try
+        ctx["epic_filter_id"] = epic_filter_id
+
+        ctx["epics"] = project.epics.all().order_by("order", "id")
+        ctx["releases"] = project.releases.all()[:50]
+
+        epic_done = defaultdict(int)
+        epic_total = defaultdict(int)
+        for row in Task.objects.filter(project=project, epic_id__isnull=False).values("epic_id", "status"):
+            eid = row["epic_id"]
+            epic_total[eid] += 1
+            if row["status"] == Task.Status.DONE:
+                epic_done[eid] += 1
+        ctx["epic_progress"] = {eid: f"{epic_done[eid]}/{epic_total[eid]}" for eid in epic_total}
+
+        ctx["planning_stats"] = None
+        if active_sprint:
+            sp_qs = Task.objects.filter(sprint=active_sprint)
+            ctx["planning_stats"] = {
+                "task_count": sp_qs.count(),
+                "story_points": sp_qs.aggregate(s=models.Sum("story_points"))["s"] or 0,
+                "done_tasks": sp_qs.filter(status=Task.Status.DONE).count(),
+                "done_sp": sp_qs.filter(status=Task.Status.DONE).aggregate(s=models.Sum("story_points"))["s"]
+                or 0,
+            }
 
         # Конфигурация колонок канбана: если нет — создаём дефолтную для проекта.
         default_columns = [
@@ -891,9 +1032,14 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
                     wip_limit=0,
                 )
 
+        # В колонках канбана только задачи, взятые в спринт. Без спринта — только боковой беклог.
+        column_qs = base_qs.exclude(sprint__isnull=True)
+        if epic_filter_id:
+            column_qs = column_qs.filter(epic_id=epic_filter_id)
+
         columns = []
         for col in project.kanban_columns.all():
-            col_tasks = base_qs.filter(status=col.status)
+            col_tasks = column_qs.filter(status=col.status)
             sp_sum = col_tasks.aggregate(models.Sum("story_points"))["story_points__sum"] or 0
             columns.append(
                 {
@@ -905,23 +1051,67 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
             )
         ctx["kanban_columns"] = columns
 
+        col_total = column_qs.count()
+        if board_scope == "all":
+            ctx["board_mode_title"] = "Весь проект"
+            ctx["board_mode_hint"] = (
+                "Колонки показывают только задачи, уже добавленные в спринт. "
+                "Незапланированные — в боковом беклоге. "
+                f"Сейчас в колонках: {col_total}."
+            )
+        elif board_scope == "active" and active_sprint:
+            ctx["board_mode_title"] = f"Активный спринт: {active_sprint.name}"
+            ctx["board_mode_hint"] = (
+                "Видны только задачи текущего спринта. Переключитесь на «Весь проект», "
+                "чтобы сравнить все спринты. "
+                f"В колонках: {col_total}."
+            )
+        elif board_scope.startswith("sprint_") and board_sprint_id:
+            sp_obj = project.sprints.filter(pk=board_sprint_id).first()
+            sn = sp_obj.name if sp_obj else "—"
+            ctx["board_mode_title"] = f"Спринт: {sn}"
+            ctx["board_mode_hint"] = f"Показаны задачи только этого спринта. В колонках: {col_total}."
+        else:
+            ctx["board_mode_title"] = "Доска"
+            ctx["board_mode_hint"] = f"В колонках: {col_total}."
+
+        if epic_filter_id:
+            ep = project.epics.filter(pk=epic_filter_id).first()
+            ctx["board_mode_epic_note"] = (
+                f"Фильтр по эпику «{ep.title}» — в беклоге и на доске только связанные задачи."
+                if ep
+                else ""
+            )
+        else:
+            ctx["board_mode_epic_note"] = ""
+
         # Сохранённые фильтры текущего пользователя
         ctx["filter_presets"] = KanbanFilterPreset.objects.filter(
             project=project, user=self.request.user
         ).order_by("name")
 
-        # Может ли пользователь редактировать настройки канбана
+        # Роли для процесса разработки
+        # - can_manage_scrum: может создавать/активировать/закрывать спринты и редактировать эпики
+        # - can_edit_kanban: может править настройки колонок (строго менеджер/владелец компании)
+        ctx["can_manage_scrum"] = _can_manage_project_scrum(self.request.user, project)
         ctx["can_edit_kanban"] = _is_user_manager_in_company(self.request.user, project.company_id)
 
-        # Для обратной совместимости: отдельные списки по статусам (по текущей конфигурации).
-        board_qs = base_qs
+        # Список (табличный вид) — те же правила, что и колонки: только задачи со спринтом.
+        board_qs = column_qs
         ctx["todo"] = board_qs.filter(status=Task.Status.TODO)
         ctx["in_progress"] = board_qs.filter(status=Task.Status.IN_PROGRESS)
         ctx["review"] = board_qs.filter(status=Task.Status.REVIEW)
         ctx["done"] = board_qs.filter(status=Task.Status.DONE)
 
-        # Беклог: задачи без исполнителя в статусе TODO (пул для набора работы).
-        ctx["backlog"] = base_qs.filter(status=Task.Status.TODO, assignee__isnull=True)
+        # Беклог: верхнеуровневые задачи без спринта.
+        backlog_qs = project.tasks.filter(sprint__isnull=True, parent__isnull=True)
+        if epic_filter_id:
+            backlog_qs = backlog_qs.filter(epic_id=epic_filter_id)
+        ctx["backlog"] = (
+            backlog_qs.select_related("assignee", "epic")
+            .prefetch_related(prefetch_children)
+            .order_by("backlog_rank", "id")
+        )
         dev_ids = list(
             CompanyMembership.objects.filter(
                 company=project.company,
@@ -968,6 +1158,7 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
                 col.order = max(0, order_val)
                 col.is_visible = bool(visible_val)
                 col.wip_limit = max(0, wip_val)
+                col.policy_note = (request.POST.get(prefix + "policy") or "").strip()
                 col.save()
             return redirect("crm:kanban_board", pk=project.pk)
 
@@ -997,6 +1188,336 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
         return redirect("crm:kanban_board", pk=project.pk)
 
 
+class ScrumReportsView(LoginRequiredMixin, DetailView):
+    """Отчёты: burndown, velocity, ретроспектива."""
+
+    model = Project
+    template_name = "crm/scrum_reports.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        obj = self.get_object()
+        has_access = (
+            _is_user_manager_in_company(request.user, obj.company_id)
+            or (obj.client_request and obj.client_request.manager == request.user)
+            or _is_user_developer_in_company(request.user, obj.company_id)
+        )
+        if not has_access:
+            return redirect("crm:dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        project: Project = self.object
+        can_manage_scrum = _can_manage_project_scrum(self.request.user, project)
+
+        # Поддерживаем выбор спринта через GET-параметр, чтобы можно было смотреть
+        # отчёты и ретроспективу по закрытым спринтам.
+        sprint_id_raw = (self.request.GET.get("sprint_id") or "").strip()
+        selected = None
+        if sprint_id_raw.isdigit():
+            selected = Sprint.objects.filter(project=project, pk=int(sprint_id_raw)).first()
+        if selected is None:
+            selected = (
+                Sprint.objects.filter(project=project, is_active=True, completed_at__isnull=True)
+                .order_by("-id")
+                .first()
+            )
+
+        ctx["active_sprint"] = selected
+        ctx["selected_sprint_id"] = selected.id if selected else None
+        ctx["can_manage_scrum"] = can_manage_scrum
+        burndown_labels = []
+        burndown_actual = []
+        burndown_ideal = []
+        if selected and selected.start_date and selected.end_date:
+            from datetime import timedelta
+
+            snaps = list(SprintBurndownSnapshot.objects.filter(sprint=selected).order_by("day"))
+            snap_map = {s.day: s.remaining_points for s in snaps}
+            d0, d1 = selected.start_date, selected.end_date
+            days = (d1 - d0).days + 1
+            if days < 1:
+                days = 1
+            total_sp = (
+                Task.objects.filter(sprint=selected).aggregate(s=models.Sum("story_points"))["s"] or 0
+            )
+            current_rem = remaining_story_points_in_sprint(selected)
+            for i in range(days):
+                cur = d0 + timedelta(days=i)
+                burndown_labels.append(cur.isoformat())
+                denom = max(days - 1, 1)
+                burndown_ideal.append(max(0, int(total_sp * (1 - i / denom))))
+                burndown_actual.append(snap_map.get(cur))
+            last = None
+            for i in range(len(burndown_actual)):
+                if burndown_actual[i] is not None:
+                    last = burndown_actual[i]
+                else:
+                    burndown_actual[i] = last if last is not None else current_rem
+        ctx["burndown_labels"] = burndown_labels
+        ctx["burndown_ideal"] = burndown_ideal
+        ctx["burndown_actual"] = burndown_actual
+        burndown_rows = []
+        for i, label in enumerate(burndown_labels):
+            burndown_rows.append(
+                {
+                    "label": label,
+                    "actual": burndown_actual[i] if i < len(burndown_actual) else None,
+                    "ideal": burndown_ideal[i] if i < len(burndown_ideal) else None,
+                }
+            )
+        ctx["burndown_rows"] = burndown_rows
+        ctx["velocity"] = velocity_for_completed_sprints(project.id)
+        ctx["sprints_all"] = project.sprints.order_by("-start_date", "-id")[:20]
+        retro = SprintRetrospective.objects.filter(sprint=selected).first() if selected else None
+        ctx["retro"] = retro
+        ctx["sprint_review_done"] = []
+        ctx["sprint_review_open"] = []
+        ctx["sprint_review_sp_planned"] = 0
+        ctx["sprint_review_sp_done"] = 0
+        if selected:
+            st = Task.objects.filter(sprint=selected).select_related("assignee").order_by("status", "order", "id")
+            ctx["sprint_review_done"] = st.filter(status=Task.Status.DONE)
+            ctx["sprint_review_open"] = st.exclude(status=Task.Status.DONE)
+            ctx["sprint_review_sp_planned"] = st.aggregate(s=models.Sum("story_points"))["s"] or 0
+            ctx["sprint_review_sp_done"] = (
+                st.filter(status=Task.Status.DONE).aggregate(s=models.Sum("story_points"))["s"] or 0
+            )
+        return ctx
+
+
+@method_decorator(require_POST, name="dispatch")
+class ScrumApiView(LoginRequiredMixin, View):
+    """JSON API: спринты, бэклог, эпики, связи, наблюдатели, релизы."""
+
+    def post(self, request: HttpRequest) -> JsonResponse:
+        import json
+
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
+
+        action = payload.get("action")
+        project_id = payload.get("project_id")
+        if not project_id:
+            return JsonResponse({"ok": False, "error": "project_id_required"}, status=400)
+        project = get_object_or_404(Project, pk=project_id)
+
+        if not (
+            _is_user_manager_in_company(request.user, project.company_id)
+            or (project.client_request and project.client_request.manager == request.user)
+            or _is_user_developer_in_company(request.user, project.company_id)
+        ):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
+        def require_manager() -> bool:
+            return _can_manage_project_scrum(request.user, project)
+
+        if action == "sprint_create":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            name = (payload.get("name") or "").strip()
+            if not name:
+                return JsonResponse({"ok": False, "error": "name_required"}, status=400)
+            goal = (payload.get("goal") or "").strip()
+            start_date = payload.get("start_date") or None
+            end_date = payload.get("end_date") or None
+            sp = Sprint.objects.create(
+                project=project,
+                name=name,
+                goal=goal,
+                start_date=start_date or None,
+                end_date=end_date or None,
+                is_active=False,
+            )
+            return JsonResponse({"ok": True, "sprint": {"id": sp.id, "name": sp.name}})
+
+        if action == "sprint_activate":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            sid = int(payload.get("sprint_id") or 0)
+            sp = get_object_or_404(Sprint, pk=sid, project=project)
+            Sprint.objects.filter(project=project).update(is_active=False)
+            sp.is_active = True
+            sp.completed_at = None
+            sp.save(update_fields=["is_active", "completed_at"])
+            return JsonResponse({"ok": True})
+
+        if action == "sprint_complete":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            sid = int(payload.get("sprint_id") or 0)
+            sp = get_object_or_404(Sprint, pk=sid, project=project)
+            sp.completed_at = timezone.now()
+            sp.is_active = False
+            sp.save(update_fields=["completed_at", "is_active"])
+            incomplete = Task.objects.filter(sprint=sp).exclude(status=Task.Status.DONE)
+            for t in incomplete:
+                t.sprint = None
+                t.save(update_fields=["sprint", "updated_at"])
+            SprintRetrospective.objects.get_or_create(sprint=sp)
+            return JsonResponse({"ok": True})
+
+        if action == "backlog_reorder":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            ids = payload.get("task_ids") or []
+            if not isinstance(ids, list):
+                return JsonResponse({"ok": False, "error": "bad_ids"}, status=400)
+            for rank, tid in enumerate(ids):
+                Task.objects.filter(pk=int(tid), project=project, sprint__isnull=True).update(
+                    backlog_rank=rank * 10
+                )
+            return JsonResponse({"ok": True})
+
+        if action == "epic_create":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            title = (payload.get("title") or "").strip()
+            if not title:
+                return JsonResponse({"ok": False, "error": "title_required"}, status=400)
+            color = (payload.get("color") or "#6366f1").strip()
+            last = project.epics.order_by("-order").values_list("order", flat=True).first() or 0
+            epic = Epic.objects.create(project=project, title=title, color=color, order=last + 1)
+            return JsonResponse({"ok": True, "epic": {"id": epic.id, "title": epic.title, "color": epic.color}})
+
+        if action == "task_link_add":
+            tid = int(payload.get("task_id") or 0)
+            target_id = int(payload.get("target_id") or 0)
+            link_type = payload.get("link_type") or "relates"
+            if link_type not in dict(TaskLink.LinkType.choices):
+                link_type = TaskLink.LinkType.RELATES
+            task = get_object_or_404(Task, pk=tid, project=project)
+            target = get_object_or_404(Task, pk=target_id, project=project)
+            if tid == target_id:
+                return JsonResponse({"ok": False, "error": "self_link"}, status=400)
+            TaskLink.objects.get_or_create(source=task, target=target, link_type=link_type)
+            return JsonResponse({"ok": True})
+
+        if action == "task_link_remove":
+            lid = int(payload.get("link_id") or 0)
+            link = get_object_or_404(TaskLink, pk=lid)
+            if link.source.project_id != project.id:
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            link.delete()
+            return JsonResponse({"ok": True})
+
+        if action == "watcher_toggle":
+            tid = int(payload.get("task_id") or 0)
+            target_uid = payload.get("user_id")
+            task = get_object_or_404(Task, pk=tid, project=project)
+            uid = int(target_uid) if target_uid else request.user.id
+            if uid != request.user.id and not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            tw, created = TaskWatcher.objects.get_or_create(task=task, user_id=uid)
+            if not created:
+                tw.delete()
+            return JsonResponse({"ok": True, "watching": created})
+
+        if action == "release_create":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            name = (payload.get("name") or "").strip()
+            version = (payload.get("version") or "").strip()
+            if not name or not version:
+                return JsonResponse({"ok": False, "error": "name_version_required"}, status=400)
+            rel = Release.objects.create(project=project, name=name, version=version)
+            return JsonResponse({"ok": True, "release": {"id": rel.id, "name": rel.name, "version": rel.version}})
+
+        if action == "release_add_task":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            rid = int(payload.get("release_id") or 0)
+            tid = int(payload.get("task_id") or 0)
+            rel = get_object_or_404(Release, pk=rid, project=project)
+            task = get_object_or_404(Task, pk=tid, project=project)
+            rel.tasks.add(task)
+            return JsonResponse({"ok": True})
+
+        if action == "retro_save":
+            if not (
+                _is_user_manager_in_company(request.user, project.company_id)
+                or _is_user_developer_in_company(request.user, project.company_id)
+            ):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            sid = int(payload.get("sprint_id") or 0)
+            sp = get_object_or_404(Sprint, pk=sid, project=project)
+            retro, _ = SprintRetrospective.objects.get_or_create(sprint=sp)
+            retro.went_well = (payload.get("went_well") or "").strip()
+            retro.to_improve = (payload.get("to_improve") or "").strip()
+            retro.action_items = (payload.get("action_items") or "").strip()
+            retro.save()
+            return JsonResponse({"ok": True})
+
+        if action == "project_scrum_settings":
+            if not require_manager():
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            project.definition_of_done = (payload.get("definition_of_done") or "").strip()
+            prefix = (payload.get("issue_key_prefix") or "PRJ").strip()[:16] or "PRJ"
+            project.issue_key_prefix = prefix
+            po = payload.get("product_owner_id")
+            sm = payload.get("scrum_master_id")
+
+            def _parse_user_id(v):
+                if v in (None, "", 0, "0"):
+                    return None
+                try:
+                    return int(v)
+                except (TypeError, ValueError):
+                    return None
+
+            project.product_owner_id = _parse_user_id(po)
+            project.scrum_master_id = _parse_user_id(sm)
+            project.save(
+                update_fields=[
+                    "definition_of_done",
+                    "issue_key_prefix",
+                    "product_owner_id",
+                    "scrum_master_id",
+                    "updated_at",
+                ]
+            )
+            return JsonResponse({"ok": True})
+
+        if action == "subtask_create":
+            tid = int(payload.get("parent_task_id") or 0)
+            title = (payload.get("title") or "").strip()
+            parent = get_object_or_404(Task, pk=tid, project=project)
+            if not title:
+                return JsonResponse({"ok": False, "error": "title_required"}, status=400)
+            last_order = (
+                Task.objects.filter(project=project, status=Task.Status.TODO)
+                .order_by("-order")
+                .values_list("order", flat=True)
+                .first()
+                or 0
+            )
+            child = Task.objects.create(
+                project=project,
+                sprint=parent.sprint,
+                parent=parent,
+                title=title,
+                description="",
+                task_type=parent.task_type,
+                work_item_type=Task.WorkItemType.SUBTASK,
+                status=Task.Status.TODO,
+                created_by=request.user,
+                order=last_order + 1,
+            )
+            _log_task_activity(
+                task=child,
+                user=request.user,
+                action="create",
+                field="task",
+                old_value="",
+                new_value=child.title,
+            )
+            return JsonResponse({"ok": True, "task_id": child.id})
+
+        return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
+
+
 @method_decorator(require_POST, name='dispatch')
 class KanbanMoveApiView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest) -> JsonResponse:
@@ -1013,6 +1534,13 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": "bad_status"}, status=400)
 
         task = get_object_or_404(Task, pk=task_id)
+
+        # Роли в процессе:
+        # - Менеджер/владелец заявки может двигать любые карточки
+        # - Разработчик может двигать только свои (assigned) карточки
+        if not _can_manage_project_scrum(request.user, task.project) and task.assignee_id != request.user.id:
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+
         # Проверка зависимости: если задача зависит от другой, не даём закрыть раньше неё
         if (
             new_status == Task.Status.DONE
@@ -1024,6 +1552,7 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
                 status=400,
             )
         old_status = task.status
+        old_sprint_id = task.sprint_id
         task.status = new_status
 
         # Если с фронта передали активный спринт — привязываем задачу к нему (вывод из беклога в текущий спринт)
@@ -1039,6 +1568,15 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
                     sprint_obj = None
                 if sprint_obj is not None:
                     task.sprint = sprint_obj
+        # Задача из беклога без спринта: если фронт не передал спринт — привязываем активный
+        if task.sprint_id is None and sprint_raw in (None, "", 0):
+            asp = (
+                Sprint.objects.filter(project=task.project, is_active=True, completed_at__isnull=True)
+                .order_by("-id")
+                .first()
+            )
+            if asp is not None:
+                task.sprint = asp
         # Простое переупорядочивание: помещаем в конец колонки
         last_order = (
             Task.objects.filter(project=task.project, status=new_status)
@@ -1048,7 +1586,10 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
             .first()
         ) or 0
         task.order = last_order + 1
-        task.save(update_fields=["status", "order", "updated_at"])
+        save_fields = ["status", "order", "updated_at"]
+        if task.sprint_id != old_sprint_id:
+            save_fields.append("sprint")
+        task.save(update_fields=save_fields)
         if old_status != new_status:
             _log_task_activity(
                 task=task,
@@ -1079,7 +1620,7 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
         description = (payload.get("description") or "").strip()
         task_type = payload.get("task_type") or "fullstack"
         assignee_id = payload.get("assignee") or None
-        due_date = payload.get("due_date") or None
+        due_date = _parse_due_date(payload.get("due_date"))
         story_points = int(payload.get("story_points") or 0)
         story_points = max(0, min(100, story_points))
         sprint_id = payload.get("sprint") or payload.get("sprint_id") or None
@@ -1126,12 +1667,31 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
             .first()
         ) or 0
 
+        work_item_type = payload.get("work_item_type") or Task.WorkItemType.TASK
+        if work_item_type not in dict(Task.WorkItemType.choices):
+            work_item_type = Task.WorkItemType.TASK
+        priority = payload.get("priority") or Task.Priority.MEDIUM
+        if priority not in dict(Task.Priority.choices):
+            priority = Task.Priority.MEDIUM
+        acceptance_criteria = (payload.get("acceptance_criteria") or "").strip()
+        epic_obj = None
+        epic_raw = payload.get("epic_id")
+        if epic_raw not in (None, "", 0):
+            try:
+                epic_obj = Epic.objects.filter(pk=int(epic_raw), project=project).first()
+            except (TypeError, ValueError):
+                epic_obj = None
+
         task = Task.objects.create(
             project=project,
             sprint=sprint,
+            epic=epic_obj,
             title=title,
             description=description,
+            acceptance_criteria=acceptance_criteria,
             task_type=task_type,
+            work_item_type=work_item_type,
+            priority=priority,
             status=status,
             created_by=request.user,
             assignee=assignee,
@@ -1157,7 +1717,7 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
                 "status": task.status,
                 "story_points": task.story_points,
                 "assignee": getattr(task.assignee, "username", None),
-                "due_date": task.due_date.isoformat() if task.due_date else None,
+                "due_date": _due_date_to_json(task.due_date),
             },
         })
 
@@ -1315,7 +1875,12 @@ class TaskPanelApiView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> JsonResponse:
         import json
 
-        task = get_object_or_404(Task.objects.select_related("assignee", "created_by", "project"), pk=pk)
+        task = get_object_or_404(
+            Task.objects.select_related(
+                "assignee", "created_by", "project", "epic", "parent", "sprint"
+            ),
+            pk=pk,
+        )
         try:
             payload = json.loads(request.body.decode("utf-8"))
         except Exception:
@@ -1335,6 +1900,21 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 .order_by("-created_at")[:30]
                 .values("id", "action", "field", "old_value", "new_value", "created_at", "author__username")
             )[::-1]
+            children = list(
+                task.children.all().values("id", "title", "status")[:50]
+            )
+            links_from = [
+                {
+                    "id": l.id,
+                    "target_id": l.target_id,
+                    "title": l.target.title,
+                    "link_type": l.link_type,
+                }
+                for l in task.links_from.select_related("target").all()[:30]
+            ]
+            watchers = list(task.watchers_rel.select_related("user").values_list("user__username", flat=True))
+            watching_self = task.watchers_rel.filter(user=request.user).exists()
+            release_ids = list(task.releases.values("id", "name", "version")[:20])
             # Готовим человекочитаемый текст для фронта
             activity_payload = []
             status_labels = dict(Task.Status.choices)
@@ -1343,8 +1923,13 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 "status": "Статус",
                 "assignee": "Исполнитель",
                 "due_date": "Дедлайн",
-                "story_points": "Важность",
+                "story_points": "Оценка (баллы)",
                 "title": "Название",
+                "priority": "Приоритет",
+                "epic": "Эпик",
+                "acceptance_criteria": "Критерии приёмки",
+                "work_item_type": "Тип элемента",
+                "description": "Описание",
             }
             action_prefixes = {
                 "create": "Создана задача",
@@ -1411,24 +1996,39 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                     "ok": True,
                     "task": {
                         "id": task.id,
+                        "issue_key": task.issue_key,
                         "title": task.title,
                         "description": task.description,
+                        "acceptance_criteria": task.acceptance_criteria,
                         "status": task.status,
                         "status_label": task.get_status_display(),
                         "task_type": task.task_type,
                         "task_type_label": task.get_task_type_display(),
+                        "work_item_type": task.work_item_type,
+                        "work_item_type_label": task.get_work_item_type_display(),
+                        "priority": task.priority,
+                        "priority_label": task.get_priority_display(),
                         "story_points": task.story_points,
                         "assignee": getattr(task.assignee, "username", None),
                         "assignee_id": task.assignee_id,
                         "created_by": getattr(task.created_by, "username", None),
-                        "due_date": task.due_date.isoformat() if task.due_date else None,
+                        "due_date": _due_date_to_json(task.due_date),
                         "sprint_id": task.sprint_id,
                         "sprint_name": task.sprint.name if task.sprint_id else None,
                         "project_id": task.project_id,
+                        "epic_id": task.epic_id,
+                        "epic_title": task.epic.title if task.epic_id else None,
+                        "parent_id": task.parent_id,
+                        "parent_title": task.parent.title if task.parent_id else None,
                     },
                     "checkpoints": checkpoints,
                     "chat": chat,
                     "activity": activity_payload,
+                    "children": children,
+                    "links": links_from,
+                    "watchers": watchers,
+                    "watching_self": watching_self,
+                    "releases": release_ids,
                 }
             )
 
@@ -1518,12 +2118,11 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                                 new_value=new_user.username,
                             )
             if due_date_raw is not None:
-                from datetime import date
                 old_due_date = task.due_date
-                old_due = old_due_date.isoformat() if old_due_date else ""
+                old_due = _due_date_to_json(old_due_date) or ""
                 if due_date_raw:
                     try:
-                        new_due_date = date.fromisoformat(str(due_date_raw))
+                        new_due_date = date.fromisoformat(str(due_date_raw)[:10])
                     except (ValueError, TypeError):
                         new_due_date = task.due_date
                 else:
@@ -1538,7 +2137,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         action="field_change",
                         field="due_date",
                         old_value=old_due,
-                        new_value=task.due_date.isoformat() if task.due_date else "",
+                        new_value=_due_date_to_json(task.due_date) or "",
                     )
             if story_points_raw is not None:
                 old_sp = task.story_points
@@ -1569,10 +2168,101 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                             old_value=old_title,
                             new_value=t,
                         )
+            desc_new = payload.get("description")
+            if desc_new is not None:
+                nd = (desc_new or "").strip()
+                if nd != (task.description or ""):
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="field_change",
+                        field="description",
+                        old_value=(task.description or "")[:400],
+                        new_value=nd[:400],
+                    )
+                    task.description = nd
+                    changed = True
+            ac_new = payload.get("acceptance_criteria")
+            if ac_new is not None:
+                na = (ac_new or "").strip()
+                if na != (task.acceptance_criteria or ""):
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="field_change",
+                        field="acceptance_criteria",
+                        old_value=(task.acceptance_criteria or "")[:400],
+                        new_value=na[:400],
+                    )
+                    task.acceptance_criteria = na
+                    changed = True
+            pri_new = payload.get("priority")
+            if pri_new is not None and pri_new in dict(Task.Priority.choices):
+                if pri_new != task.priority:
+                    old_p = task.get_priority_display()
+                    task.priority = pri_new
+                    changed = True
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="field_change",
+                        field="priority",
+                        old_value=old_p,
+                        new_value=task.get_priority_display(),
+                    )
+            wit_new = payload.get("work_item_type")
+            if wit_new is not None and wit_new in dict(Task.WorkItemType.choices):
+                if wit_new != task.work_item_type:
+                    old_w = task.get_work_item_type_display()
+                    task.work_item_type = wit_new
+                    changed = True
+                    _log_task_activity(
+                        task=task,
+                        user=request.user,
+                        action="field_change",
+                        field="work_item_type",
+                        old_value=old_w,
+                        new_value=task.get_work_item_type_display(),
+                    )
+            if "epic_id" in payload:
+                epic_raw = payload.get("epic_id")
+                if epic_raw in ("", None, 0):
+                    if task.epic_id:
+                        old_et = task.epic.title if task.epic else ""
+                        task.epic = None
+                        changed = True
+                        _log_task_activity(
+                            task=task,
+                            user=request.user,
+                            action="field_change",
+                            field="epic",
+                            old_value=old_et,
+                            new_value="",
+                        )
+                else:
+                    try:
+                        eid = int(epic_raw)
+                    except (TypeError, ValueError):
+                        eid = None
+                    if eid:
+                        epic_obj = Epic.objects.filter(pk=eid, project=task.project).first()
+                        if epic_obj and task.epic_id != epic_obj.id:
+                            old_et = task.epic.title if task.epic_id else ""
+                            task.epic = epic_obj
+                            changed = True
+                            _log_task_activity(
+                                task=task,
+                                user=request.user,
+                                action="field_change",
+                                field="epic",
+                                old_value=old_et,
+                                new_value=epic_obj.title,
+                            )
             if sprint_raw is not None:
                 if sprint_raw in ("", None, 0):
                     task.sprint = None
                     changed = True
+                    Task.objects.filter(parent=task).update(sprint=None)
                 else:
                     try:
                         sid = int(sprint_raw)
@@ -1586,6 +2276,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         if sprint_obj is not None:
                             task.sprint = sprint_obj
                             changed = True
+                            Task.objects.filter(parent=task).update(sprint=sprint_obj)
 
             if changed:
                 task.save()
@@ -1651,10 +2342,16 @@ class TaskPanelApiView(LoginRequiredMixin, View):
 
         # ---- Chat ----
         if action == "chat_add":
+            import re
+
             text = (payload.get("text") or "").strip()
             if not text:
                 return JsonResponse({"ok": False, "error": "text_required"}, status=400)
             comment = task.comments.create(author=request.user, text=text)
+            for uname in re.findall(r"@(\w+)", text):
+                mentioned = User.objects.filter(username__iexact=uname).first()
+                if mentioned:
+                    TaskWatcher.objects.get_or_create(task=task, user=mentioned)
             return JsonResponse(
                 {
                     "ok": True,

@@ -1,0 +1,172 @@
+{% extends 'crm/base.html' %}
+{% block title %}Отчёты Scrum — {{ object.name }}{% endblock %}
+{% block content %}
+<h1 class="page-title">Отчёты Scrum: {{ object.name }}</h1>
+<p class="muted" style="margin: 10px 0 14px;">
+  <a class="btn-ghost link-no-underline" href="{% url 'crm:manager_project_detail' object.pk %}">← К проекту</a>
+  <a class="link-no-underline" href="{% url 'crm:kanban_board' object.pk %}" style="margin-left: 12px;">← К доске</a>
+</p>
+
+<div class="scrum-report-sprint-picker">
+  <span class="muted" style="font-size:13px;">Спринт</span>
+  <select id="scrum-sprint-picker" class="kf-control kf-control--narrow" style="margin-left: 10px;">
+    <option value="">(выбрать)</option>
+    {% for s in sprints_all %}
+      <option value="{{ s.id }}" {% if selected_sprint_id == s.id %}selected{% endif %}>
+        {{ s.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+<script>
+  (function() {
+    const sel = document.getElementById('scrum-sprint-picker');
+    if (!sel) return;
+    sel.addEventListener('change', function() {
+      const u = new URL(window.location.href);
+      const v = sel.value;
+      if (v) u.searchParams.set('sprint_id', v);
+      else u.searchParams.delete('sprint_id');
+      window.location.href = u.toString();
+    });
+  })();
+</script>
+
+{% if active_sprint %}
+<section class="scrum-report-block scrum-sprint-review">
+  <h2>Обзор спринта: {{ active_sprint.name }}</h2>
+  <p class="muted">Запланировано: <strong>{{ sprint_review_sp_planned }} б.</strong> · сделано (готово): <strong>{{ sprint_review_sp_done }} б.</strong></p>
+  <div class="sprint-review-grid">
+    <div>
+      <h3 class="h-small">Сделано ({{ sprint_review_done|length }})</h3>
+      <ul class="sprint-review-list">
+        {% for t in sprint_review_done %}
+        <li>{% if t.issue_key %}{{ t.issue_key }} {% endif %}{{ t.title }} — {{ t.story_points }} б. · {{ t.assignee.username|default:"—" }}</li>
+        {% empty %}
+        <li class="muted">Пока нет</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div>
+      <h3 class="h-small">Не завершено ({{ sprint_review_open|length }})</h3>
+      <ul class="sprint-review-list">
+        {% for t in sprint_review_open %}
+        <li>{% if t.issue_key %}{{ t.issue_key }} {% endif %}{{ t.title }} — {{ t.get_status_display }} · {{ t.story_points }} б.</li>
+        {% empty %}
+        <li class="muted">Все задачи в Done</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="scrum-report-block">
+  <h2>Диаграмма сгорания ({{ active_sprint.name }})</h2>
+  {% if burndown_labels %}
+  <p class="muted">Оставшиеся баллы по дням (обновляется при изменении задач спринта).</p>
+  <table>
+    <thead>
+      <tr><th>Дата</th><th>Осталось баллов (факт)</th><th>Идеально (линейно)</th></tr>
+    </thead>
+    <tbody>
+      {% for row in burndown_rows %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td>{{ row.actual }}</td>
+        <td>{{ row.ideal }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Укажите даты начала и окончания у активного спринта.</p>
+  {% endif %}
+</section>
+{% else %}
+<p class="muted">Нет активного спринта.</p>
+{% endif %}
+
+<section class="scrum-report-block" style="margin-top:24px;">
+  <h2>Скорость команды (завершённые спринты)</h2>
+  {% if velocity %}
+  <table>
+    <thead><tr><th>Спринт</th><th>Завершён</th><th>Баллов доведено до «Готово»</th></tr></thead>
+    <tbody>
+      {% for v in velocity %}
+      <tr>
+        <td>{{ v.name }}</td>
+        <td>{% if v.completed_at %}{{ v.completed_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+        <td>{{ v.velocity }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Нет завершённых спринтов.</p>
+  {% endif %}
+</section>
+
+<section class="scrum-report-block" style="margin-top:24px;">
+  <h2>Ретроспектива</h2>
+  {% if active_sprint %}
+  <p class="muted" style="margin-top: -6px; margin-bottom: 12px;">
+    Редактируется для выбранного спринта: <strong>{{ active_sprint.name }}</strong>.
+  </p>
+  <form id="retro-form" class="retro-form">
+    <input type="hidden" name="sprint_id" value="{{ active_sprint.id }}">
+    {% if can_manage_scrum %}
+      <label>Что прошло хорошо</label>
+      <textarea name="went_well" rows="3" style="width:100%;">{% if retro %}{{ retro.went_well }}{% endif %}</textarea>
+      <label>Что улучшить</label>
+      <textarea name="to_improve" rows="3" style="width:100%;">{% if retro %}{{ retro.to_improve }}{% endif %}</textarea>
+      <label>Действия</label>
+      <textarea name="action_items" rows="3" style="width:100%;">{% if retro %}{{ retro.action_items }}{% endif %}</textarea>
+      <button type="submit" class="btn" style="margin-top:8px;">Сохранить</button>
+    {% else %}
+      <div class="muted" style="font-size:13px; margin-bottom: 12px;">
+        Просмотр доступен всем, редактирование — только менеджеру (или менеджеру по заявке).
+      </div>
+      <div style="margin-bottom: 8px;">
+        <div class="muted">Что прошло хорошо</div>
+        <div style="white-space: pre-wrap;">{% if retro %}{{ retro.went_well }}{% endif %}</div>
+      </div>
+      <div style="margin-bottom: 8px;">
+        <div class="muted">Что улучшить</div>
+        <div style="white-space: pre-wrap;">{% if retro %}{{ retro.to_improve }}{% endif %}</div>
+      </div>
+      <div style="margin-bottom: 8px;">
+        <div class="muted">Действия</div>
+        <div style="white-space: pre-wrap;">{% if retro %}{{ retro.action_items }}{% endif %}</div>
+      </div>
+    {% endif %}
+  </form>
+  <script>
+  (function() {
+    const f = document.getElementById('retro-form');
+    if (!f) return;
+    const canEdit = {{ can_manage_scrum|yesno:"true,false" }};
+    if (!canEdit) return;
+    f.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const fd = new FormData(f);
+      fetch('{% url "crm:scrum_api" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/)||[])[1] },
+        body: JSON.stringify({
+          action: 'retro_save',
+          project_id: {{ object.id }},
+          sprint_id: parseInt(fd.get('sprint_id'), 10),
+          went_well: fd.get('went_well'),
+          to_improve: fd.get('to_improve'),
+          action_items: fd.get('action_items'),
+        }),
+      }).then(r => r.json()).then(resp => { if (resp.ok) alert('Сохранено'); });
+    });
+  })();
+  </script>
+  {% else %}
+  <p class="muted">Активируйте спринт на доске.</p>
+  {% endif %}
+</section>
+{% endblock %}

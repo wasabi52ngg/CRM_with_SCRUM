@@ -5,7 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let dragged = null;
 
   document.querySelectorAll('.task[data-task]').forEach(card => {
-    card.draggable = true;
+    const isDraggable = card.getAttribute('draggable') === 'true';
+    card.draggable = isDraggable;
+    if (!isDraggable) return;
     card.addEventListener('dragstart', e => {
       dragged = card;
       e.dataTransfer.effectAllowed = 'move';
@@ -30,6 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           id: taskId,
           status: newStatus,
+          sprint:
+            window.__boardSprintIdForMove != null && window.__boardSprintIdForMove !== ''
+              ? window.__boardSprintIdForMove
+              : window.__activeSprintId || null,
         })
       })
         .then(r => r.json())
@@ -136,7 +142,7 @@ function initKanbanTaskPanel(panel) {
       title.textContent = cp.title || 'Без названия';
       const badge = document.createElement('span');
       badge.className = 'tp-badge' + (cp.is_done ? ' tp-badge--done' : '');
-      badge.textContent = cp.is_done ? 'done' : 'todo';
+      badge.textContent = cp.is_done ? 'готово' : 'не готово';
       top.appendChild(title);
       top.appendChild(badge);
       item.appendChild(top);
@@ -225,7 +231,16 @@ function initKanbanTaskPanel(panel) {
       if (!resp.ok) return;
       const t = resp.task;
       if (titleEl) titleEl.textContent = t.title;
-      if (metaEl) metaEl.textContent = `${t.task_type_label} • ${t.status_label}`;
+      if (metaEl) metaEl.textContent = `${t.task_type_label} • ${t.status_label}${t.priority_label ? ' • ' + t.priority_label : ''}`;
+      const issueEl = document.getElementById('tp-issue-key');
+      const descPrev = document.getElementById('tp-desc-preview');
+      if (issueEl) issueEl.textContent = t.issue_key ? `Ключ: ${t.issue_key}` : '';
+      if (descPrev) {
+        let block = '';
+        if (t.description) block += t.description;
+        if (t.acceptance_criteria) block += (block ? '\n\n' : '') + 'Критерии приёмки:\n' + t.acceptance_criteria;
+        descPrev.textContent = block.trim();
+      }
       if (assigneeEl) assigneeEl.textContent = t.assignee || '—';
       if (createdByEl) createdByEl.textContent = t.created_by || '—';
       if (dueEl) dueEl.textContent = t.due_date || '—';
@@ -242,12 +257,51 @@ function initKanbanTaskPanel(panel) {
       if (dueInput) dueInput.value = t.due_date || '';
       if (spInput) spInput.value = String(t.story_points ?? 0);
       if (sprintSelect) sprintSelect.value = t.sprint_id ? String(t.sprint_id) : '';
+      const epicEl = document.getElementById('tp-epic');
+      const epicSelect = document.getElementById('tp-epic-select');
+      if (epicEl) epicEl.textContent = t.epic_title || '—';
+      if (epicSelect) epicSelect.value = t.epic_id ? String(t.epic_id) : '';
       checkpoints = resp.checkpoints || [];
       chat = resp.chat || [];
       activity = resp.activity || [];
       renderCheckpoints();
       renderChat();
       renderActivity();
+      const extraChat = document.getElementById('tp-chat-extra');
+      if (extraChat && (resp.links || resp.children || resp.watchers)) {
+        extraChat.innerHTML = '';
+        if (resp.links && resp.links.length) {
+          const h = document.createElement('div');
+          h.className = 'muted';
+          h.style.marginBottom = '8px';
+          h.textContent = 'Связи:';
+          extraChat.appendChild(h);
+          resp.links.forEach(lk => {
+            const d = document.createElement('div');
+            d.textContent = `${lk.link_type} → ${lk.title} (#${lk.target_id})`;
+            extraChat.appendChild(d);
+          });
+        }
+        if (resp.children && resp.children.length) {
+          const h2 = document.createElement('div');
+          h2.className = 'muted';
+          h2.style.margin = '8px 0 4px';
+          h2.textContent = 'Подзадачи:';
+          extraChat.appendChild(h2);
+          resp.children.forEach(ch => {
+            const d = document.createElement('div');
+            d.textContent = `• ${ch.title}`;
+            extraChat.appendChild(d);
+          });
+        }
+        if (resp.watchers && resp.watchers.length) {
+          const w = document.createElement('div');
+          w.className = 'muted';
+          w.style.marginTop = '8px';
+          w.textContent = 'Наблюдают: ' + resp.watchers.join(', ');
+          extraChat.appendChild(w);
+        }
+      }
     });
   }
 
@@ -378,6 +432,11 @@ function initKanbanTaskPanel(panel) {
         saveTaskField('sprint', v || null);
         const opt = inputEl.selectedOptions[0];
         valueEl.textContent = (opt && v) ? opt.text : 'Беклог';
+      } else if (field === 'epic_id') {
+        const v = inputEl.value;
+        saveTaskField('epic_id', v === '' ? null : parseInt(v, 10));
+        const opt = inputEl.selectedOptions[0];
+        valueEl.textContent = (opt && v) ? opt.text : '—';
       } else if (field === 'due_date') {
         saveTaskField('due_date', inputEl.value || null);
         valueEl.textContent = inputEl.value || '—';
@@ -1129,6 +1188,17 @@ function initKanbanExtras() {
   let quickAssigneeFilter = null; // 'my' | 'unassigned' | null
   let quickOverdueFilter = false;
 
+  function updateQuickFilterButtons() {
+    document.querySelectorAll('.kanban-quick-filter').forEach(b => {
+      const type = b.getAttribute('data-qf');
+      const active =
+        (type === 'my' && quickAssigneeFilter === 'my') ||
+        (type === 'unassigned' && quickAssigneeFilter === 'unassigned') ||
+        (type === 'overdue' && quickOverdueFilter);
+      b.classList.toggle('kanban-quick-filter--active', active);
+    });
+  }
+
   function applyFilters() {
     const assigneeVal = filterAssignee ? filterAssignee.value : '';
     const typeVal = filterType ? filterType.value : '';
@@ -1192,11 +1262,15 @@ function initKanbanExtras() {
       const visible = tasks.filter(t => t.style.display !== 'none').length;
       const spSum = tasks
         .filter(t => t.style.display !== 'none')
-        .reduce((acc, t) => acc + (parseInt(t.querySelector('.meta span:last-child')?.textContent.replace(/\D/g, ''), 10) || 0), 0);
-      const countEl = document.querySelector(`.col-count[data-count="${status}"]`);
-      const spEl = document.querySelector(`.col-sp[data-sp="${status}"]`);
+        .reduce((acc, t) => {
+          const spe = t.querySelector('.task-sp');
+          const n = spe ? parseInt(spe.textContent.replace(/\D/g, ''), 10) : 0;
+          return acc + (Number.isFinite(n) ? n : 0);
+        }, 0);
+      const countEl = col.querySelector('.col-count');
+      const spSumEl = col.querySelector('.col-sp');
       if (countEl) countEl.textContent = visible;
-      if (spEl) spEl.textContent = `SP: ${spSum}`;
+      if (spSumEl) spSumEl.textContent = `Σ SP ${spSum}`;
 
       const wipLimit = parseInt(col.getAttribute('data-wip') || '0', 10);
       if (wipLimit > 0 && visible > wipLimit) {
@@ -1221,14 +1295,7 @@ function initKanbanExtras() {
       } else if (val === 'overdue') {
         quickOverdueFilter = !quickOverdueFilter;
       }
-      document.querySelectorAll('.kanban-quick-filter').forEach(b => {
-        const type = b.getAttribute('data-qf');
-        const active =
-          (type === 'my' && quickAssigneeFilter === 'my') ||
-          (type === 'unassigned' && quickAssigneeFilter === 'unassigned') ||
-          (type === 'overdue' && quickOverdueFilter);
-        b.classList.toggle('kanban-quick-filter--active', active);
-      });
+      updateQuickFilterButtons();
       applyFilters();
       updateCounts();
     });
@@ -1247,9 +1314,16 @@ function initKanbanExtras() {
       const t = opt.getAttribute('data-type') || '';
       if (filterAssignee) filterAssignee.value = a;
       if (filterType) filterType.value = t;
-      quickAssigneeFilter = null;
+      const currentUserId = window.__currentUserId ? String(window.__currentUserId) : '';
+      // Восстанавливаем "Мои задачи", если пресет сохранён с текущим пользователем
+      if (a && currentUserId && a === currentUserId) {
+        quickAssigneeFilter = 'my';
+      } else {
+        quickAssigneeFilter = null;
+      }
+      // Пресеты сейчас не хранят отдельный флаг "просроченные", поэтому не восстанавливаем его
       quickOverdueFilter = false;
-      document.querySelectorAll('.kanban-quick-filter').forEach(b => b.classList.remove('kanban-quick-filter--active'));
+      updateQuickFilterButtons();
       applyFilters();
       updateCounts();
     });
@@ -1344,6 +1418,10 @@ function initKanbanExtras() {
       const dueDate = document.getElementById('task-create-due')?.value || null;
       const sp = parseInt(document.getElementById('task-create-sp')?.value || '0', 10);
       if (!title) return;
+      const boardScopeEl = document.getElementById('kanban-board-scope');
+      const scopeVal = boardScopeEl ? boardScopeEl.value : 'all';
+      const sprintForCreate =
+        scopeVal === 'active' && window.__activeSprintId ? window.__activeSprintId : undefined;
       fetch('/kanban/create/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
@@ -1356,6 +1434,7 @@ function initKanbanExtras() {
           assignee: assignee || undefined,
           due_date: dueDate || undefined,
           story_points: sp,
+          sprint: sprintForCreate,
         }),
       })
         .then(r => r.json())
@@ -1369,7 +1448,159 @@ function initKanbanExtras() {
     });
   }
 
-  // Выбор спринта больше не используется на канбан-доске.
+  const boardScopeSelect = document.getElementById('kanban-board-scope');
+  if (boardScopeSelect) {
+    boardScopeSelect.addEventListener('change', () => {
+      const u = new URL(window.location.href);
+      u.searchParams.set('board', boardScopeSelect.value);
+      window.location.href = u.toString();
+    });
+  }
+
+  const epicFilterEl = document.getElementById('kanban-filter-epic');
+  if (epicFilterEl) {
+    epicFilterEl.addEventListener('change', () => {
+      const u = new URL(window.location.href);
+      const v = epicFilterEl.value;
+      if (v) u.searchParams.set('epic', v);
+      else u.searchParams.delete('epic');
+      window.location.href = u.toString();
+    });
+  }
+
+  function scrumApi(payload) {
+    return fetch('/scrum/api/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ project_id: projectId, ...payload }),
+    }).then(r => r.json());
+  }
+
+  const scrCreate = document.getElementById('scrum-create-sprint');
+  if (scrCreate && window.__canEditKanban) {
+    scrCreate.addEventListener('click', () => {
+      const name = (document.getElementById('scrum-new-sprint-name')?.value || '').trim();
+      if (!name) return;
+      scrumApi({
+        action: 'sprint_create',
+        name,
+        goal: (document.getElementById('scrum-new-sprint-goal')?.value || '').trim(),
+        start_date: document.getElementById('scrum-new-sprint-start')?.value || null,
+        end_date: document.getElementById('scrum-new-sprint-end')?.value || null,
+      }).then(resp => {
+        if (resp.ok) window.location.reload();
+      }).catch(() => {});
+    });
+  }
+  const scrAct = document.getElementById('scrum-activate-sprint');
+  if (scrAct && window.__canEditKanban) {
+    scrAct.addEventListener('click', () => {
+      const sid = parseInt(document.getElementById('scrum-pick-sprint')?.value || '0', 10);
+      if (!sid) return;
+      scrumApi({ action: 'sprint_activate', sprint_id: sid }).then(resp => {
+        if (resp.ok) window.location.reload();
+      }).catch(() => {});
+    });
+  }
+  const scrDone = document.getElementById('scrum-complete-sprint');
+  if (scrDone && window.__canEditKanban) {
+    scrDone.addEventListener('click', () => {
+      const sid = parseInt(document.getElementById('scrum-pick-sprint')?.value || '0', 10);
+      if (!sid) return;
+      if (!window.confirm('Завершить спринт? Незавершённые задачи вернутся в беклог.')) return;
+      scrumApi({ action: 'sprint_complete', sprint_id: sid }).then(resp => {
+        if (resp.ok) window.location.reload();
+      }).catch(() => {});
+    });
+  }
+  const epicBtn = document.getElementById('scrum-create-epic');
+  if (epicBtn && window.__canEditKanban) {
+    epicBtn.addEventListener('click', () => {
+      const title = (document.getElementById('scrum-new-epic-title')?.value || '').trim();
+      if (!title) return;
+      scrumApi({ action: 'epic_create', title }).then(resp => {
+        if (resp.ok) window.location.reload();
+      }).catch(() => {});
+    });
+  }
+
+  const backlogList = document.querySelector('.backlog-list');
+  if (backlogList && window.__canEditKanban) {
+    let draggedBk = null;
+    backlogList.querySelectorAll('.backlog-task').forEach(el => {
+      el.addEventListener('dragstart', e => {
+        draggedBk = el;
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      el.addEventListener('dragend', () => {
+        if (!draggedBk) return;
+        const ids = Array.from(backlogList.querySelectorAll('.backlog-task')).map(x =>
+          parseInt(x.getAttribute('data-task'), 10)
+        );
+        scrumApi({ action: 'backlog_reorder', task_ids: ids }).catch(() => {});
+        draggedBk = null;
+      });
+    });
+    backlogList.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    backlogList.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!draggedBk) return;
+      const after = e.target.closest('.backlog-task');
+      if (!after || after === draggedBk) return;
+      const rect = after.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (e.clientY < mid) {
+        backlogList.insertBefore(draggedBk, after);
+      } else {
+        backlogList.insertBefore(draggedBk, after.nextSibling);
+      }
+    });
+  }
+
+  const planningDrawer = document.getElementById('kanban-planning-drawer');
+  const openPlanningBtn = document.getElementById('kanban-open-planning');
+  const closePlanningBtn = document.getElementById('kanban-close-planning');
+  const planningBackdrop = document.getElementById('kanban-planning-backdrop');
+  function setPlanningDrawer(open) {
+    if (!planningDrawer) return;
+    planningDrawer.classList.toggle('kanban-drawer--open', open);
+    planningDrawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+    document.body.classList.toggle('kanban-drawer-lock', open);
+  }
+  if (openPlanningBtn) {
+    openPlanningBtn.addEventListener('click', () => setPlanningDrawer(true));
+  }
+  if (closePlanningBtn) {
+    closePlanningBtn.addEventListener('click', () => setPlanningDrawer(false));
+  }
+  if (planningBackdrop) {
+    planningBackdrop.addEventListener('click', () => setPlanningDrawer(false));
+  }
+  document.querySelectorAll('[data-drawer-tab]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const name = tab.getAttribute('data-drawer-tab');
+      document.querySelectorAll('[data-drawer-tab]').forEach(t => {
+        t.classList.toggle('kanban-drawer__tab--active', t.getAttribute('data-drawer-tab') === name);
+      });
+      document.querySelectorAll('[data-drawer-pane]').forEach(p => {
+        const show = p.getAttribute('data-drawer-pane') === name;
+        p.classList.toggle('kanban-drawer__pane--hidden', !show);
+      });
+    });
+  });
+
+  const backlogAside = document.getElementById('kanban-backlog');
+  const backlogToggleBtn = document.getElementById('kanban-backlog-toggle');
+  const mainWrapEl = document.getElementById('kanban-main-wrap');
+  if (backlogToggleBtn && backlogAside && mainWrapEl) {
+    backlogToggleBtn.addEventListener('click', () => {
+      const collapsed = mainWrapEl.classList.toggle('kanban-wrap--backlog-collapsed');
+      backlogToggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    });
+  }
 }
 
 function getCsrfToken() {

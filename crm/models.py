@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.db.models import Max
 from django.utils.crypto import get_random_string
 
 
@@ -169,11 +170,58 @@ class Project(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     is_archived = models.BooleanField(default=False)
+    definition_of_done = models.TextField(
+        "Definition of Done",
+        blank=True,
+        help_text="Общие критерии готовности для задач проекта (Scrum)",
+    )
+    issue_key_prefix = models.CharField(
+        "Префикс ключа задачи",
+        max_length=16,
+        default="PRJ",
+        help_text="Например PRJ для ключа PRJ-12",
+    )
+    product_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="owned_projects",
+        verbose_name="Product Owner",
+    )
+    scrum_master = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scrummaster_projects",
+        verbose_name="Scrum Master",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
         return self.name
+
+
+class Epic(models.Model):
+    """Крупная цель (эпик) в рамках проекта."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="epics",
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=7, default="#6366f1")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.project}: {self.title}"
 
 
 class RequestCheckpoint(models.Model):
@@ -232,11 +280,16 @@ class RequestCheckpointEdge(models.Model):
 
 
 class Sprint(models.Model):
-    project = models.ForeignKey('Project', on_delete=models.CASCADE, related_name='sprints')
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="sprints")
     name = models.CharField(max_length=255)
+    goal = models.TextField("Цель спринта", blank=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-start_date", "-id"]
 
     def __str__(self) -> str:
         return f"{self.project.name}: {self.name}"
@@ -258,11 +311,48 @@ class Task(models.Model):
         ANDROID = "android", "Android"
         DB = "db", "База данных"
 
+    class Priority(models.TextChoices):
+        LOW = "low", "Низкий"
+        MEDIUM = "medium", "Средний"
+        HIGH = "high", "Высокий"
+        CRITICAL = "critical", "Критический"
+
+    class WorkItemType(models.TextChoices):
+        USER_STORY = "story", "User Story"
+        BUG = "bug", "Баг"
+        TASK = "task", "Задача"
+        SUBTASK = "subtask", "Подзадача"
+
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
     sprint = models.ForeignKey(Sprint, null=True, blank=True, on_delete=models.SET_NULL, related_name="tasks")
+    epic = models.ForeignKey(
+        "Epic",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tasks",
+    )
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    acceptance_criteria = models.TextField("Критерии приёмки", blank=True)
     task_type = models.CharField(max_length=20, choices=TaskType.choices)
+    work_item_type = models.CharField(
+        max_length=20,
+        choices=WorkItemType.choices,
+        default=WorkItemType.TASK,
+    )
+    priority = models.CharField(
+        max_length=16,
+        choices=Priority.choices,
+        default=Priority.MEDIUM,
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.TODO)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -277,15 +367,40 @@ class Task(models.Model):
     )
     due_date = models.DateField(null=True, blank=True, help_text="Дедлайн/дата завершения")
     story_points = models.PositiveSmallIntegerField(default=0)
+    backlog_rank = models.PositiveIntegerField(
+        default=0,
+        help_text="Порядок в Product Backlog (меньше — выше в списке)",
+    )
+    issue_number = models.PositiveIntegerField(null=True, blank=True, editable=False)
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     starts_after_task = models.ForeignKey(
-        'self', null=True, blank=True, on_delete=models.SET_NULL, related_name='unblocks'
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="unblocks"
     )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["project", "issue_number"], name="crm_task_proj_issue_idx"),
+            models.Index(fields=["project", "backlog_rank"], name="crm_task_proj_bkrank_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"[{self.get_task_type_display()}] {self.title}"
+
+    @property
+    def issue_key(self) -> str:
+        if not self.issue_number:
+            return ""
+        prefix = (self.project.issue_key_prefix or "PRJ").strip() or "PRJ"
+        return f"{prefix}-{self.issue_number}"
+
+    def save(self, *args, **kwargs):
+        if self.issue_number is None and self.project_id:
+            agg = Task.objects.filter(project_id=self.project_id).aggregate(m=Max("issue_number"))
+            max_n = agg["m"]
+            self.issue_number = (max_n or 0) + 1
+        super().save(*args, **kwargs)
 
 
 class KanbanColumnConfig(models.Model):
@@ -320,6 +435,11 @@ class KanbanColumnConfig(models.Model):
     wip_limit = models.PositiveSmallIntegerField(
         default=0,
         help_text="Максимальное количество задач в колонке (0 — без ограничения)",
+    )
+    policy_note = models.TextField(
+        "Политика колонки",
+        blank=True,
+        help_text="Кто двигает карточки, что означает колонка (Kanban/Scrum)",
     )
 
     class Meta:
@@ -424,6 +544,79 @@ class Attachment(models.Model):
 
     def __str__(self) -> str:
         return f"Файл {self.file.name}"
+
+
+class Release(models.Model):
+    """Версия / релиз: набор задач для поставки."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="releases")
+    name = models.CharField(max_length=255)
+    version = models.CharField(max_length=64)
+    released_at = models.DateField(null=True, blank=True)
+    tasks = models.ManyToManyField(Task, blank=True, related_name="releases")
+
+    class Meta:
+        ordering = ["-released_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.project}: {self.version}"
+
+
+class TaskLink(models.Model):
+    class LinkType(models.TextChoices):
+        BLOCKS = "blocks", "Блокирует"
+        RELATES = "relates", "Связана с"
+        DUPLICATES = "duplicates", "Дубликат"
+
+    source = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="links_from")
+    target = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="links_to")
+    link_type = models.CharField(max_length=20, choices=LinkType.choices)
+
+    class Meta:
+        unique_together = ("source", "target", "link_type")
+
+    def __str__(self) -> str:
+        return f"{self.source_id} {self.get_link_type_display()} {self.target_id}"
+
+
+class TaskWatcher(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="watchers_rel")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="watched_tasks",
+    )
+
+    class Meta:
+        unique_together = ("task", "user")
+
+    def __str__(self) -> str:
+        return f"{self.user_id} watches {self.task_id}"
+
+
+class SprintRetrospective(models.Model):
+    sprint = models.OneToOneField(Sprint, on_delete=models.CASCADE, related_name="retrospective")
+    went_well = models.TextField("Что прошло хорошо", blank=True)
+    to_improve = models.TextField("Что улучшить", blank=True)
+    action_items = models.TextField("Действия", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"Retro {self.sprint_id}"
+
+
+class SprintBurndownSnapshot(models.Model):
+    sprint = models.ForeignKey(Sprint, on_delete=models.CASCADE, related_name="burndown_snapshots")
+    day = models.DateField()
+    remaining_points = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("sprint", "day")
+        ordering = ["day"]
+
+    def __str__(self) -> str:
+        return f"{self.sprint_id} {self.day}: {self.remaining_points}"
 
 
 class Message(models.Model):

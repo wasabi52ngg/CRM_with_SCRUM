@@ -1,0 +1,36 @@
+{% load crm_tags %}
+<div class="task task--{{ t.task_type }}{% if is_backlog %} backlog-task{% endif %}"
+     draggable="{% if can_manage_scrum or t.assignee_id == request.user.id %}true{% else %}false{% endif %}"
+     data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}" data-due="{{ t.due_date|date:'Y-m-d'|default:'' }}">
+  <div class="task__inner">
+    <div class="task__title-row">
+      {% if t.issue_key %}<span class="task-key">{{ t.issue_key }}</span>{% endif %}
+      <span class="task__title-text">{{ t.title }}</span>
+    </div>
+    {% if t.epic_id %}
+    <div class="task-epic-row">
+      <span class="task-epic-chip" style="--epic-c: {{ t.epic.color }}" title="{{ t.epic.title }}">{{ t.epic.title|truncatechars:22 }}</span>
+      <span class="task-epic-progress muted tiny">{{ epic_progress|get_item:t.epic_id }}</span>
+    </div>
+    {% endif %}
+    <div class="task__badges">
+      <span class="task-badge task-badge--type" title="Тип работы">{{ t.get_task_type_display }}</span>
+      <span class="task-badge task-badge--item" title="Элемент Scrum">{{ t.get_work_item_type_display }}</span>
+      {% if t.priority != 'medium' %}
+      <span class="task-badge task-badge--prio task-badge--prio-{{ t.priority }}">{{ t.get_priority_display }}</span>
+      {% endif %}
+    </div>
+    <div class="meta task__meta">
+      <span class="task-sp" title="Оценка в баллах"><strong>б.</strong> {{ t.story_points }}</span>
+      {% with sublbl=t|subtask_label %}
+      {% if sublbl %}
+      <span class="task-sub" title="Подзадачи выполнено">{{ sublbl }}</span>
+      {% endif %}
+      {% endwith %}
+    </div>
+    <div class="meta task__meta task__meta--foot">
+      <span class="muted">{{ t.assignee.username|default:"Без исполнителя" }}</span>
+      <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
+    </div>
+  </div>
+</div>

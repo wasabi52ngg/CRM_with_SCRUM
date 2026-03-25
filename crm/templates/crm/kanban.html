@@ -1,165 +1,259 @@
 {% extends 'crm/base.html' %}
+{% load crm_tags %}
 {% block title %}Доска — {{ object.name }}{% endblock %}
 {% block content %}
-<h1 class="page-title">Доска проекта: {{ object.name }}</h1>
 
-<div class="kanban-toolbar">
-  <div class="kanban-toolbar-main">
-    <div class="kanban-toolbar-left">
-      <div class="kanban-toolbar__filters">
-        <div class="kanban-filter-group">
-          <span class="kanban-filter-label muted">Фильтры</span>
-          <div class="kanban-filter-row">
-            <select id="kanban-filter-assignee" class="kanban-filter">
-              <option value="">Все исполнители</option>
-              {% for u in developers %}
-                <option value="{{ u.id }}">{{ u.username }}</option>
-              {% endfor %}
-            </select>
-            <select id="kanban-filter-type" class="kanban-filter">
-              <option value="">Все типы</option>
-              <option value="frontend">Фронтенд</option>
-              <option value="backend">Бэкенд</option>
-              <option value="fullstack">Фулстек</option>
-              <option value="devops">DevOps</option>
-              <option value="qa">Тестирование</option>
-              <option value="android">Android</option>
-              <option value="db">База данных</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div class="kanban-toolbar__quick">
-        <span class="kanban-filter-label muted">Быстрые фильтры</span>
-        <div class="kanban-quick-row">
-          <button type="button" class="kanban-quick-filter" data-qf="my">Мои задачи</button>
-          <button type="button" class="kanban-quick-filter" data-qf="unassigned">Без исполнителя</button>
-          <button type="button" class="kanban-quick-filter" data-qf="overdue">Просроченные</button>
-        </div>
+<div class="kanban-page">
+  <header class="kanban-page__header">
+    <div class="kanban-page__title-block">
+      <h1 class="kanban-page__h1">Доска</h1>
+      <p class="kanban-page__project muted">{{ object.name }}</p>
+    </div>
+
+    <div class="kanban-command-bar">
+      <button type="button" class="cmd-icon-btn" id="kanban-backlog-toggle" title="Показать или скрыть беклог" aria-expanded="true" aria-controls="kanban-backlog">☰</button>
+      <span class="cmd-bar__label muted">Доска</span>
+      <select id="kanban-board-scope" class="cmd-select" title="Область отображаемых задач">
+        <option value="all" {% if board_scope == 'all' %}selected{% endif %}>Весь проект</option>
+        <option value="active" {% if board_scope == 'active' %}selected{% endif %} {% if not active_sprint %}disabled{% endif %}>Активный спринт</option>
+        {% for s in sprints %}
+          <option value="sprint_{{ s.id }}" {% if board_sprint_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      {% if active_sprint %}
+        <span class="sprint-chip" title="{{ active_sprint.goal|default:'' }}">{{ active_sprint.name }}</span>
+      {% else %}
+        <span class="sprint-chip sprint-chip--idle">Нет активного спринта</span>
+      {% endif %}
+      <span class="cmd-bar__grow"></span>
+      {% if can_manage_scrum %}
+      <button type="button" class="cmd-btn cmd-btn--primary" id="kanban-open-planning">Планирование</button>
+      {% endif %}
+      <a class="cmd-btn" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты</a>
+      <div class="cmd-views" role="group" aria-label="Вид">
+        <button type="button" class="kanban-view-btn kanban-view-btn--active" data-view="kanban" title="Канбан">⊞</button>
+        <button type="button" class="kanban-view-btn" data-view="list" title="Список">≡</button>
       </div>
     </div>
-    <div class="kanban-toolbar-right">
-      <div class="kanban-toolbar__presets">
-        <span class="kanban-filter-label muted">Сохранённые фильтры</span>
-        <div class="kanban-presets-row">
-          <select id="kanban-preset-select" class="kanban-filter kanban-filter--compact">
-            <option value="">Не выбран</option>
-            {% for p in filter_presets %}
-              <option value="{{ p.id }}" data-assignee="{{ p.assignee_id|default:'' }}" data-type="{{ p.task_type|default:'' }}">
-                {{ p.name }}
-              </option>
-            {% endfor %}
-          </select>
-          <button type="button" class="kanban-preset-save btn-ghost" id="kanban-save-preset">Сохранить</button>
+
+    <div class="kanban-filters-card">
+      <div class="kanban-filters-card__row">
+        <span class="kanban-filters-card__title muted">Фильтры</span>
+        <select id="kanban-filter-assignee" class="kf-control">
+          <option value="">Все исполнители</option>
+          {% for u in developers %}
+            <option value="{{ u.id }}">{{ u.username }}</option>
+          {% endfor %}
+        </select>
+        <select id="kanban-filter-type" class="kf-control">
+          <option value="">Все типы работ</option>
+          <option value="frontend">Фронтенд</option>
+          <option value="backend">Бэкенд</option>
+          <option value="fullstack">Фулстек</option>
+          <option value="devops">DevOps</option>
+          <option value="qa">Тестирование</option>
+          <option value="android">Android</option>
+          <option value="db">База данных</option>
+        </select>
+        <div class="kf-chips">
+          <button type="button" class="kf-chip kanban-quick-filter" data-qf="my">Мои</button>
+          <button type="button" class="kf-chip kanban-quick-filter" data-qf="unassigned">Без исполнителя</button>
+          <button type="button" class="kf-chip kanban-quick-filter" data-qf="overdue">Просрочено</button>
         </div>
+        <span class="cmd-bar__grow"></span>
+        <label class="kf-label muted" for="kanban-filter-epic">Эпик</label>
+        <select id="kanban-filter-epic" class="kf-control kf-control--narrow" title="Показать только задачи эпика">
+          <option value="">Все эпики</option>
+          {% for e in epics %}
+            <option value="{{ e.id }}" {% if epic_filter_id == e.id %}selected{% endif %}>{{ e.title }}</option>
+          {% endfor %}
+        </select>
+        <select id="kanban-preset-select" class="kf-control kf-control--narrow">
+          <option value="">Пресет…</option>
+          {% for p in filter_presets %}
+            <option value="{{ p.id }}" data-assignee="{{ p.assignee_id|default:'' }}" data-type="{{ p.task_type|default:'' }}">
+              {{ p.name }}
+            </option>
+          {% endfor %}
+        </select>
+        <button type="button" class="kf-chip" id="kanban-save-preset">＋ Сохранить</button>
       </div>
-      <div class="kanban-toolbar__views">
-        <span class="kanban-filter-label muted">Вид</span>
-        <div class="kanban-views-row">
-          <button type="button" class="kanban-view-btn kanban-view-btn--active" data-view="kanban" title="Канбан">⊞</button>
-          <button type="button" class="kanban-view-btn" data-view="list" title="Список">≡</button>
+    </div>
+
+    <div class="kanban-board-mode" role="status">
+      <strong class="kanban-board-mode__title">{{ board_mode_title }}</strong>
+      <span class="kanban-board-mode__hint">{{ board_mode_hint }}</span>
+      {% if board_mode_epic_note %}
+      <span class="kanban-board-mode__epic">{{ board_mode_epic_note }}</span>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if can_manage_scrum %}
+  <div id="kanban-planning-drawer" class="kanban-drawer" aria-hidden="true">
+    <div class="kanban-drawer__backdrop" id="kanban-planning-backdrop"></div>
+    <div class="kanban-drawer__panel" role="dialog" aria-labelledby="kanban-drawer-title">
+      <div class="kanban-drawer__head">
+        <h2 id="kanban-drawer-title" class="kanban-drawer__title">Планирование и колонки</h2>
+        <button type="button" class="kanban-drawer__close" id="kanban-close-planning" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="kanban-drawer__tabs" role="tablist">
+        <button type="button" class="kanban-drawer__tab kanban-drawer__tab--active" data-drawer-tab="planning">Планирование</button>
+        {% if can_edit_kanban %}
+        <button type="button" class="kanban-drawer__tab" data-drawer-tab="columns">Колонки</button>
+        {% endif %}
+      </div>
+      <div class="kanban-drawer__body">
+        <div class="kanban-drawer__pane" data-drawer-pane="planning">
+          {% if planning_stats %}
+          <section class="drawer-section">
+            <h3 class="drawer-section__h">Текущий спринт</h3>
+            <ul class="drawer-stats">
+              <li><span class="muted">Задач</span> <strong>{{ planning_stats.task_count }}</strong></li>
+              <li><span class="muted">Сумма баллов</span> <strong>{{ planning_stats.story_points }}</strong></li>
+              <li><span class="muted">Готово</span> <strong>{{ planning_stats.done_tasks }}</strong> · {{ planning_stats.done_sp }} б.</li>
+            </ul>
+          </section>
+          {% endif %}
+          {% if object.definition_of_done %}
+          <section class="drawer-section drawer-section--muted">
+            <h3 class="drawer-section__h">Критерии готовности (DoD)</h3>
+            <p class="drawer-dod">{{ object.definition_of_done|truncatewords:40 }}</p>
+            <p class="muted tiny"><a href="{% url 'crm:manager_project_detail' object.pk %}">Редактировать в карточке проекта →</a></p>
+          </section>
+          {% endif %}
+          <section class="drawer-section">
+            <h3 class="drawer-section__h">Новый спринт</h3>
+            <div class="drawer-form-grid">
+              <input type="text" id="scrum-new-sprint-name" class="kf-control kf-control--fluid" placeholder="Название">
+              <div>
+                <div class="tiny muted" style="margin: 0 0 4px;">Дата начала</div>
+                <input type="date" id="scrum-new-sprint-start" class="kf-control" aria-label="Дата начала">
+              </div>
+              <div>
+                <div class="tiny muted" style="margin: 0 0 4px;">Дата окончания</div>
+                <input type="date" id="scrum-new-sprint-end" class="kf-control" aria-label="Дата окончания">
+              </div>
+              <input type="text" id="scrum-new-sprint-goal" class="kf-control kf-control--fluid" placeholder="Цель спринта (зачем этот спринт)">
+              <button type="button" class="cmd-btn cmd-btn--primary" id="scrum-create-sprint">Создать</button>
+            </div>
+          </section>
+          <section class="drawer-section">
+            <h3 class="drawer-section__h">Управление спринтом</h3>
+            <div class="drawer-form-row">
+              <select id="scrum-pick-sprint" class="kf-control kf-control--fluid">
+                {% for s in sprints %}
+                  <option value="{{ s.id }}">{{ s.name }}{% if s.is_active %} · активен{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="drawer-actions">
+              <button type="button" class="cmd-btn" id="scrum-activate-sprint" {% if not sprints %}disabled{% endif %}>Сделать активным</button>
+              <button type="button" class="cmd-btn cmd-btn--danger-outline" id="scrum-complete-sprint">Завершить</button>
+            </div>
+          </section>
+          <section class="drawer-section">
+            <h3 class="drawer-section__h">Эпики</h3>
+            <p class="muted tiny" style="margin:0 0 8px;">Крупные цели: привяжите к эпику задачи в карточке или отфильтруйте доску по эпику сверху.</p>
+            <div class="drawer-form-row">
+              <input type="text" id="scrum-new-epic-title" class="kf-control kf-control--fluid" placeholder="Название эпика">
+              <button type="button" class="cmd-btn" id="scrum-create-epic">Добавить</button>
+            </div>
+            {% if epics %}
+            <ul class="drawer-epic-list">
+              {% for e in epics %}
+              <li class="drawer-epic-list__item">
+                <span class="drawer-epic-list__title">{{ e.title }}</span>
+                <span class="muted tiny">Готово/всего: {{ epic_progress|get_item:e.id|default:"0/0" }}</span>
+                <a class="drawer-epic-list__link" href="?board={{ board_scope }}&epic={{ e.id }}">На доске</a>
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="muted tiny">Пока нет эпиков — создайте первый.</p>
+            {% endif %}
+          </section>
         </div>
+        {% if can_edit_kanban %}
+        <div class="kanban-drawer__pane kanban-drawer__pane--hidden" data-drawer-pane="columns">
+          <p class="muted tiny">Политика колонки — правило для команды (кто двигает карточку, что значит колонка).</p>
+          <form method="post" class="kanban-drawer__config-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_kanban_columns">
+            <table class="kanban-config-table kanban-config-table--compact">
+              <thead>
+                <tr>
+                  <th>Статус</th>
+                  <th>Колонка</th>
+                  <th title="Порядок слева направо">#</th>
+                  <th>Видим.</th>
+                  <th>WIP</th>
+                  <th>Политика</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for col in kanban_columns %}
+                  <tr>
+                    <td class="muted small">{{ col.config.get_status_display }}</td>
+                    <td><input type="text" name="col_{{ col.config.id }}_title" value="{{ col.config.title }}"></td>
+                    <td><input type="number" name="col_{{ col.config.id }}_order" value="{{ col.config.order }}" min="0" style="width:52px;"></td>
+                    <td style="text-align:center;"><input type="checkbox" name="col_{{ col.config.id }}_visible" {% if col.config.is_visible %}checked{% endif %}></td>
+                    <td><input type="number" name="col_{{ col.config.id }}_wip" value="{{ col.config.wip_limit }}" min="0" style="width:52px;"></td>
+                    <td><textarea name="col_{{ col.config.id }}_policy" rows="2" placeholder="Например: только QA переводит в Готово">{{ col.config.policy_note }}</textarea></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <button type="submit" class="cmd-btn cmd-btn--primary" style="margin-top:12px;">Сохранить колонки</button>
+          </form>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
-</div>
+  {% endif %}
 
-{% if can_edit_kanban %}
-<div class="kanban-config-toggle">
-  <button type="button" class="btn-ghost" id="kanban-config-toggle">Настроить стадии канбана</button>
-</div>
-<div id="kanban-config-panel" class="kanban-config kanban-config--hidden">
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="update_kanban_columns">
-    <table class="kanban-config-table">
-      <thead>
-        <tr>
-          <th>Статус</th>
-          <th>Название колонки</th>
-          <th>Порядок</th>
-          <th>Видима</th>
-          <th>WIP‑лимит</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for col in kanban_columns %}
-          <tr>
-            <td>{{ col.config.get_status_display }}</td>
-            <td>
-              <input type="text" name="col_{{ col.config.id }}_title" value="{{ col.config.title }}">
-            </td>
-            <td>
-              <input type="number" name="col_{{ col.config.id }}_order" value="{{ col.config.order }}" min="0" style="width:70px;">
-            </td>
-            <td style="text-align:center;">
-              <input type="checkbox" name="col_{{ col.config.id }}_visible" {% if col.config.is_visible %}checked{% endif %}>
-            </td>
-            <td>
-              <input type="number" name="col_{{ col.config.id }}_wip" value="{{ col.config.wip_limit }}" min="0" style="width:80px;" title="0 — без ограничения">
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <p class="muted" style="margin-top:8px;font-size:12px;">
-      Стадии (статусы) задач фиксированы: К выполнению, В работе, К проверке, Готово.
-      Здесь можно переименовать колонки, поменять порядок, скрыть ненужные и задать WIP‑лимиты.
-    </p>
-    <div style="margin-top:10px;">
-      <button type="submit" class="btn">Сохранить настройки</button>
-    </div>
-  </form>
-</div>
-{% endif %}
+<div class="kanban-wrap{% if not can_manage_scrum %} kanban-wrap--no-drawer{% endif %}" id="kanban-main-wrap">
 
-<div class="kanban-wrap">
-
-<div class="backlog">
-  <h3 class="backlog-title">Беклог проекта</h3>
-  <p class="backlog-subtitle muted">Все задачи без спринта. Отсюда обычно набирают спринт.</p>
+<aside class="backlog" id="kanban-backlog">
+  <div class="backlog__head">
+    <h3 class="backlog-title">Беклог продукта</h3>
+    <p class="backlog-subtitle muted">Задачи ещё не в спринте · порядок перетаскиванием (менеджер)</p>
+  </div>
   <div class="backlog-list">
     {% for t in backlog %}
-      <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}" data-due="{{ t.due_date|date:'Y-m-d'|default:'' }}">
-        <div class="task__title">{{ t.title }}</div>
-        <div class="meta">
-          <span>{{ t.get_task_type_display }}</span>
-          <span>Важность: {{ t.story_points }}</span>
-        </div>
-        <div class="meta">
-          <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
-          <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
-        </div>
-      </div>
+      {% include 'crm/snippets/kanban_task_card.html' with t=t epic_progress=epic_progress is_backlog=True %}
     {% empty %}
-      <div class="backlog-empty muted">В беклоге пока нет задач.</div>
+      <div class="backlog-empty muted">Пусто — создайте задачу.</div>
     {% endfor %}
   </div>
-  <button type="button" class="backlog-add-btn">+ Создать задачу в беклоге</button>
-</div>
+  {% if can_manage_scrum %}
+    <button type="button" class="backlog-add-btn">+ Задача в беклог</button>
+  {% else %}
+    <div class="muted" style="font-size: 13px; padding: 8px 4px 0;">Создавать задачи в беклог может менеджер.</div>
+  {% endif %}
+</aside>
 
+<div class="kanban-board-area">
 <div id="kanban-board" class="kanban">
   {% for col in kanban_columns %}
     {% if col.config.is_visible %}
       <div class="col" data-col="{{ col.config.status }}" data-wip="{{ col.config.wip_limit|default:0 }}">
-        <h3 class="col-title">
-          {{ col.config.title }}
-          <span class="col-count" data-count="{{ col.config.status }}">{{ col.count }}</span>
-          <span class="col-sp" data-sp="{{ col.config.status }}">SP: {{ col.story_points_sum }}</span>
-        </h3>
-        <div data-list>
+        <div class="col-head">
+          <h3 class="col-title">
+            <span class="col-title__text">{{ col.config.title }}</span>
+            {% if col.config.policy_note %}
+            <button type="button" class="col-policy-hint" title="{{ col.config.policy_note }}">i</button>
+            {% endif %}
+          </h3>
+          <div class="col-meta">
+            <span class="col-count" data-count="{{ col.config.status }}">{{ col.count }}</span>
+            <span class="col-sp" data-sp="{{ col.config.status }}">Σ {{ col.story_points_sum }} б.</span>
+          </div>
+        </div>
+        <div data-list class="col-list">
           {% for t in col.tasks %}
-            <div class="task task--{{ t.task_type }}" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}" data-due="{{ t.due_date|date:'Y-m-d'|default:'' }}">
-              <div class="task__title">{{ t.title }}</div>
-              <div class="meta">
-                <span>{{ t.get_task_type_display }}</span>
-                <span>Важность: {{ t.story_points }}</span>
-              </div>
-              <div class="meta">
-                <span class="muted">Исп: {{ t.assignee.username|default:"—" }}</span>
-                <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
-              </div>
-            </div>
+            {% include 'crm/snippets/kanban_task_card.html' with t=t epic_progress=epic_progress is_backlog=False %}
           {% empty %}
           {% endfor %}
         </div>
@@ -177,7 +271,7 @@
         <th>Статус</th>
         <th>Исполнитель</th>
         <th>Дедлайн</th>
-        <th>Важность</th>
+        <th>Баллы</th>
       </tr>
     </thead>
     <tbody>
@@ -196,12 +290,15 @@
     </tbody>
   </table>
 </div>
+</div>{# kanban-board-area #}
 
 <aside id="task-panel" class="task-panel task-panel--hidden">
   <div class="task-panel__header">
     <div>
       <div class="task-panel__title" id="tp-title">Задача</div>
       <div class="task-panel__subtitle muted" id="tp-meta"></div>
+      <div class="muted task-panel__issue-key" id="tp-issue-key" style="font-size:12px;margin-top:4px;"></div>
+      <div class="task-panel__desc-preview" id="tp-desc-preview" style="font-size:13px;margin-top:8px;white-space:pre-wrap;"></div>
     </div>
     <button type="button" class="btn-ghost" id="tp-close">✕</button>
   </div>
@@ -214,6 +311,16 @@
         <option value="">Беклог (без спринта)</option>
         {% for s in sprints %}
           <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="task-panel__row task-panel__row--editable" data-field="epic_id">
+      <span class="muted">Эпик</span>
+      <span id="tp-epic" class="tp-value">—</span>
+      <select id="tp-epic-select" class="tp-edit-select" style="display:none;">
+        <option value="">— не привязать —</option>
+        {% for e in epics %}
+          <option value="{{ e.id }}">{{ e.title }}</option>
         {% endfor %}
       </select>
     </div>
@@ -244,7 +351,7 @@
       <input type="date" id="tp-due-input" class="tp-edit-input" style="display:none;">
     </div>
     <div class="task-panel__row task-panel__row--editable" data-field="story_points">
-      <span class="muted">Важность</span>
+      <span class="muted">Оценка (баллы)</span>
       <span id="tp-sp" class="tp-value">0</span>
       <input type="number" id="tp-sp-input" class="tp-edit-input" min="0" max="100" style="display:none;">
     </div>
@@ -271,6 +378,7 @@
       <div id="tp-cp-list" class="tp-list"></div>
     </div>
     <div class="task-tabpane" data-tabpane="chat">
+      <div id="tp-chat-extra" class="tp-chat-extra" style="margin-bottom:10px;font-size:13px;"></div>
       <div id="tp-chat-list" class="tp-chat"></div>
       <form id="tp-chat-form" class="tp-chat-form">
         {% csrf_token %}
@@ -283,7 +391,7 @@
     </div>
   </div>
 </aside>
-</div>
+</div>{# kanban-wrap #}
 
 <div id="task-create-modal" class="modal modal--hidden">
   <div class="modal__backdrop"></div>
@@ -328,7 +436,7 @@
         <input type="date" id="task-create-due" name="due_date">
       </div>
       <div class="modal__field">
-        <label for="task-create-sp">Важность (0–100)</label>
+        <label for="task-create-sp">Оценка сложности, баллы (0–100)</label>
         <input type="number" id="task-create-sp" name="story_points" min="0" max="100" value="0">
       </div>
       <div class="modal__actions">
@@ -342,7 +450,12 @@
 <script>
   window.__kanbanProjectId = {{ object.id }};
   window.__currentUserId = {{ request.user.id }};
+  window.__activeSprintId = {% if active_sprint %}{{ active_sprint.id }}{% else %}null{% endif %};
+  window.__boardSprintIdForMove = {% if board_sprint_id %}{{ board_sprint_id }}{% elif active_sprint %}{{ active_sprint.id }}{% else %}null{% endif %};
+  // Для фронта: можно ли управлять спринтами/эпиками/созданием задач (по ролям)
+  window.__canEditKanban = {{ can_manage_scrum|yesno:"true,false" }};
 </script>
 
-<p class="muted" style="margin-top:14px">Подсказка: задачи сначала создаются в беклоге, затем попадают в спринт и переходят между колонками.</p>
+<p class="kanban-foot-hint muted">В боковом беклоге — задачи без спринта. Перетаскивание в колонку привязывает к активному спринту или к спринту, который выбран в переключателе доски (если открыт конкретный спринт). Иначе укажите спринт в карточке задачи.</p>
+</div>{# kanban-page #}
 {% endblock %}

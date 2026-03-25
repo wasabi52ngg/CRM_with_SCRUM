@@ -17,6 +17,7 @@ from .models import (
     SprintRetrospective,
     SprintBurndownSnapshot,
     InAppNotification,
+    CompanyReview,
 )
 
 
@@ -112,6 +113,13 @@ class CompanyMembershipAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__email", "company__name")
     list_editable = ("is_manager", "is_developer", "is_approved")
     readonly_fields = ("created_at", "is_owner")  # is_owner нельзя редактировать напрямую, только через создание компании
+
+
+@admin.register(CompanyReview)
+class CompanyReviewAdmin(admin.ModelAdmin):
+    list_display = ("company", "rating", "client", "created_at")
+    list_filter = ("rating", "company")
+    search_fields = ("text", "client__username", "company__name")
 
 
 @admin.register(InAppNotification)

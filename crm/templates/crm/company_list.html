@@ -10,6 +10,12 @@
         <h2 class="card-title">
           <a href="{% url 'crm:company_detail' slug=company.slug %}">{{ company.name }}</a>
         </h2>
+        <p class="card-meta muted tiny">
+          {% with review_avg=company.review_avg review_count=company.review_count %}
+            {% include "crm/snippets/rating_compact.html" %}
+          {% endwith %}
+          · <a href="{% url 'crm:company_reviews' company.slug %}">Все отзывы</a>
+        </p>
         {% if company.description %}
         <p class="card-text">{{ company.description }}</p>
         {% endif %}

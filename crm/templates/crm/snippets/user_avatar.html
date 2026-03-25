@@ -1,0 +1,5 @@
+{% if has_photo %}
+<img class="user-avatar user-avatar--img {{ css_class }}" src="{{ photo_url }}" alt="" width="{{ size }}" height="{{ size }}" style="width:{{ size }}px;height:{{ size }}px;">
+{% else %}
+<span class="user-avatar user-avatar--placeholder {{ css_class }}" style="width:{{ size }}px;height:{{ size }}px;font-size:{{ font_size }}px;min-width:{{ size }}px;" aria-hidden="true">{{ initial }}</span>
+{% endif %}

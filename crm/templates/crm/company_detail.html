@@ -14,6 +14,12 @@
       {% if object.industry %}
       <p class="muted-text">Сфера: {{ object.industry }}</p>
       {% endif %}
+      <p class="muted-text tiny" style="margin-top: 8px;">
+        {% with review_avg=company_review_avg review_count=company_review_count %}
+          {% include "crm/snippets/rating_compact.html" %}
+        {% endwith %}
+        · <a href="{{ company_reviews_url }}">Все отзывы</a>
+      </p>
     </div>
     {% if is_owner %}
     <a href="{% url 'crm:dashboard' %}" class="btn" style="background: var(--secondary);">← Назад к дашборду</a>

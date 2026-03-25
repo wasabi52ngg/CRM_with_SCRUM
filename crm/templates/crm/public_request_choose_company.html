@@ -42,7 +42,13 @@
             {% if c.description %}
             <p class="company-card-description">{{ c.description|truncatewords:20 }}</p>
             {% endif %}
+            <div class="company-card-rating muted tiny">
+              {% with review_avg=c.review_avg review_count=c.review_count %}
+                {% include "crm/snippets/rating_compact.html" %}
+              {% endwith %}
+            </div>
             <div class="company-card-footer">
+                <a class="btn btn-ghost" href="{% url 'crm:company_reviews' c.slug %}">Отзывы</a>
                 <a class="btn" href="{% url 'crm:public_request_by_slug' c.slug %}">Оставить заявку →</a>
             </div>
         </div>

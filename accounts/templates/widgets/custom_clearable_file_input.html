@@ -1,5 +1,30 @@
-{% if widget.is_initial %}{{ widget.initial_text }}: <a href="{{ widget.value.url }}">{{ widget.value }}</a>{% if not widget.required %}
-<input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %}>
-<label for="{{ widget.checkbox_id }}">{{ widget.clear_checkbox_label }}</label>{% endif %}<br>
-{{ widget.input_text }}:{% endif %}
-<input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+{% comment %}ClearableFileInput: аккуратная загрузка фото{% endcomment %}
+<div class="photo-upload-field">
+  {% if widget.is_initial %}
+  <div class="photo-upload-field__current">
+    <div class="photo-upload-field__thumb-wrap">
+      <img src="{{ widget.value.url }}" alt="" class="photo-upload-field__thumb" width="96" height="96" loading="lazy" decoding="async">
+    </div>
+    <div class="photo-upload-field__current-text">
+      <span class="muted">Сейчас в профиле</span>
+      {% if not widget.required %}
+      <label class="photo-upload-field__clear">
+        <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}>
+        <span>Удалить</span>
+      </label>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="photo-upload-field__new">
+    <label class="photo-upload-field__pick">
+      <span class="photo-upload-field__pick-inner">
+        <span class="photo-upload-field__pick-icon" aria-hidden="true">📷</span>
+        <span class="photo-upload-field__pick-title">{% if widget.is_initial %}Выбрать другое фото{% else %}Загрузить фото{% endif %}</span>
+        <span class="photo-upload-field__pick-hint muted">JPG, PNG, WebP</span>
+      </span>
+      <input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+    </label>
+  </div>
+</div>

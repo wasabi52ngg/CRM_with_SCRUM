@@ -667,4 +667,32 @@ class Message(models.Model):
         return f"Сообщение {self.author_id} -> {self.request_id}"
 
 
+class CompanyReview(models.Model):
+    """Отзыв клиента о компании после завершения заявки (рейтинг 1–5)."""
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="reviews")
+    client_request = models.OneToOneField(
+        ClientRequest,
+        on_delete=models.CASCADE,
+        related_name="review",
+        help_text="Один отзыв на завершённую заявку",
+    )
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="company_reviews",
+    )
+    rating = models.PositiveSmallIntegerField("Оценка", help_text="От 1 до 5")
+    text = models.TextField("Текст отзыва", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Отзыв о компании"
+        verbose_name_plural = "Отзывы о компаниях"
+
+    def __str__(self) -> str:
+        return f"{self.company_id} ★{self.rating} от {self.client_id}"
+
+
 # Create your models here.

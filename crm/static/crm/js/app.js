@@ -270,8 +270,30 @@ function initKanbanTaskPanel() {
     if (!chatList) return;
     chatList.innerHTML = '';
     chat.forEach(m => {
-      const msg = document.createElement('div');
-      msg.className = 'tp-msg';
+      const row = document.createElement('div');
+      row.className = 'tp-msg';
+      const avWrap = document.createElement('div');
+      avWrap.className = 'tp-msg__avatar-wrap';
+      if (m.author_photo_url) {
+        const img = document.createElement('img');
+        img.className = 'user-avatar user-avatar--img';
+        img.src = m.author_photo_url;
+        img.alt = '';
+        img.width = 36;
+        img.height = 36;
+        avWrap.appendChild(img);
+      } else {
+        const ph = document.createElement('span');
+        ph.className = 'user-avatar user-avatar--placeholder';
+        ph.style.width = '36px';
+        ph.style.height = '36px';
+        ph.style.fontSize = '15px';
+        ph.style.minWidth = '36px';
+        ph.textContent = m.author_initial || (m.author__username || '?')[0].toUpperCase();
+        avWrap.appendChild(ph);
+      }
+      const body = document.createElement('div');
+      body.className = 'tp-msg__body';
       const meta = document.createElement('div');
       meta.className = 'tp-msg__meta';
       const author = document.createElement('div');
@@ -281,10 +303,13 @@ function initKanbanTaskPanel() {
       meta.appendChild(author);
       meta.appendChild(time);
       const text = document.createElement('div');
+      text.className = 'tp-msg__text';
       text.textContent = m.text;
-      msg.appendChild(meta);
-      msg.appendChild(text);
-      chatList.appendChild(msg);
+      body.appendChild(meta);
+      body.appendChild(text);
+      row.appendChild(avWrap);
+      row.appendChild(body);
+      chatList.appendChild(row);
     });
   }
 

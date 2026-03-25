@@ -1,4 +1,5 @@
 {% extends 'crm/base.html' %}
+{% load avatar_tags %}
 {% block title %}Заявка — {{ object.title }}{% endblock %}
 {% block content %}
 <div class="request-layout">
@@ -44,6 +45,10 @@
           {% endif %}
           {% if not object.project %}
             <button name="action" value="to_work" type="submit" class="btn">В работу (создать проект)</button>
+          {% endif %}
+          {% if can_complete_request %}
+            <button name="action" value="complete" type="submit" class="btn" style="background: var(--primary); margin-top: 8px;">Завершить заявку</button>
+            <p class="muted tiny" style="margin-top:8px;max-width:420px;">После завершения клиент сможет оставить отзыв и оценку компании (1–5 звёзд).</p>
           {% endif %}
         </form>
       </div>
@@ -143,11 +148,14 @@
         Клиент увидит ваши сообщения в личном кабинете. Для гостей общение идёт по указанным контактам.
       </p>
 
-      <div class="col" style="max-height:260px;overflow:auto;">
-        {% for m in object.messages.all %}
-          <div class="task" style="margin-bottom:8px;">
-            <div><strong>{{ m.author.username }}</strong> <span class="muted" style="font-size:12px;">{{ m.created_at }}</span></div>
-            <div>{{ m.text }}</div>
+      <div class="request-chat-scroll">
+        {% for m in chat_messages %}
+          <div class="request-msg">
+            {% user_avatar m.author 40 "request-msg__avatar" %}
+            <div class="request-msg__body">
+              <div class="request-msg__meta"><strong>{{ m.author.username }}</strong> <span class="muted">{{ m.created_at|date:"d.m.Y H:i" }}</span></div>
+              <div class="request-msg__text">{{ m.text }}</div>
+            </div>
           </div>
         {% empty %}
           <p class="muted">Пока нет сообщений</p>

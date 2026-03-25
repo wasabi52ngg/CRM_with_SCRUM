@@ -132,14 +132,24 @@
     flex: 1;
 }
 
+.company-card-rating {
+    margin: 0;
+    min-height: 1.25em;
+}
+
 .company-card-footer {
     margin-top: auto;
     padding-top: 12px;
     border-top: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
 }
 
 .company-card-footer .btn {
-    width: 100%;
+    flex: 1;
+    min-width: 120px;
     text-align: center;
     padding: 10px 16px;
     text-decoration: none;

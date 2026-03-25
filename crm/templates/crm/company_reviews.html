@@ -1,0 +1,37 @@
+{% extends 'crm/base.html' %}
+{% load avatar_tags %}
+{% block title %}Отзывы — {{ company.name }}{% endblock %}
+{% block content %}
+<section class="page-section reviews-page">
+  <nav class="reviews-page__nav muted"><a href="{% url 'crm:public_request_choose_company' %}">← К выбору компании</a></nav>
+  <h1 class="page-title">Отзывы о «{{ company.name }}»</h1>
+  {% if review_count %}
+  <p class="reviews-page__summary">
+    {% include "crm/snippets/rating_compact.html" %}
+  </p>
+  {% endif %}
+  {% if company.industry %}<p class="muted">Сфера: {{ company.industry }}</p>{% endif %}
+
+  <ul class="review-list">
+    {% for r in reviews %}
+    <li class="review-card card">
+      <div class="review-card__head">
+        {% user_avatar r.client 44 %}
+        <div class="review-card__head-text">
+          <div class="review-card__author">{{ r.client.username }}</div>
+          <div class="review-card__meta muted">{{ r.created_at|date:"d.m.Y H:i" }} · заявка «{{ r.client_request.title|truncatechars:40 }}»</div>
+        </div>
+        <div class="review-card__stars" aria-label="Оценка {{ r.rating }} из 5">
+          {% for _ in "xxxxx" %}
+            {% if forloop.counter <= r.rating %}<span class="star star--on">★</span>{% else %}<span class="star">☆</span>{% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% if r.text %}<p class="review-card__text">{{ r.text }}</p>{% endif %}
+    </li>
+    {% empty %}
+    <li class="muted">Пока нет отзывов.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

@@ -55,6 +55,12 @@
                     {% if c.description %}
                     <p class="company-description">{{ c.description|truncatewords:25 }}</p>
                     {% endif %}
+                    <p class="company-item-rating muted tiny">
+                      {% with review_avg=c.review_avg review_count=c.review_count %}
+                        {% include "crm/snippets/rating_compact.html" %}
+                      {% endwith %}
+                      · <a href="{% url 'crm:company_reviews' c.slug %}">Отзывы</a>
+                    </p>
                 </div>
             </div>
         </div>

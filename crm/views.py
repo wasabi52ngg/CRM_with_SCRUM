@@ -8,8 +8,10 @@ from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from collections import defaultdict
 
+from django.contrib import messages as django_messages
 from django.db import models
-from django.db.models import Prefetch
+from django.db.models import Avg, Count, FloatField, Prefetch, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 # Импорты login, validate_password, ValidationError удалены - больше не используются после удаления SignupView
 
@@ -36,6 +38,8 @@ from .models import (
     TaskActivity,
     Message,
     InAppNotification,
+    CompanyReview,
+    Comment,
 )
 from .scrum_helpers import remaining_story_points_in_sprint, velocity_for_completed_sprints
 from .notification_helpers import (
@@ -51,6 +55,29 @@ from .notification_helpers import (
 )
 
 from datetime import date
+
+
+def _task_comment_chat_dict(comment: Comment, request: HttpRequest) -> dict:
+    u = comment.author
+    photo_url = ""
+    if getattr(u, "photo", None) and u.photo.name:
+        photo_url = request.build_absolute_uri(u.photo.url)
+    return {
+        "id": comment.id,
+        "text": comment.text,
+        "created_at": comment.created_at.isoformat(),
+        "author__username": u.username,
+        "author_id": u.id,
+        "author_photo_url": photo_url,
+        "author_initial": (u.first_name or u.username or "?")[0].upper(),
+    }
+
+
+def _companies_with_review_stats():
+    return Company.objects.annotate(
+        review_avg=Coalesce(Avg("reviews__rating"), Value(0.0), output_field=FloatField()),
+        review_count=Count("reviews", distinct=True),
+    ).order_by("name")
 
 
 def _parse_due_date(raw):
@@ -270,7 +297,7 @@ class PublicRequestChooseCompanyView(View):
     """
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        companies = Company.objects.all().order_by("name")
+        companies = _companies_with_review_stats()
         return render(request, "crm/public_request_choose_company.html", {"companies": companies})
 
 
@@ -330,6 +357,11 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
             is_owner=True,
         ).exists()
         ctx["can_chat"] = ctx["is_responsible"] or ctx["is_owner"]
+        ctx["can_complete_request"] = (
+            (ctx["is_responsible"] or ctx["is_owner"])
+            and client_request.status == ClientRequest.Status.IN_PROGRESS
+        )
+        ctx["chat_messages"] = client_request.messages.select_related("author").order_by("created_at")
         return ctx
 
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
@@ -377,6 +409,22 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
                         "description": client_request.description,
                         "company": client_request.company,
                     },
+                )
+        elif action == "complete":
+            can_complete = (
+                client_request.manager == request.user
+                or request.user.company_memberships.filter(
+                    company_id=client_request.company_id,
+                    is_approved=True,
+                    is_owner=True,
+                ).exists()
+            )
+            if can_complete and client_request.status == ClientRequest.Status.IN_PROGRESS:
+                client_request.status = ClientRequest.Status.DONE
+                client_request.save(update_fields=["status", "updated_at"])
+                django_messages.success(
+                    request,
+                    "Заявка завершена. Клиент сможет оставить отзыв о компании.",
                 )
         return redirect("crm:manager_request_detail", pk=client_request.pk)
 
@@ -700,7 +748,35 @@ class CompanyListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         company_ids = _get_user_company_ids(self.request.user)
-        return Company.objects.filter(id__in=company_ids).order_by("name")
+        return (
+            _companies_with_review_stats()
+            .filter(id__in=company_ids)
+            .order_by("name")
+        )
+
+
+class CompanyReviewsView(View):
+    """Публичный список отзывов о компании."""
+
+    def get(self, request: HttpRequest, slug: str) -> HttpResponse:
+        company = get_object_or_404(Company, slug=slug)
+        reviews = (
+            CompanyReview.objects.filter(company=company)
+            .select_related("client", "client_request")
+            .order_by("-created_at")
+        )
+        reviews_avg = reviews.aggregate(a=Avg("rating"))["a"]
+        review_count = reviews.count()
+        return render(
+            request,
+            "crm/company_reviews.html",
+            {
+                "company": company,
+                "reviews": reviews,
+                "reviews_avg": reviews_avg,
+                "review_count": review_count,
+            },
+        )
 
 
 class CompanyDetailView(LoginRequiredMixin, DetailView):
@@ -808,6 +884,14 @@ class CompanyDetailView(LoginRequiredMixin, DetailView):
                 "recent_requests": recent_requests,
                 "recent_projects": recent_projects,
             })
+
+        rev_agg = CompanyReview.objects.filter(company=company).aggregate(
+            a=Avg("rating"),
+            c=Count("id"),
+        )
+        ctx["company_review_avg"] = rev_agg["a"]
+        ctx["company_review_count"] = rev_agg["c"] or 0
+        ctx["company_reviews_url"] = reverse("crm:company_reviews", kwargs={"slug": company.slug})
 
         return ctx
 
@@ -940,7 +1024,11 @@ class ClientRequestBySessionView(View):
         if pk not in session_ids:
             return redirect("crm:landing")
         req = get_object_or_404(ClientRequest, pk=pk)
-        ctx = {"object": req, "by_session": True}
+        ctx = {
+            "object": req,
+            "by_session": True,
+            "chat_messages": req.messages.select_related("author").order_by("created_at"),
+        }
         return render(request, "crm/client/request_detail_by_session.html", ctx)
 
 
@@ -951,12 +1039,51 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
     def get_queryset(self):
         return ClientRequest.objects.filter(client=self.request.user)
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        obj = self.object
+        ctx["chat_messages"] = obj.messages.select_related("author").order_by("created_at")
+        ctx["can_leave_review"] = (
+            obj.status == ClientRequest.Status.DONE
+            and obj.company_id
+            and not CompanyReview.objects.filter(client_request=obj).exists()
+        )
+        ctx["existing_review"] = (
+            CompanyReview.objects.filter(client_request=obj).select_related("company").first()
+        )
+        return ctx
+
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         obj = self.get_object()
+        action = request.POST.get("action", "message")
+
+        if action == "review":
+            if obj.status != ClientRequest.Status.DONE or obj.client_id != request.user.id:
+                django_messages.error(request, "Нельзя оставить отзыв для этой заявки.")
+                return redirect("crm:client_request_detail", pk=obj.pk)
+            if CompanyReview.objects.filter(client_request=obj).exists():
+                return redirect("crm:client_request_detail", pk=obj.pk)
+            try:
+                rating = int(request.POST.get("rating", "0"))
+            except ValueError:
+                rating = 0
+            text = (request.POST.get("text") or "").strip()
+            if rating < 1 or rating > 5:
+                django_messages.error(request, "Выберите оценку от 1 до 5 звёзд.")
+                return redirect("crm:client_request_detail", pk=obj.pk)
+            CompanyReview.objects.create(
+                company_id=obj.company_id,
+                client_request=obj,
+                client=request.user,
+                rating=rating,
+                text=text,
+            )
+            django_messages.success(request, "Спасибо за отзыв!")
+            return redirect("crm:client_request_detail", pk=obj.pk)
+
         text = request.POST.get("text", "").strip()
         if text:
             Message.objects.create(request=obj, author=request.user, text=text)
-            # Начало обсуждения от клиента — переводим из NEW в DISCUSS
             if obj.status == ClientRequest.Status.NEW:
                 obj.status = ClientRequest.Status.DISCUSS
                 obj.save(update_fields=["status", "updated_at"])
@@ -981,8 +1108,7 @@ class ClientCreateRequestView(ClientRequiredMixin, View):
     template_name = "crm/client/request_create.html"
 
     def get(self, request: HttpRequest) -> HttpResponse:
-        # Показываем все компании
-        companies = Company.objects.all().order_by("name")
+        companies = _companies_with_review_stats()
         if not companies.exists():
             return render(request, self.template_name, {"companies": companies, "no_companies": True})
         
@@ -1000,12 +1126,11 @@ class ClientCreateRequestView(ClientRequiredMixin, View):
         return render(request, self.template_name, ctx)
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        companies = Company.objects.all()
+        companies = _companies_with_review_stats()
         if not companies.exists():
             return render(request, self.template_name, {"companies": companies, "no_companies": True})
         company_id = request.POST.get("company")
         company = get_object_or_404(Company, pk=company_id)
-        # Проверяем, что компания существует
         if not companies.filter(pk=company.pk).exists():
             return redirect("crm:client_request_create")
         data = request.POST
@@ -2003,11 +2128,8 @@ class TaskPanelApiView(LoginRequiredMixin, View):
 
         if action == "detail":
             checkpoints = list(task.checkpoints.all().values("id", "title", "comment", "is_done", "order"))
-            chat = list(
-                task.comments.select_related("author")
-                .order_by("-created_at")[:50]
-                .values("id", "text", "created_at", "author__username")
-            )[::-1]
+            comments_qs = task.comments.select_related("author").order_by("-created_at")[:50]
+            chat = [_task_comment_chat_dict(c, request) for c in reversed(list(comments_qs))]
             activity = list(
                 task.activities.select_related("author")
                 .order_by("-created_at")[:30]
@@ -2474,17 +2596,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 mentioned = User.objects.filter(username__iexact=uname).first()
                 if mentioned:
                     TaskWatcher.objects.get_or_create(task=task, user=mentioned)
-            return JsonResponse(
-                {
-                    "ok": True,
-                    "message": {
-                        "id": comment.id,
-                        "text": comment.text,
-                        "created_at": comment.created_at.isoformat(),
-                        "author__username": request.user.username,
-                    },
-                }
-            )
+            return JsonResponse({"ok": True, "message": _task_comment_chat_dict(comment, request)})
 
         return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
 

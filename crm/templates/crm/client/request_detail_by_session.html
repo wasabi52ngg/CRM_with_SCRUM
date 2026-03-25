@@ -1,4 +1,5 @@
 {% extends 'crm/base.html' %}
+{% load avatar_tags %}
 {% block title %}Заявка — {{ object.title }}{% endblock %}
 {% block content %}
 <div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--primary);">
@@ -9,11 +10,14 @@
 <p>{{ object.description }}</p>
 
 <h3>Диалог с менеджером</h3>
-<div class="col" style="max-height:260px;overflow:auto;">
-  {% for m in object.messages.all %}
-    <div class="task" style="margin-bottom:8px;">
-      <div><strong>{{ m.author.username }}</strong> <span class="muted" style="font-size:12px;">{{ m.created_at }}</span></div>
-      <div>{{ m.text }}</div>
+<div class="request-chat-scroll">
+  {% for m in chat_messages %}
+    <div class="request-msg">
+      {% user_avatar m.author 40 "request-msg__avatar" %}
+      <div class="request-msg__body">
+        <div class="request-msg__meta"><strong>{{ m.author.username }}</strong> <span class="muted">{{ m.created_at|date:"d.m.Y H:i" }}</span></div>
+        <div class="request-msg__text">{{ m.text }}</div>
+      </div>
     </div>
   {% empty %}
     <p class="muted">Пока нет сообщений. Зарегистрируйтесь, чтобы участвовать в обсуждении.</p>

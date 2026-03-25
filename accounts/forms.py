@@ -315,7 +315,16 @@ class ProfileUserForm(forms.ModelForm):
     """Форма редактирования профиля"""
     username = forms.CharField(disabled=True, label='Логин', widget=forms.TextInput(attrs={'class': 'form-input'}))
     email = forms.CharField(disabled=True, label='E-mail', widget=forms.TextInput(attrs={'class': 'form-input'}))
-    photo = forms.ImageField(label='Выбрать новое фото', required=False, widget=CustomClearableFileInput)
+    photo = forms.ImageField(
+        label='Фото профиля',
+        required=False,
+        widget=CustomClearableFileInput(
+            attrs={
+                'accept': 'image/jpeg,image/png,image/webp,image/gif',
+                'class': 'photo-upload-field__native-input',
+            }
+        ),
+    )
 
     class Meta:
         model = get_user_model()

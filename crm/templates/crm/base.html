@@ -96,6 +96,13 @@
   </div>
 </header>
 <main class="container" style="padding-top:90px">
+    {% if messages %}
+    <ul class="site-messages" role="status">
+      {% for message in messages %}
+      <li class="site-messages__item site-messages__item--{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
     {% block content %}{% endblock %}
 </main>
 

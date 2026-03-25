@@ -1,0 +1,9 @@
+{% if review_count %}
+<span class="rating-compact" title="Средняя оценка {{ review_avg|floatformat:1 }} из 5">
+  <span class="rating-compact__icon" aria-hidden="true">★</span>
+  <strong class="rating-compact__val">{{ review_avg|floatformat:1 }}</strong>
+  <span class="muted">/ 5 · {{ review_count }} {% if review_count == 1 %}отзыв{% elif review_count < 5 %}отзыва{% else %}отзывов{% endif %}</span>
+</span>
+{% else %}
+<span class="muted rating-compact rating-compact--empty">Нет отзывов</span>
+{% endif %}

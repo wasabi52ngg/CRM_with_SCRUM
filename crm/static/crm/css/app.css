@@ -2447,3 +2447,458 @@ body.kanban-drawer-lock {
   display: flex;
   gap: 10px;
 }
+
+/* ——— Аватары и сообщения ——— */
+.user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
+.user-avatar--img {
+  border: 1px solid var(--border);
+}
+
+.user-avatar--placeholder {
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tp-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, .03);
+  border-radius: 12px;
+  padding: 10px 10px;
+}
+
+.tp-msg__avatar-wrap {
+  flex-shrink: 0;
+}
+
+.tp-msg__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tp-msg__text {
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.request-chat-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.request-msg {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.request-msg__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.request-msg__meta {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.request-msg__text {
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.site-messages {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.site-messages__item {
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.site-messages__item--success {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: var(--text);
+}
+
+.site-messages__item--error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.rating-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.rating-compact__icon {
+  color: #f59e0b;
+  font-size: 1.1em;
+}
+
+.review-list {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.review-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.review-card__head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-card__author {
+  font-weight: 600;
+}
+
+.review-card__stars {
+  color: #f59e0b;
+  letter-spacing: 1px;
+  font-size: 14px;
+}
+
+.review-card__stars .star--on {
+  color: #f59e0b;
+}
+
+.review-card__stars .star {
+  color: var(--border);
+}
+
+.reviews-page__nav {
+  margin-bottom: 12px;
+}
+
+.reviews-page__nav a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.review-form-card .review-form__row {
+  margin-bottom: 14px;
+}
+
+.review-form-card label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.review-form-card textarea,
+.review-form-card select {
+  width: 100%;
+  max-width: 480px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+}
+
+.review-done-banner__stars {
+  font-size: 1.25rem;
+  color: #f59e0b;
+  letter-spacing: 2px;
+}
+
+/* Профиль: карточка */
+.profile-shell {
+  max-width: 920px;
+  margin: 24px auto 48px;
+  padding: 0 16px;
+}
+
+.profile-hero {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 28px;
+  align-items: start;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 768px) {
+  .profile-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+.profile-hero__visual {
+  background: linear-gradient(160deg, rgba(37, 99, 235, 0.12), rgba(99, 102, 241, 0.08));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.profile-hero__avatar-wrap {
+  width: 132px;
+  height: 132px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(37, 99, 235, 0.35);
+  box-shadow: 0 12px 40px rgba(37, 99, 235, 0.15);
+}
+
+.profile-hero__avatar-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.profile-hero__avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.profile-hero__name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.profile-hero__username {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.profile-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px 26px 28px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+}
+
+.profile-card__title {
+  font-size: 1.15rem;
+  font-weight: 650;
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-field-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.profile-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.profile-field input:not([type="file"]),
+.profile-field select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.profile-field input:focus,
+.profile-field select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.profile-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.profile-actions .btn-primary-wide {
+  min-width: 200px;
+  padding: 12px 22px;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
+.profile-footer-links {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.profile-footer-links a {
+  color: var(--primary);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.profile-footer-links a:hover {
+  text-decoration: underline;
+}
+
+/* Виджет фото профиля (CustomClearableFileInput) */
+.photo-upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.photo-upload-field__current {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.photo-upload-field__thumb-wrap {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card);
+}
+
+.photo-upload-field__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.photo-upload-field__current-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.photo-upload-field__clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.photo-upload-field__clear input[type="checkbox"] {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.photo-upload-field__new {
+  width: 100%;
+}
+
+.photo-upload-field__pick {
+  position: relative;
+  display: block;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.photo-upload-field__pick:hover {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.photo-upload-field__pick:focus-within {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.photo-upload-field__pick input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+
+.photo-upload-field__pick-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.photo-upload-field__pick-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.photo-upload-field__pick-hint {
+  font-size: 12px;
+}

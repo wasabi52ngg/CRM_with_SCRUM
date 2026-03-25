@@ -100,6 +100,10 @@ class ProfileUserView(LoginRequiredMixin, UpdateView):
     def get_object(self, queryset=None):
         return self.request.user
 
+    def form_valid(self, form):
+        messages.success(self.request, "Профиль сохранён.")
+        return super().form_valid(form)
+
 
 class UserPasswordChangeView(PasswordChangeView):
     """Представление для смены пароля"""

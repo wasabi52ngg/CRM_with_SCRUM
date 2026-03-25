@@ -619,6 +619,41 @@ class SprintBurndownSnapshot(models.Model):
         return f"{self.sprint_id} {self.day}: {self.remaining_points}"
 
 
+class InAppNotification(models.Model):
+    """Внутриигровые уведомления (колокольчик в шапке)."""
+
+    class Kind(models.TextChoices):
+        TASK_COMMENT = "task_comment", "Комментарий в задаче"
+        TASK_ASSIGNED = "task_assigned", "Назначена задача"
+        TASK_UPDATED = "task_updated", "Задача изменена"
+        TASK_STATUS_CHANGED = "task_status_changed", "Изменён этап задачи"
+        CLIENT_MESSAGE = "client_message", "Сообщение от клиента в заявке"
+        NEW_CLIENT_REQUEST = "new_client_request", "Новая заявка клиента"
+        REQUEST_STAFF_MESSAGE = "request_staff_message", "Сообщение по заявке от команды"
+        SPRINT_STARTED = "sprint_started", "Спринт активирован"
+        SPRINT_COMPLETED = "sprint_completed", "Спринт завершён"
+        NEW_OPEN_TASK = "new_open_task", "Свободная задача"
+        EMPLOYEE_JOIN_PENDING = "employee_join_pending", "Заявка сотрудника на вступление"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="in_app_notifications",
+    )
+    kind = models.CharField(max_length=32, choices=Kind.choices)
+    title = models.CharField(max_length=255)
+    body = models.TextField(blank=True)
+    link_url = models.CharField(max_length=500, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.kind} → {self.user_id}"
+
+
 class Message(models.Model):
     request = models.ForeignKey(ClientRequest, on_delete=models.CASCADE, related_name="messages")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

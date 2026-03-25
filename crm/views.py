@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView, DetailView, TemplateView
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -34,8 +35,20 @@ from .models import (
     KanbanFilterPreset,
     TaskActivity,
     Message,
+    InAppNotification,
 )
 from .scrum_helpers import remaining_story_points_in_sprint, velocity_for_completed_sprints
+from .notification_helpers import (
+    notify_task_comment,
+    notify_task_assigned,
+    notify_task_updated,
+    notify_client_message_to_manager,
+    notify_task_status_changed,
+    notify_request_staff_message,
+    notify_new_client_request_company_managers,
+    notify_matching_devs_new_open_task,
+    notify_project_devs_sprint_event,
+)
 
 from datetime import date
 
@@ -97,6 +110,37 @@ def _is_user_developer_in_company(user: User, company_id: int | None = None) -> 
     if company_id:
         qs = qs.filter(company_id=company_id)
     return qs.filter(is_developer=True).exists() or qs.filter(is_owner=True).exists()
+
+
+def _can_access_internal_docs(user: User) -> bool:
+    """Справочник Scrum и внутренние уведомления — не для клиентов портала."""
+    if not user.is_authenticated:
+        return False
+    return (
+        _is_user_manager_in_company(user)
+        or _is_user_developer_in_company(user)
+        or user.company_memberships.filter(is_approved=True, is_owner=True).exists()
+    )
+
+
+def _can_use_notifications_api(user: User) -> bool:
+    """Колокольчик: сотрудники компании или клиент (уведомления по заявкам)."""
+    if not user.is_authenticated:
+        return False
+    if _can_access_internal_docs(user):
+        return True
+    return getattr(user, "role", None) == User.Role.CLIENT
+
+
+def _can_access_task_panel(user: User, task: Task) -> bool:
+    if not user.is_authenticated:
+        return False
+    project = task.project
+    return (
+        _is_user_manager_in_company(user, project.company_id)
+        or (project.client_request and project.client_request.manager == user)
+        or _is_user_developer_in_company(user, project.company_id)
+    )
 
 
 def _is_project_product_owner(user: User, project: Project) -> bool:
@@ -208,6 +252,7 @@ class PublicRequestView(View):
             contact_telegram=data.get("contact_telegram", ""),
             client=client,
         )
+        notify_new_client_request_company_managers(req)
         # Для анонимных: сохраняем id заявки в сессии, чтобы показать её в «Мои заявки» после регистрации
         if not request.user.is_authenticated:
             ids = list(request.session.get("anonymous_request_ids", []))
@@ -304,6 +349,7 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
             )
             if text and can_chat:
                 Message.objects.create(request=client_request, author=request.user, text=text)
+                notify_request_staff_message(client_request, request.user, text)
                 # Если заявка ещё "Новая", то переводим в "В обсуждении" при начале диалога
                 if client_request.status == ClientRequest.Status.NEW:
                     client_request.status = ClientRequest.Status.DISCUSS
@@ -527,13 +573,19 @@ class DeveloperTakeTaskView(LoginRequiredMixin, View):
             old_value=Task.Status.TODO,
             new_value=Task.Status.IN_PROGRESS,
         )
-        return redirect("crm:dev_open_tasks")
+        return redirect(f"{reverse('crm:kanban_board', args=[task.project_id])}?task={task.pk}")
 
 
-class ScrumGlossaryView(LoginRequiredMixin, TemplateView):
-    """Справочник терминов Scrum и канбана для пользователей сервиса."""
+class ScrumGlossaryView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Справочник терминов Scrum и канбана — только для сотрудников компаний, не для клиентов."""
 
     template_name = "crm/scrum_glossary.html"
+
+    def test_func(self) -> bool:
+        return _can_access_internal_docs(self.request.user)
+
+    def handle_no_permission(self):
+        return redirect("crm:client_requests")
 
 
 class DashboardView(LoginRequiredMixin, View):
@@ -908,6 +960,15 @@ class ClientRequestDetailView(ClientRequiredMixin, DetailView):
             if obj.status == ClientRequest.Status.NEW:
                 obj.status = ClientRequest.Status.DISCUSS
                 obj.save(update_fields=["status", "updated_at"])
+            if obj.manager_id:
+                notify_client_message_to_manager(obj.manager, obj.title, request.user.username, obj.pk)
+            elif obj.company_id:
+                for mgr in User.objects.filter(
+                    company_memberships__company_id=obj.company_id,
+                    company_memberships__is_approved=True,
+                    company_memberships__is_manager=True,
+                ).distinct():
+                    notify_client_message_to_manager(mgr, obj.title, request.user.username, obj.pk)
         return redirect("crm:client_request_detail", pk=obj.pk)
 
 
@@ -957,6 +1018,7 @@ class ClientCreateRequestView(ClientRequiredMixin, View):
             contact_email=data.get("contact_email", ""),
             contact_telegram=data.get("contact_telegram", ""),
         )
+        notify_new_client_request_company_managers(req)
         return redirect("crm:client_request_detail", pk=req.pk)
 
 
@@ -1390,6 +1452,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             sp.is_active = True
             sp.completed_at = None
             sp.save(update_fields=["is_active", "completed_at"])
+            notify_project_devs_sprint_event(project, sp, "started")
             return JsonResponse({"ok": True})
 
         if action == "sprint_complete":
@@ -1405,6 +1468,7 @@ class ScrumApiView(LoginRequiredMixin, View):
                 t.sprint = None
                 t.save(update_fields=["sprint", "updated_at"])
             SprintRetrospective.objects.get_or_create(sprint=sp)
+            notify_project_devs_sprint_event(project, sp, "completed")
             return JsonResponse({"ok": True})
 
         if action == "backlog_reorder":
@@ -1644,6 +1708,7 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
                 old_value=old_status,
                 new_value=new_status,
             )
+            notify_task_status_changed(task, request.user, old_status, new_status)
         return JsonResponse({"ok": True})
 
 
@@ -1749,6 +1814,10 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
             old_value="",
             new_value=task.title,
         )
+        if assignee:
+            notify_task_assigned(task, assignee)
+        elif status == Task.Status.TODO and not assignee:
+            notify_matching_devs_new_open_task(task)
         return JsonResponse({
             "ok": True,
             "task": {
@@ -1923,6 +1992,8 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             ),
             pk=pk,
         )
+        if not _can_access_task_panel(request.user, task):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
         try:
             payload = json.loads(request.body.decode("utf-8"))
         except Exception:
@@ -2087,6 +2158,8 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
             changed = False
+            old_assignee_id = task.assignee_id
+            assignee_changed_to_user = None
             # Проверяем зависимость перед сменой статуса
             # Статус / стадия задачи
             if status_raw is not None and status_raw in dict(Task.Status.choices):
@@ -2149,6 +2222,8 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         if aid in dev_ids:
                             old_name = getattr(task.assignee, "username", "")
                             new_user = get_object_or_404(User, pk=aid)
+                            if old_assignee_id != new_user.id:
+                                assignee_changed_to_user = new_user
                             task.assignee = new_user
                             changed = True
                             _log_task_activity(
@@ -2322,6 +2397,10 @@ class TaskPanelApiView(LoginRequiredMixin, View):
 
             if changed:
                 task.save()
+                if assignee_changed_to_user and assignee_changed_to_user.id != request.user.id:
+                    notify_task_assigned(task, assignee_changed_to_user)
+                elif task.assignee_id and task.assignee_id != request.user.id:
+                    notify_task_updated(task, request.user)
             return JsonResponse({"ok": True})
 
         # ---- Checkpoints ----
@@ -2390,6 +2469,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             if not text:
                 return JsonResponse({"ok": False, "error": "text_required"}, status=400)
             comment = task.comments.create(author=request.user, text=text)
+            notify_task_comment(task, request.user, text)
             for uname in re.findall(r"@(\w+)", text):
                 mentioned = User.objects.filter(username__iexact=uname).first()
                 if mentioned:
@@ -2406,6 +2486,57 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 }
             )
 
+        return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
+
+
+class NotificationsApiView(LoginRequiredMixin, View):
+    """JSON: счётчик непрочитанных и список; POST — отметить прочитанным."""
+
+    def get(self, request: HttpRequest) -> JsonResponse:
+        if not _can_use_notifications_api(request.user):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+        qs = InAppNotification.objects.filter(user=request.user)
+        if getattr(request.user, "role", None) == User.Role.CLIENT and not _can_access_internal_docs(
+            request.user
+        ):
+            qs = qs.filter(kind=InAppNotification.Kind.REQUEST_STAFF_MESSAGE)
+        unread = qs.filter(read_at__isnull=True).count()
+        limit = min(int(request.GET.get("limit", 40)), 100)
+        items = [
+            {
+                "id": n.id,
+                "kind": n.kind,
+                "title": n.title,
+                "body": n.body,
+                "link_url": n.link_url,
+                "read_at": n.read_at.isoformat() if n.read_at else None,
+                "created_at": n.created_at.isoformat(),
+            }
+            for n in qs[:limit]
+        ]
+        return JsonResponse({"ok": True, "unread_count": unread, "items": items})
+
+    def post(self, request: HttpRequest) -> JsonResponse:
+        import json
+
+        if not _can_use_notifications_api(request.user):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except Exception:
+            return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
+        action = payload.get("action") or "mark_all_read"
+        if action == "mark_all_read":
+            InAppNotification.objects.filter(user=request.user, read_at__isnull=True).update(
+                read_at=timezone.now()
+            )
+            return JsonResponse({"ok": True})
+        if action == "mark_read":
+            nid = payload.get("id")
+            if not nid:
+                return JsonResponse({"ok": False, "error": "id_required"}, status=400)
+            InAppNotification.objects.filter(user=request.user, pk=int(nid)).update(read_at=timezone.now())
+            return JsonResponse({"ok": True})
         return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
 
 

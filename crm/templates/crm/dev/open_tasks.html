@@ -2,13 +2,14 @@
 {% block title %}Свободные задачи{% endblock %}
 {% block content %}
 <h1 class="page-title">Свободные задачи для вас</h1>
-<ul>
+<ul class="dev-open-tasks">
     {% for t in object_list %}
-        <li>
-            [{{ t.get_task_type_display }}] {{ t.title }} — {{ t.project.name }}
-            <form method="post" action="{% url 'crm:dev_take_task' t.pk %}" style="display:inline;">
+        <li class="dev-open-tasks__item">
+            <a class="dev-open-tasks__link" href="{% url 'crm:kanban_board' t.project_id %}?task={{ t.pk }}">{{ t.title }}</a>
+            <span class="muted">[{{ t.get_task_type_display }}] · {{ t.project.name }}</span>
+            <form method="post" action="{% url 'crm:dev_take_task' t.pk %}" class="dev-open-tasks__take">
                 {% csrf_token %}
-                <button type="submit">Взять</button>
+                <button type="submit" class="btn">Взять</button>
             </form>
         </li>
     {% empty %}
@@ -16,4 +17,3 @@
     {% endfor %}
  </ul>
 {% endblock %}
-

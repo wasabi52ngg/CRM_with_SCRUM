@@ -187,7 +187,7 @@
     {% if my_tasks %}
     <div>
         {% for task in my_tasks %}
-        <a href="{% url 'crm:dev_open_tasks' %}" class="task-card">
+        <a href="{% url 'crm:kanban_board' task.project_id %}?task={{ task.id }}" class="task-card">
             <div class="task-card-header">
                 <h3 class="task-card-title">{{ task.title }}</h3>
                 <span class="task-badge">{{ task.get_task_type_display }}</span>
@@ -217,7 +217,7 @@
     </h2>
     <div>
         {% for task in available_tasks %}
-        <a href="{% url 'crm:dev_open_tasks' %}" class="task-card">
+        <a href="{% url 'crm:kanban_board' task.project_id %}?task={{ task.id }}" class="task-card">
             <div class="task-card-header">
                 <h3 class="task-card-title">{{ task.title }}</h3>
                 <span class="task-badge">{{ task.get_task_type_display }}</span>

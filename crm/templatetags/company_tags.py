@@ -40,6 +40,28 @@ def is_owner_in_company(user):
 
 
 @register.filter
+def can_see_notifications(user):
+    """Менеджер, разработчик или владелец — колокольчик и внутренние уведомления."""
+    if not user.is_authenticated:
+        return False
+    return (
+        is_manager_in_company(user)
+        or is_developer_in_company(user)
+        or is_owner_in_company(user)
+    )
+
+
+@register.filter
+def can_see_notification_bell(user):
+    """Колокольчик: сотрудники компании или клиент (сообщения по заявке)."""
+    if not user.is_authenticated:
+        return False
+    if can_see_notifications(user):
+        return True
+    return getattr(user, "role", None) == "client"
+
+
+@register.filter
 def get_owned_company(user):
     """Возвращает первую компанию, где пользователь является владельцем"""
     if not user.is_authenticated:

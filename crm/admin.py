@@ -16,6 +16,7 @@ from .models import (
     TaskWatcher,
     SprintRetrospective,
     SprintBurndownSnapshot,
+    InAppNotification,
 )
 
 
@@ -111,5 +112,13 @@ class CompanyMembershipAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__email", "company__name")
     list_editable = ("is_manager", "is_developer", "is_approved")
     readonly_fields = ("created_at", "is_owner")  # is_owner нельзя редактировать напрямую, только через создание компании
+
+
+@admin.register(InAppNotification)
+class InAppNotificationAdmin(admin.ModelAdmin):
+    list_display = ("title", "user", "kind", "read_at", "created_at")
+    list_filter = ("kind", "read_at")
+    search_fields = ("title", "body", "user__username")
+    readonly_fields = ("created_at",)
 
 # Register your models here.

@@ -1029,17 +1029,9 @@ body.kanban-drawer-lock {
   box-sizing: border-box;
 }
 
-.kanban-wrap.kanban-wrap--task-panel-open {
-  grid-template-columns: minmax(260px, 296px) minmax(0, 1fr) minmax(270px, 320px);
-}
-
 .kanban-wrap--backlog-collapsed {
   grid-template-columns: 0 minmax(0, 1fr);
   gap: 12px;
-}
-
-.kanban-wrap--backlog-collapsed.kanban-wrap--task-panel-open {
-  grid-template-columns: 0 minmax(0, 1fr) minmax(270px, 320px);
 }
 
 .kanban-wrap--backlog-collapsed .backlog {
@@ -1069,8 +1061,33 @@ body.kanban-drawer-lock {
   align-self: stretch;
 }
 
-aside#task-panel {
-  grid-column: 3;
+/* Панель задачи: общий паттерн kanban-drawer (как «Планирование») */
+.kanban-task-drawer.kanban-drawer {
+  z-index: 1250;
+}
+
+.kanban-task-drawer__panel {
+  /* 40% от ширины обычного kanban-drawer__panel: min(1120px, calc(100vw - 24px)) */
+  width: min(448px, calc((100vw - 24px) * 0.4));
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+  padding: 0;
+}
+
+.kanban-task-drawer__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px 20px;
+}
+
+.kanban-task-drawer__scroll .task-panel__tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  padding-top: 4px;
 }
 
 .kanban {
@@ -1684,19 +1701,12 @@ aside#task-panel {
 }
 
 .task-panel {
-  position: sticky;
-  top: 18px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 12px 14px;
-  max-height: calc(100vh - 36px);
   overflow: auto;
   box-shadow: var(--shadow);
-}
-
-.task-panel--hidden {
-  display: none;
 }
 
 .task-panel__header {
@@ -1918,14 +1928,8 @@ aside#task-panel {
     grid-template-columns: 1fr;
   }
   #kanban-backlog,
-  .kanban-board-area,
-  aside#task-panel {
+  .kanban-board-area {
     grid-column: 1;
-  }
-  .task-panel {
-    position: relative;
-    top: 0;
-    max-height: none;
   }
 }
 

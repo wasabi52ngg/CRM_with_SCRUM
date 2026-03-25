@@ -50,10 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Kanban task panel (details/checkpoints/chat)
-  const taskPanel = document.getElementById('task-panel');
-  if (taskPanel) {
-    initKanbanTaskPanel(taskPanel);
+  // Kanban task panel (details/checkpoints/chat) — выезжающая панель как «Планирование»
+  if (document.getElementById('kanban-task-drawer')) {
+    initKanbanTaskPanel();
   }
 
   // Kanban extras: create modal, filters, list view, inline edit
@@ -87,10 +86,99 @@ document.addEventListener('DOMContentLoaded', () => {
       matrix.appendChild(h);
     }
   }
+
+  initNotifications();
 });
 
-function initKanbanTaskPanel(panel) {
-  const mainWrap = document.getElementById('kanban-main-wrap');
+function initNotifications() {
+  const btn = document.getElementById('header-notify-btn');
+  const badge = document.getElementById('header-notify-badge');
+  const dropdown = document.getElementById('header-notify-dropdown');
+  const listEl = document.getElementById('header-notify-list');
+  const markAll = document.getElementById('header-notify-mark-all');
+  const wrap = document.getElementById('header-notify-wrap');
+  if (!btn || !badge || !dropdown || !listEl) return;
+
+  function renderList(items) {
+    listEl.innerHTML = '';
+    if (!items || !items.length) {
+      const li = document.createElement('li');
+      li.className = 'header-notify-empty';
+      li.textContent = 'Пока нет уведомлений';
+      listEl.appendChild(li);
+      return;
+    }
+    items.forEach(it => {
+      const li = document.createElement('li');
+      li.className = 'header-notify-item' + (it.read_at ? ' header-notify-item--read' : '');
+      const a = document.createElement('a');
+      a.className = 'header-notify-item__link';
+      a.href = it.link_url || '#';
+      const title = document.createElement('div');
+      title.className = 'header-notify-item__title';
+      title.textContent = it.title;
+      a.appendChild(title);
+      if (it.body) {
+        const body = document.createElement('div');
+        body.className = 'header-notify-item__body';
+        body.textContent = it.body;
+        a.appendChild(body);
+      }
+      li.appendChild(a);
+      listEl.appendChild(li);
+    });
+  }
+
+  async function refresh() {
+    try {
+      const r = await fetch('/notifications/api/?limit=20', { credentials: 'same-origin' });
+      const d = await r.json();
+      if (!d.ok) return;
+      const n = d.unread_count || 0;
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.hidden = n === 0;
+      renderList(d.items || []);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = dropdown.hidden;
+    dropdown.hidden = !open;
+    if (!dropdown.hidden) refresh();
+  });
+  if (markAll) {
+    markAll.addEventListener('click', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        await fetch('/notifications/api/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+          body: JSON.stringify({ action: 'mark_all_read' }),
+          credentials: 'same-origin',
+        });
+      } catch (err) {
+        /* ignore */
+      }
+      refresh();
+    });
+  }
+  document.addEventListener('click', () => {
+    dropdown.hidden = true;
+  });
+  if (wrap) {
+    wrap.addEventListener('click', e => e.stopPropagation());
+  }
+  refresh();
+  setInterval(refresh, 60000);
+}
+
+function initKanbanTaskPanel() {
+  const drawer = document.getElementById('kanban-task-drawer');
+  if (!drawer) return;
 
   const closeBtn = document.getElementById('tp-close');
   const titleEl = document.getElementById('tp-title');
@@ -117,12 +205,19 @@ function initKanbanTaskPanel(panel) {
   let activity = [];
 
   function show() {
-    panel.classList.remove('task-panel--hidden');
-    if (mainWrap) mainWrap.classList.add('kanban-wrap--task-panel-open');
+    const planning = document.getElementById('kanban-planning-drawer');
+    if (planning && planning.classList.contains('kanban-drawer--open')) {
+      planning.classList.remove('kanban-drawer--open');
+      planning.setAttribute('aria-hidden', 'true');
+    }
+    drawer.classList.add('kanban-drawer--open');
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('kanban-drawer-lock');
   }
   function hide() {
-    panel.classList.add('task-panel--hidden');
-    if (mainWrap) mainWrap.classList.remove('kanban-wrap--task-panel-open');
+    drawer.classList.remove('kanban-drawer--open');
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('kanban-drawer-lock');
     currentTaskId = null;
     apiUrl = null;
     if (typeof hideCpAddForm === 'function') hideCpAddForm();
@@ -331,6 +426,8 @@ function initKanbanTaskPanel(panel) {
   });
 
   if (closeBtn) closeBtn.addEventListener('click', () => hide());
+  const taskDrawerBackdrop = document.getElementById('kanban-task-backdrop');
+  if (taskDrawerBackdrop) taskDrawerBackdrop.addEventListener('click', () => hide());
   tabBtns.forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.getAttribute('data-tab'))));
 
   const cpAddForm = document.getElementById('tp-cp-add-form');
@@ -457,8 +554,10 @@ function initKanbanTaskPanel(panel) {
     });
   });
 
-  if (mainWrap && !panel.classList.contains('task-panel--hidden')) {
-    mainWrap.classList.add('kanban-wrap--task-panel-open');
+  const params = new URLSearchParams(window.location.search);
+  const openFromUrl = parseInt(params.get('task') || '0', 10);
+  if (openFromUrl) {
+    loadTask(openFromUrl).catch(() => {});
   }
 }
 
@@ -1574,6 +1673,13 @@ function initKanbanExtras() {
   const planningBackdrop = document.getElementById('kanban-planning-backdrop');
   function setPlanningDrawer(open) {
     if (!planningDrawer) return;
+    if (open) {
+      const taskDrawer = document.getElementById('kanban-task-drawer');
+      if (taskDrawer && taskDrawer.classList.contains('kanban-drawer--open')) {
+        taskDrawer.classList.remove('kanban-drawer--open');
+        taskDrawer.setAttribute('aria-hidden', 'true');
+      }
+    }
     planningDrawer.classList.toggle('kanban-drawer--open', open);
     planningDrawer.setAttribute('aria-hidden', open ? 'false' : 'true');
     document.body.classList.toggle('kanban-drawer-lock', open);

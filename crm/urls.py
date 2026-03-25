@@ -16,6 +16,7 @@ from .views import (
     ScrumApiView,
     ScrumReportsView,
     ScrumGlossaryView,
+    NotificationsApiView,
     LandingView,
     ClientRequestListView,
     ClientRequestDetailView,
@@ -42,6 +43,7 @@ urlpatterns = [
     path("client/request/session/<int:pk>/", ClientRequestBySessionView.as_view(), name="client_request_by_session"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("help/scrum/", ScrumGlossaryView.as_view(), name="scrum_glossary"),
+    path("notifications/api/", NotificationsApiView.as_view(), name="notifications_api"),
     # Manager area
     path("manager/requests/", ManagerRequestListView.as_view(), name="manager_request_list"),
     path("manager/requests/<int:pk>/", ManagerRequestDetailView.as_view(), name="manager_request_detail"),

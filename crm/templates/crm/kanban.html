@@ -324,17 +324,22 @@
 </div>
 </div>{# kanban-board-area #}
 
-<aside id="task-panel" class="task-panel task-panel--hidden">
-  <div class="task-panel__header">
-    <div>
-      <div class="task-panel__title" id="tp-title">Задача</div>
-      <div class="task-panel__subtitle muted" id="tp-meta"></div>
-      <div class="muted task-panel__issue-key" id="tp-issue-key" style="font-size:12px;margin-top:4px;"></div>
-      <div class="task-panel__desc-preview" id="tp-desc-preview" style="font-size:13px;margin-top:8px;white-space:pre-wrap;"></div>
-    </div>
-    <button type="button" class="btn-ghost" id="tp-close">✕</button>
-  </div>
+</div>{# kanban-main-wrap / kanban-wrap #}
 
+<div id="kanban-task-drawer" class="kanban-drawer kanban-task-drawer" aria-hidden="true">
+  <div class="kanban-drawer__backdrop" id="kanban-task-backdrop"></div>
+  <div class="kanban-drawer__panel kanban-task-drawer__panel" role="dialog" aria-labelledby="tp-title">
+    <div class="kanban-drawer__head task-panel__header">
+      <div>
+        <div class="task-panel__title" id="tp-title">Задача</div>
+        <div class="task-panel__subtitle muted" id="tp-meta"></div>
+        <div class="muted task-panel__issue-key" id="tp-issue-key" style="font-size:12px;margin-top:4px;"></div>
+        <div class="task-panel__desc-preview" id="tp-desc-preview" style="font-size:13px;margin-top:8px;white-space:pre-wrap;"></div>
+      </div>
+      <button type="button" class="kanban-drawer__close" id="tp-close" aria-label="Закрыть">✕</button>
+    </div>
+
+    <div class="kanban-task-drawer__scroll">
   <div class="task-panel__info" id="tp-info">
     <div class="task-panel__row task-panel__row--editable" data-field="sprint">
       <span class="muted">Спринт</span>
@@ -422,8 +427,9 @@
       <div id="tp-activity-list" class="tp-activity"></div>
     </div>
   </div>
-</aside>
-</div>{# kanban-wrap #}
+    </div>{# kanban-task-drawer__scroll #}
+  </div>
+</div>
 
 <div id="task-create-modal" class="modal modal--hidden">
   <div class="modal__backdrop"></div>

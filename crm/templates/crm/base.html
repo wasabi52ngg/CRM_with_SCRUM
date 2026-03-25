@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     {% load static %}
+    {% load company_tags %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}CRM{% endblock %}</title>
@@ -14,7 +15,6 @@
   <div class="header-flex">
     <a class="logo" href="{% if user.is_authenticated %}{% url 'crm:dashboard' %}{% else %}{% url 'crm:landing' %}{% endif %}">IT CRM</a>
     <div class="header-nav-buttons">
-      {% load company_tags %}
       {% if user.is_authenticated %}
         {% if user|is_owner_in_company %}
           {% with owned_company=user|get_owned_company %}
@@ -60,9 +60,6 @@
             <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg></span>
             <span>Мои заявки</span>
           </a>
-          {% if not user|is_owner_in_company %}
-          {% include 'crm/snippets/nav_glossary_link.html' %}
-          {% endif %}
         {% endif %}
       {% else %}
         <a href="{% url 'crm:landing' %}" class="nav-btn {% if request.resolver_match.url_name == 'landing' %} active{% endif %}">
@@ -73,6 +70,21 @@
     </div>
     <div class="header-actions">
       {% if user.is_authenticated %}
+      {% if user|can_see_notification_bell %}
+      <div class="header-notify-wrap" id="header-notify-wrap">
+        <button type="button" class="header-notify-btn" id="header-notify-btn" title="Уведомления" aria-label="Уведомления">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="header-notify-badge" id="header-notify-badge" hidden>0</span>
+        </button>
+        <div class="header-notify-dropdown" id="header-notify-dropdown" hidden>
+          <div class="header-notify-dropdown__head">
+            <span>Уведомления</span>
+            <button type="button" class="header-notify-mark-all" id="header-notify-mark-all">Прочитать все</button>
+          </div>
+          <ul class="header-notify-list" id="header-notify-list"></ul>
+        </div>
+      </div>
+      {% endif %}
       <a href="{% url 'accounts:profile' %}" class="nav-link">{{ user.username }}</a>
       <a href="{% url 'accounts:logout' %}" class="nav-link logout-link">Выйти</a>
       {% else %}

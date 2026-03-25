@@ -4,6 +4,7 @@ from django import forms
 from django.utils.text import slugify
 from .CustomWidgets import CustomClearableFileInput
 from crm.models import Company, CompanyMembership
+from crm.notification_helpers import notify_employee_join_pending
 
 
 def transliterate_to_latin(text):
@@ -123,7 +124,8 @@ class RegisterUserForm(UserCreationForm):
                     is_developer=False,
                     is_approved=False,  # Требует подтверждения администратора
                 )
-        
+                notify_employee_join_pending(company, user)
+
         return user
 
 
@@ -302,7 +304,8 @@ class CompanyUserRegisterForm(UserCreationForm):
             CompanyMembership.objects.create(
                 company=company,
                 user=user,
-                role=CompanyMembership.Role.DEVELOPER,
+                is_developer=True,
+                is_approved=True,
             )
 
         return user

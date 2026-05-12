@@ -1,11 +1,11 @@
 {% extends 'crm/base.html' %}
-{% load avatar_tags %}
+{% load avatar_tags crm_tags %}
 {% block title %}Заявка — {{ object.title }}{% endblock %}
 {% block content %}
 <h1 class="page-title">{{ object.title }}</h1>
 <p class="muted">Тип: {{ object.get_project_type_display }} | Статус: <span class="status-pill status-{{ object.status }}">{{ object.get_status_display }}</span></p>
 {% if object.manager %}
-  <p class="muted">Менеджер: <strong>{{ object.manager.username }}</strong></p>
+  <p class="muted">Менеджер: <strong>{{ object.manager|user_display }}</strong></p>
 {% else %}
   <p class="muted">Менеджер ещё не назначен — как только заявка будет взята в работу, вы сможете общаться в чате.</p>
 {% endif %}
@@ -50,7 +50,7 @@
     <div class="request-msg">
       {% user_avatar m.author 40 "request-msg__avatar" %}
       <div class="request-msg__body">
-        <div class="request-msg__meta"><strong>{{ m.author.username }}</strong> <span class="muted">{{ m.created_at|date:"d.m.Y H:i" }}</span></div>
+        <div class="request-msg__meta"><strong>{{ m.author|user_display }}</strong> <span class="muted">{{ m.created_at|date:"d.m.Y H:i" }}</span></div>
         <div class="request-msg__text">{{ m.text }}</div>
       </div>
     </div>

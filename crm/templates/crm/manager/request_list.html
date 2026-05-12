@@ -1,4 +1,5 @@
 {% extends 'crm/base.html' %}
+{% load crm_tags %}
 {% block title %}Заявки{% endblock %}
 {% block content %}
 <h1 class="page-title">Заявки</h1>
@@ -15,7 +16,7 @@
             <td><a href="{% url 'crm:manager_request_detail' r.pk %}">{{ r.title }}</a></td>
             <td>{{ r.get_project_type_display }}</td>
             <td>{{ r.get_status_display }}</td>
-            <td>{% if r.manager %}{{ r.manager.username }}{% else %}<span style="color: var(--muted);">Не назначен</span>{% endif %}</td>
+            <td>{% if r.manager %}{{ r.manager|user_display }}{% else %}<span style="color: var(--muted);">Не назначен</span>{% endif %}</td>
             <td>
                 {% if not r.manager and r.status != 'done' %}
                 <form method="post" action="{% url 'crm:manager_request_detail' r.pk %}" style="display: inline;">

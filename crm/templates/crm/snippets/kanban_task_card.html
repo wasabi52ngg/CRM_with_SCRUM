@@ -24,12 +24,12 @@
       <span class="task-sp" title="Оценка в баллах"><strong>б.</strong> {{ t.story_points }}</span>
       {% with sublbl=t|subtask_label %}
       {% if sublbl %}
-      <span class="task-sub" title="Подзадачи выполнено">{{ sublbl }}</span>
+      <span class="task-sub" title="Подзадачи: сколько в статусе «Готово» из всех дочерних">Подзадачи {{ sublbl }}</span>
       {% endif %}
       {% endwith %}
     </div>
     <div class="meta task__meta task__meta--foot">
-      <span class="muted">{{ t.assignee.username|default:"Без исполнителя" }}</span>
+      <span class="muted">{{ t.assignee|user_display|default:"Без исполнителя" }}</span>
       <span class="muted">{{ t.due_date|date:"d.m"|default:"" }}</span>
     </div>
   </div>

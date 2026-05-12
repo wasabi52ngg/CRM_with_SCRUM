@@ -1773,8 +1773,18 @@ body.kanban-drawer-lock {
 
 .task-panel__toolbar {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 8px;
+}
+
+.task-panel__toolbar--checkpoints #tp-delete-task {
+  margin-left: auto;
+}
+
+.task-panel__toolbar--subtasks #tp-subtask-add {
+  margin-left: auto;
 }
 
 .tp-cp-add-form {

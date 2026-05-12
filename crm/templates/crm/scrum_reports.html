@@ -1,4 +1,5 @@
 {% extends 'crm/base.html' %}
+{% load crm_tags %}
 {% block title %}Отчёты Scrum — {{ object.name }}{% endblock %}
 {% block content %}
 <div id="retro-toast" class="retro-toast" role="status" aria-live="polite" hidden>Сохранено</div>
@@ -43,7 +44,7 @@
       <h3 class="h-small">Сделано ({{ sprint_review_done|length }})</h3>
       <ul class="sprint-review-list">
         {% for t in sprint_review_done %}
-        <li>{% if t.issue_key %}{{ t.issue_key }} {% endif %}{{ t.title }} — {{ t.story_points }} б. · {{ t.assignee.username|default:"—" }}</li>
+        <li>{% if t.issue_key %}{{ t.issue_key }} {% endif %}{{ t.title }} — {{ t.story_points }} б. · {{ t.assignee|user_display|default:"—" }}</li>
         {% empty %}
         <li class="muted">Пока нет</li>
         {% endfor %}

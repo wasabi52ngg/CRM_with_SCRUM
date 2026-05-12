@@ -1,8 +1,27 @@
 from django import template
+from django.contrib.auth.models import AbstractBaseUser
 
 from crm.models import Task
 
 register = template.Library()
+
+
+@register.filter
+def user_display(user: AbstractBaseUser | None) -> str:
+    """
+    Имя и фамилия, при наличии, и ник в скобках; иначе только логин.
+    """
+    if not user:
+        return ""
+    fn = (getattr(user, "first_name", None) or "").strip()
+    ln = (getattr(user, "last_name", None) or "").strip()
+    full = f"{fn} {ln}".strip()
+    un = (getattr(user, "username", None) or "").strip()
+    if full and un:
+        return f"{full} ({un})"
+    if full:
+        return full
+    return un or "—"
 
 
 @register.filter

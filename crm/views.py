@@ -57,6 +57,21 @@ from .notification_helpers import (
 from datetime import date
 
 
+def _user_display_name(user: User | None) -> str:
+    """Имя и фамилия и логин в скобках, как в шаблонном фильтре user_display."""
+    if not user:
+        return "—"
+    fn = (getattr(user, "first_name", None) or "").strip()
+    ln = (getattr(user, "last_name", None) or "").strip()
+    full = f"{fn} {ln}".strip()
+    un = (getattr(user, "username", None) or "").strip()
+    if full and un:
+        return f"{full} ({un})"
+    if full:
+        return full
+    return un or "—"
+
+
 def _task_comment_chat_dict(comment: Comment, request: HttpRequest) -> dict:
     u = comment.author
     photo_url = ""
@@ -67,6 +82,7 @@ def _task_comment_chat_dict(comment: Comment, request: HttpRequest) -> dict:
         "text": comment.text,
         "created_at": comment.created_at.isoformat(),
         "author__username": u.username,
+        "author_display": _user_display_name(u),
         "author_id": u.id,
         "author_photo_url": photo_url,
         "author_initial": (u.first_name or u.username or "?")[0].upper(),
@@ -1727,16 +1743,44 @@ class ScrumApiView(LoginRequiredMixin, View):
                 .first()
                 or 0
             )
+            assignee = None
+            assignee_raw = payload.get("assignee")
+            if assignee_raw not in (None, "", 0, "0"):
+                try:
+                    aid = int(assignee_raw)
+                except (TypeError, ValueError):
+                    aid = None
+                if aid and project.company_id:
+                    dev_ids = list(
+                        CompanyMembership.objects.filter(
+                            company=project.company,
+                            is_approved=True,
+                            is_developer=True,
+                        ).values_list("user_id", flat=True)
+                    )
+                    if aid in dev_ids:
+                        assignee = get_object_or_404(User, pk=aid)
+            story_points = 0
+            sp_raw = payload.get("story_points")
+            if sp_raw not in (None, ""):
+                try:
+                    story_points = max(0, min(100, int(sp_raw)))
+                except (TypeError, ValueError):
+                    story_points = 0
             child = Task.objects.create(
                 project=project,
                 sprint=parent.sprint,
                 parent=parent,
+                epic_id=parent.epic_id,
                 title=title,
                 description="",
                 task_type=parent.task_type,
                 work_item_type=Task.WorkItemType.SUBTASK,
+                priority=parent.priority,
                 status=Task.Status.TODO,
                 created_by=request.user,
+                assignee=assignee,
+                story_points=story_points,
                 order=last_order + 1,
             )
             _log_task_activity(
@@ -1747,6 +1791,8 @@ class ScrumApiView(LoginRequiredMixin, View):
                 old_value="",
                 new_value=child.title,
             )
+            if assignee:
+                notify_task_assigned(child, assignee)
             return JsonResponse({"ok": True, "task_id": child.id})
 
         return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
@@ -2106,6 +2152,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
     - action=detail: данные задачи + чекпоинты + чат (последние 50)
     - action=checkpoint_create/update/delete/reorder
     - action=chat_add
+    - action=task_delete: удаление задачи (только _can_manage_project_scrum)
     """
 
     def post(self, request: HttpRequest, pk: int) -> JsonResponse:
@@ -2114,6 +2161,11 @@ class TaskPanelApiView(LoginRequiredMixin, View):
         task = get_object_or_404(
             Task.objects.select_related(
                 "assignee", "created_by", "project", "epic", "parent", "sprint"
+            ).prefetch_related(
+                Prefetch(
+                    "children",
+                    queryset=Task.objects.select_related("project").order_by("id"),
+                )
             ),
             pk=pk,
         )
@@ -2127,17 +2179,30 @@ class TaskPanelApiView(LoginRequiredMixin, View):
         action = payload.get("action") or "detail"
 
         if action == "detail":
-            checkpoints = list(task.checkpoints.all().values("id", "title", "comment", "is_done", "order"))
+            checkpoints = [
+                {
+                    "id": cp.id,
+                    "title": cp.title,
+                    "comment": cp.comment,
+                    "is_done": cp.is_done,
+                    "order": cp.order,
+                    "created_by_display": _user_display_name(cp.created_by),
+                }
+                for cp in task.checkpoints.select_related("created_by").order_by("order", "id")
+            ]
             comments_qs = task.comments.select_related("author").order_by("-created_at")[:50]
             chat = [_task_comment_chat_dict(c, request) for c in reversed(list(comments_qs))]
-            activity = list(
-                task.activities.select_related("author")
-                .order_by("-created_at")[:30]
-                .values("id", "action", "field", "old_value", "new_value", "created_at", "author__username")
-            )[::-1]
-            children = list(
-                task.children.all().values("id", "title", "status")[:50]
-            )
+            activity_rows = list(task.activities.select_related("author").order_by("-created_at")[:30])[::-1]
+            children = [
+                {
+                    "id": ch.id,
+                    "issue_key": ch.issue_key or "",
+                    "title": ch.title,
+                    "status": ch.status,
+                    "status_label": ch.get_status_display(),
+                }
+                for ch in task.children.all()[:50]
+            ]
             links_from = [
                 {
                     "id": l.id,
@@ -2147,7 +2212,10 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 }
                 for l in task.links_from.select_related("target").all()[:30]
             ]
-            watchers = list(task.watchers_rel.select_related("user").values_list("user__username", flat=True))
+            watchers = [
+                _user_display_name(w.user)
+                for w in task.watchers_rel.select_related("user").order_by("user__username", "user_id")
+            ]
             watching_self = task.watchers_rel.filter(user=request.user).exists()
             release_ids = list(task.releases.values("id", "name", "version")[:20])
             # Готовим человекочитаемый текст для фронта
@@ -2188,11 +2256,11 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                     except Exception:
                         return str(val)
 
-            for a in activity:
-                raw_field = (a.get("field") or "").strip()
-                action_code = (a.get("action") or "").strip()
-                raw_old = a.get("old_value") or ""
-                raw_new = a.get("new_value") or ""
+            for a in activity_rows:
+                raw_field = (a.field or "").strip()
+                action_code = (a.action or "").strip()
+                raw_old = a.old_value or ""
+                raw_new = a.new_value or ""
 
                 if raw_field == "status":
                     old_val = status_labels.get(raw_old, raw_old or "—")
@@ -2218,17 +2286,20 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                     prefix = action_prefixes.get(action_code, "Действие")
                     text = f"{prefix}: «{new_val or '—'}»"
 
+                au = a.author
                 activity_payload.append(
                     {
-                        "id": a["id"],
+                        "id": a.id,
                         "text": text,
-                        "created_at": a["created_at"],
-                        "author__username": a["author__username"],
+                        "created_at": a.created_at,
+                        "author__username": getattr(au, "username", None) if au else None,
+                        "author_display": _user_display_name(au),
                     }
                 )
             return JsonResponse(
                 {
                     "ok": True,
+                    "can_delete": _can_manage_project_scrum(request.user, task.project),
                     "task": {
                         "id": task.id,
                         "issue_key": task.issue_key,
@@ -2244,9 +2315,9 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         "priority": task.priority,
                         "priority_label": task.get_priority_display(),
                         "story_points": task.story_points,
-                        "assignee": getattr(task.assignee, "username", None),
+                        "assignee": _user_display_name(task.assignee) if task.assignee_id else None,
                         "assignee_id": task.assignee_id,
-                        "created_by": getattr(task.created_by, "username", None),
+                        "created_by": _user_display_name(task.created_by) if task.created_by_id else None,
                         "due_date": _due_date_to_json(task.due_date),
                         "sprint_id": task.sprint_id,
                         "sprint_name": task.sprint.name if task.sprint_id else None,
@@ -2255,6 +2326,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         "epic_title": task.epic.title if task.epic_id else None,
                         "parent_id": task.parent_id,
                         "parent_title": task.parent.title if task.parent_id else None,
+                        "parent_issue_key": task.parent.issue_key if task.parent_id else None,
                     },
                     "checkpoints": checkpoints,
                     "chat": chat,
@@ -2532,7 +2604,13 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             if not title:
                 return JsonResponse({"ok": False, "error": "title_required"}, status=400)
             last_order = task.checkpoints.order_by("-order").values_list("order", flat=True).first() or 0
-            cp = TaskCheckpoint.objects.create(task=task, title=title, comment=comment, order=last_order + 1)
+            cp = TaskCheckpoint.objects.create(
+                task=task,
+                title=title,
+                comment=comment,
+                order=last_order + 1,
+                created_by=request.user,
+            )
             return JsonResponse(
                 {
                     "ok": True,
@@ -2542,6 +2620,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                         "comment": cp.comment,
                         "is_done": cp.is_done,
                         "order": cp.order,
+                        "created_by_display": _user_display_name(cp.created_by),
                     },
                 }
             )
@@ -2597,6 +2676,13 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 if mentioned:
                     TaskWatcher.objects.get_or_create(task=task, user=mentioned)
             return JsonResponse({"ok": True, "message": _task_comment_chat_dict(comment, request)})
+
+        if action == "task_delete":
+            if not _can_manage_project_scrum(request.user, task.project):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
+            tid = task.pk
+            task.delete()
+            return JsonResponse({"ok": True, "deleted_id": tid})
 
         return JsonResponse({"ok": False, "error": "bad_action"}, status=400)
 

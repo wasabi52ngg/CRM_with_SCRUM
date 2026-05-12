@@ -51,7 +51,7 @@
         <select id="kanban-filter-assignee" class="kf-control">
           <option value="">Все исполнители</option>
           {% for u in developers %}
-            <option value="{{ u.id }}">{{ u.username }}</option>
+            <option value="{{ u.id }}">{{ u|user_display }}</option>
           {% endfor %}
         </select>
         <select id="kanban-filter-type" class="kf-control">
@@ -308,16 +308,16 @@
     </thead>
     <tbody>
       {% for t in todo %}
-        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>К выполнению</td><td>{{ t.assignee.username|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
+        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>К выполнению</td><td>{{ t.assignee|user_display|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
       {% endfor %}
       {% for t in in_progress %}
-        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>В работе</td><td>{{ t.assignee.username|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
+        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>В работе</td><td>{{ t.assignee|user_display|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
       {% endfor %}
       {% for t in review %}
-        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>К проверке</td><td>{{ t.assignee.username|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
+        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>К проверке</td><td>{{ t.assignee|user_display|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
       {% endfor %}
       {% for t in done %}
-        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>Готово</td><td>{{ t.assignee.username|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
+        <tr class="task-row" data-task="{{ t.id }}" data-task-type="{{ t.task_type }}" data-assignee="{{ t.assignee_id|default:'' }}"><td>{{ t.title }}</td><td>{{ t.get_task_type_display }}</td><td>Готово</td><td>{{ t.assignee|user_display|default:"—" }}</td><td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td><td>{{ t.story_points }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -361,6 +361,10 @@
         {% endfor %}
       </select>
     </div>
+    <div class="task-panel__row" id="tp-parent-row" style="display:none;">
+      <span class="muted">Родительская задача</span>
+      <button type="button" class="tp-value tp-parent-open" id="tp-parent-open" style="text-align:left;background:none;border:none;padding:0;cursor:pointer;color:inherit;text-decoration:underline;font:inherit;"></button>
+    </div>
     <div class="task-panel__row task-panel__row--editable" data-field="status">
       <span class="muted">Статус</span>
       <span id="tp-status" class="tp-value">К выполнению</span>
@@ -377,7 +381,7 @@
       <select id="tp-assignee-select" class="tp-edit-select" style="display:none;">
         <option value="">— не назначать —</option>
         {% for u in developers %}
-          <option value="{{ u.id }}">{{ u.username }}</option>
+          <option value="{{ u.id }}">{{ u|user_display }}</option>
         {% endfor %}
       </select>
     </div>
@@ -392,6 +396,29 @@
       <span id="tp-sp" class="tp-value">0</span>
       <input type="number" id="tp-sp-input" class="tp-edit-input" min="0" max="100" style="display:none;">
     </div>
+    <div class="task-panel__subtasks" id="tp-subtasks-section" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.08);">
+      <div class="task-panel__toolbar task-panel__toolbar--subtasks">
+        <span class="muted" style="font-weight:600;">Подзадачи</span>
+        <button type="button" class="btn-ghost" id="tp-subtask-add">Добавить подзадачу</button>
+      </div>
+      <div id="tp-subtask-add-form" class="tp-cp-add-form tp-cp-add-form--hidden">
+        <input type="text" id="tp-subtask-title" placeholder="Название подзадачи" autocomplete="off">
+        <div class="muted" style="font-size:12px;margin:6px 0 4px;">Баллы (0–100), необязательно</div>
+        <input type="number" id="tp-subtask-sp" min="0" max="100" value="0" class="tp-edit-input" style="display:block;width:100%;margin-bottom:8px;">
+        <div class="muted" style="font-size:12px;margin:0 0 4px;">Исполнитель, необязательно</div>
+        <select id="tp-subtask-assignee" class="tp-edit-select" style="display:block;width:100%;margin-bottom:8px;">
+          <option value="">— не назначать —</option>
+          {% for u in developers %}
+            <option value="{{ u.id }}">{{ u|user_display }}</option>
+          {% endfor %}
+        </select>
+        <div class="tp-cp-add-form__actions">
+          <button type="button" class="btn" id="tp-subtask-submit">Создать</button>
+          <button type="button" class="btn-ghost" id="tp-subtask-cancel">Отмена</button>
+        </div>
+      </div>
+      <div id="tp-subtasks-list" class="tp-list"></div>
+    </div>
   </div>
 
   <div class="task-panel__tabs">
@@ -402,8 +429,9 @@
 
   <div class="task-panel__body">
     <div class="task-tabpane task-tabpane--active" data-tabpane="checkpoints">
-      <div class="task-panel__toolbar">
+      <div class="task-panel__toolbar task-panel__toolbar--checkpoints">
         <button type="button" class="btn-ghost" id="tp-cp-add">Добавить чекпоинт</button>
+        <button type="button" class="cmd-btn cmd-btn--danger-outline" id="tp-delete-task" style="display:none;">Удалить задачу</button>
       </div>
       <div id="tp-cp-add-form" class="tp-cp-add-form tp-cp-add-form--hidden">
         <input type="text" id="tp-cp-add-input" placeholder="Название чекпоинта" autocomplete="off">
@@ -465,7 +493,7 @@
         <select id="task-create-assignee" name="assignee">
           <option value="">— не назначать —</option>
           {% for u in developers %}
-            <option value="{{ u.id }}">{{ u.username }}</option>
+            <option value="{{ u.id }}">{{ u|user_display }}</option>
           {% endfor %}
         </select>
       </div>

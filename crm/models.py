@@ -512,6 +512,14 @@ class TaskCheckpoint(models.Model):
     """
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="checkpoints")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_task_checkpoints",
+        verbose_name="Кто добавил",
+    )
     title = models.CharField("Заголовок", max_length=255)
     comment = models.TextField("Комментарий / детали", blank=True)
     is_done = models.BooleanField("Выполнен", default=False)

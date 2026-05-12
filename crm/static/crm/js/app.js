@@ -203,6 +203,93 @@ function initKanbanTaskPanel() {
   let checkpoints = [];
   let chat = [];
   let activity = [];
+  let subtasks = [];
+
+  const subtasksList = document.getElementById('tp-subtasks-list');
+  const subtaskAddBtn = document.getElementById('tp-subtask-add');
+  const subtaskAddForm = document.getElementById('tp-subtask-add-form');
+  const subtaskTitleInput = document.getElementById('tp-subtask-title');
+  const subtaskSubmit = document.getElementById('tp-subtask-submit');
+  const subtaskCancel = document.getElementById('tp-subtask-cancel');
+
+  function hideSubtaskForm() {
+    if (subtaskAddForm) subtaskAddForm.classList.add('tp-cp-add-form--hidden');
+    if (subtaskTitleInput) subtaskTitleInput.value = '';
+    const stSp = document.getElementById('tp-subtask-sp');
+    const stAs = document.getElementById('tp-subtask-assignee');
+    if (stSp) stSp.value = '0';
+    if (stAs) stAs.value = '';
+  }
+
+  function showSubtaskForm() {
+    if (!subtaskAddForm || !subtaskTitleInput) return;
+    subtaskAddForm.classList.remove('tp-cp-add-form--hidden');
+    subtaskTitleInput.focus();
+  }
+
+  function scrumApiForProject(payload) {
+    const pid = window.__kanbanProjectId;
+    if (!pid) return Promise.reject(new Error('no_project'));
+    return fetch('/scrum/api/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ project_id: pid, ...payload }),
+    }).then(r => r.json());
+  }
+
+  function renderSubtasks() {
+    if (!subtasksList) return;
+    subtasksList.innerHTML = '';
+    if (!subtasks.length) {
+      const empty = document.createElement('div');
+      empty.className = 'muted';
+      empty.style.fontSize = '13px';
+      empty.textContent = 'Пока нет подзадач.';
+      subtasksList.appendChild(empty);
+      return;
+    }
+    subtasks.forEach(ch => {
+      const row = document.createElement('div');
+      row.className = 'tp-item tp-item--subtask';
+      row.style.cursor = 'pointer';
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      if (ch.issue_key) {
+        const keyLine = document.createElement('div');
+        keyLine.className = 'muted';
+        keyLine.style.fontSize = '12px';
+        keyLine.style.marginBottom = '4px';
+        keyLine.textContent = ch.issue_key;
+        row.appendChild(keyLine);
+      }
+      const top = document.createElement('div');
+      top.className = 'tp-item__top';
+      const title = document.createElement('div');
+      title.textContent = ch.title || 'Без названия';
+      const badge = document.createElement('span');
+      badge.className = 'tp-badge';
+      badge.textContent = ch.status_label || ch.status || '';
+      top.appendChild(title);
+      top.appendChild(badge);
+      row.appendChild(top);
+      const openChild = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        const id = parseInt(String(ch.id), 10);
+        if (id) loadTask(id).catch(() => {});
+      };
+      row.addEventListener('click', openChild);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openChild(e);
+        }
+      });
+      subtasksList.appendChild(row);
+    });
+  }
 
   function show() {
     const planning = document.getElementById('kanban-planning-drawer');
@@ -221,6 +308,7 @@ function initKanbanTaskPanel() {
     currentTaskId = null;
     apiUrl = null;
     if (typeof hideCpAddForm === 'function') hideCpAddForm();
+    hideSubtaskForm();
   }
 
   function setActiveTab(name) {
@@ -251,6 +339,14 @@ function initKanbanTaskPanel() {
         c.style.marginTop = '6px';
         c.textContent = cp.comment;
         item.appendChild(c);
+      }
+      if (cp.created_by_display) {
+        const by = document.createElement('div');
+        by.className = 'muted';
+        by.style.marginTop = '4px';
+        by.style.fontSize = '12px';
+        by.textContent = 'Добавил: ' + cp.created_by_display;
+        item.appendChild(by);
       }
       item.addEventListener('click', () => {
         // быстрый toggle done
@@ -297,7 +393,7 @@ function initKanbanTaskPanel() {
       const meta = document.createElement('div');
       meta.className = 'tp-msg__meta';
       const author = document.createElement('div');
-      author.textContent = m.author__username || 'user';
+      author.textContent = m.author_display || m.author__username || 'user';
       const time = document.createElement('div');
       time.textContent = (m.created_at || '').toString().slice(0, 16).replace('T', ' ');
       meta.appendChild(author);
@@ -322,7 +418,7 @@ function initKanbanTaskPanel() {
       const meta = document.createElement('div');
       meta.className = 'tp-activity-item__meta';
       const who = document.createElement('div');
-      who.textContent = a.author__username || 'system';
+      who.textContent = a.author_display || a.author__username || 'system';
       const when = document.createElement('div');
       when.textContent = (a.created_at || '').toString().slice(0, 16).replace('T', ' ');
       meta.appendChild(who);
@@ -347,6 +443,7 @@ function initKanbanTaskPanel() {
 
   function loadTask(taskId) {
     hideCpAddForm();
+    hideSubtaskForm();
     currentTaskId = taskId;
     apiUrl = `/manager/tasks/${taskId}/panel/`;
     show();
@@ -364,6 +461,10 @@ function initKanbanTaskPanel() {
         if (t.description) block += t.description;
         if (t.acceptance_criteria) block += (block ? '\n\n' : '') + 'Критерии приёмки:\n' + t.acceptance_criteria;
         descPrev.textContent = block.trim();
+      }
+      const deleteTaskBtn = document.getElementById('tp-delete-task');
+      if (deleteTaskBtn) {
+        deleteTaskBtn.style.display = resp.can_delete ? 'inline-block' : 'none';
       }
       if (assigneeEl) assigneeEl.textContent = t.assignee || '—';
       if (createdByEl) createdByEl.textContent = t.created_by || '—';
@@ -385,14 +486,30 @@ function initKanbanTaskPanel() {
       const epicSelect = document.getElementById('tp-epic-select');
       if (epicEl) epicEl.textContent = t.epic_title || '—';
       if (epicSelect) epicSelect.value = t.epic_id ? String(t.epic_id) : '';
+      const parentRow = document.getElementById('tp-parent-row');
+      const parentOpen = document.getElementById('tp-parent-open');
+      if (parentRow && parentOpen) {
+        if (t.parent_id) {
+          parentRow.style.display = '';
+          const pk = t.parent_issue_key || '';
+          parentOpen.textContent = (pk ? `${pk} — ` : '') + (t.parent_title || `Задача #${t.parent_id}`);
+          parentOpen.dataset.parentId = String(t.parent_id);
+        } else {
+          parentRow.style.display = 'none';
+          parentOpen.textContent = '';
+          parentOpen.dataset.parentId = '';
+        }
+      }
       checkpoints = resp.checkpoints || [];
       chat = resp.chat || [];
       activity = resp.activity || [];
+      subtasks = resp.children || [];
       renderCheckpoints();
       renderChat();
       renderActivity();
+      renderSubtasks();
       const extraChat = document.getElementById('tp-chat-extra');
-      if (extraChat && (resp.links || resp.children || resp.watchers)) {
+      if (extraChat && (resp.links || resp.watchers)) {
         extraChat.innerHTML = '';
         if (resp.links && resp.links.length) {
           const h = document.createElement('div');
@@ -406,18 +523,6 @@ function initKanbanTaskPanel() {
             extraChat.appendChild(d);
           });
         }
-        if (resp.children && resp.children.length) {
-          const h2 = document.createElement('div');
-          h2.className = 'muted';
-          h2.style.margin = '8px 0 4px';
-          h2.textContent = 'Подзадачи:';
-          extraChat.appendChild(h2);
-          resp.children.forEach(ch => {
-            const d = document.createElement('div');
-            d.textContent = `• ${ch.title}`;
-            extraChat.appendChild(d);
-          });
-        }
         if (resp.watchers && resp.watchers.length) {
           const w = document.createElement('div');
           w.className = 'muted';
@@ -425,6 +530,8 @@ function initKanbanTaskPanel() {
           w.textContent = 'Наблюдают: ' + resp.watchers.join(', ');
           extraChat.appendChild(w);
         }
+      } else if (extraChat) {
+        extraChat.innerHTML = '';
       }
     });
   }
@@ -454,6 +561,34 @@ function initKanbanTaskPanel() {
   const taskDrawerBackdrop = document.getElementById('kanban-task-backdrop');
   if (taskDrawerBackdrop) taskDrawerBackdrop.addEventListener('click', () => hide());
   tabBtns.forEach(btn => btn.addEventListener('click', () => setActiveTab(btn.getAttribute('data-tab'))));
+
+  const parentOpenBtn = document.getElementById('tp-parent-open');
+  if (parentOpenBtn) {
+    parentOpenBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const pid = parseInt(parentOpenBtn.dataset.parentId || '0', 10);
+      if (pid) loadTask(pid).catch(() => {});
+    });
+  }
+
+  const deleteTaskBtn = document.getElementById('tp-delete-task');
+  if (deleteTaskBtn) {
+    deleteTaskBtn.addEventListener('click', () => {
+      if (!currentTaskId || !apiUrl) return;
+      if (!window.confirm('Удалить задачу безвозвратно? Подзадачи, чекпоинты, комментарии и связи тоже будут удалены.')) return;
+      apiRequest({ action: 'task_delete' })
+        .then(resp => {
+          if (!resp.ok) {
+            if (resp.error === 'forbidden') alert('Недостаточно прав для удаления задачи.');
+            return;
+          }
+          hide();
+          window.location.reload();
+        })
+        .catch(() => {});
+    });
+  }
 
   const cpAddForm = document.getElementById('tp-cp-add-form');
   const cpAddInput = document.getElementById('tp-cp-add-input');
@@ -497,6 +632,52 @@ function initKanbanTaskPanel() {
     cpAddInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); submitCpAdd(); }
       if (e.key === 'Escape') { e.preventDefault(); hideCpAddForm(); }
+    });
+  }
+
+  function submitSubtask() {
+    const title = (subtaskTitleInput && subtaskTitleInput.value || '').trim();
+    if (!title || !currentTaskId) return;
+    const stSp = document.getElementById('tp-subtask-sp');
+    const stAs = document.getElementById('tp-subtask-assignee');
+    let storyPoints = 0;
+    if (stSp && stSp.value !== '') {
+      const n = parseInt(stSp.value, 10);
+      if (Number.isFinite(n)) storyPoints = Math.max(0, Math.min(100, n));
+    }
+    const assigneeRaw = stAs && stAs.value ? stAs.value : '';
+    const body = {
+      action: 'subtask_create',
+      parent_task_id: currentTaskId,
+      title,
+      story_points: storyPoints,
+    };
+    if (assigneeRaw) body.assignee = assigneeRaw;
+    scrumApiForProject(body)
+      .then(resp => {
+        if (!resp.ok) {
+          if (resp.error === 'forbidden') alert('Недостаточно прав для создания подзадачи.');
+          else if (resp.error === 'title_required') alert('Укажите название подзадачи.');
+          return;
+        }
+        hideSubtaskForm();
+        loadTask(currentTaskId).catch(() => {});
+      })
+      .catch(() => {});
+  }
+
+  if (subtaskAddBtn) {
+    subtaskAddBtn.addEventListener('click', () => {
+      if (!currentTaskId) return;
+      showSubtaskForm();
+    });
+  }
+  if (subtaskSubmit) subtaskSubmit.addEventListener('click', submitSubtask);
+  if (subtaskCancel) subtaskCancel.addEventListener('click', hideSubtaskForm);
+  if (subtaskTitleInput) {
+    subtaskTitleInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); submitSubtask(); }
+      if (e.key === 'Escape') { e.preventDefault(); hideSubtaskForm(); }
     });
   }
 

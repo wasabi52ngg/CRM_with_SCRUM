@@ -23,7 +23,24 @@ document.addEventListener('DOMContentLoaded', () => {
     col.addEventListener('drop', e => {
       e.preventDefault();
       if (!dragged) return;
-      col.querySelector('[data-list]').appendChild(dragged);
+      const fromList = dragged.parentElement;
+      const fromNext = dragged.nextElementSibling;
+      const toList = col.querySelector('[data-list]');
+      if (!toList) return;
+
+      const sprintForMove =
+        window.__boardSprintIdForMove != null && window.__boardSprintIdForMove !== ''
+          ? window.__boardSprintIdForMove
+          : window.__activeSprintId || null;
+
+      // Для задач без спринта требуем выбранный/активный спринт,
+      // иначе после обновления страницы карточка снова попадет в беклог.
+      if (dragged.classList.contains('backlog-task') && !sprintForMove) {
+        showToast('Создайте спринт и сделайте его активным (или выберите спринт на доске), чтобы переносить из беклога.', 4600);
+        return;
+      }
+
+      toList.appendChild(dragged);
       const taskId = dragged.getAttribute('data-task');
       const newStatus = col.getAttribute('data-col');
       fetch(`/kanban/move/`, {
@@ -32,21 +49,28 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({
           id: taskId,
           status: newStatus,
-          sprint:
-            window.__boardSprintIdForMove != null && window.__boardSprintIdForMove !== ''
-              ? window.__boardSprintIdForMove
-              : window.__activeSprintId || null,
+          sprint: sprintForMove,
         })
       })
         .then(r => r.json())
         .then(resp => {
-          if (!resp.ok && resp.error === 'dependency_not_done') {
-            alert('Нельзя перевести задачу в статус «Готово», пока блокирующая задача не завершена.');
-            // Откатываем визуальное перемещение
-            window.location.reload();
+          if (!resp.ok) {
+            restoreDraggedCard(dragged, fromList, fromNext);
+            if (resp.error === 'dependency_not_done') {
+              showToast('Нельзя перевести задачу в «Готово», пока блокирующая задача не завершена.', 4200);
+            } else if (resp.error === 'forbidden') {
+              showToast('Недостаточно прав для перемещения этой задачи.', 3800);
+            } else if (resp.error === 'bad_status') {
+              showToast('Нельзя переместить задачу в эту колонку.', 3800);
+            } else {
+              showToast('Не удалось сохранить новую стадию. Попробуйте еще раз.', 3800);
+            }
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          restoreDraggedCard(dragged, fromList, fromNext);
+          showToast('Ошибка сети: стадия не сохранена.', 3600);
+        });
     });
   });
 
@@ -703,7 +727,7 @@ function initKanbanTaskPanel() {
     payload[field] = value;
     apiRequest(payload).then(resp => {
       if (!resp.ok && resp.error === 'dependency_not_done') {
-        alert('Нельзя перевести задачу в статус «Готово», пока блокирующая задача не завершена.');
+        showToast('Нельзя перевести задачу в «Готово», пока блокирующая задача не завершена.', 4200);
         return;
       }
       if (resp.ok) loadTask(currentTaskId);
@@ -1933,6 +1957,39 @@ function getCsrfToken() {
     if (c.startsWith(name)) return c.substring(name.length);
   }
   return '';
+}
+
+function restoreDraggedCard(card, fromList, fromNext) {
+  if (!card || !fromList) return;
+  if (fromNext && fromNext.parentElement === fromList) {
+    fromList.insertBefore(card, fromNext);
+  } else {
+    fromList.appendChild(card);
+  }
+}
+
+let __toastTimer = null;
+function showToast(text, durationMs = 3200) {
+  let toast = document.getElementById('kanban-toast') || document.getElementById('retro-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'kanban-toast';
+    toast.className = 'retro-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    toast.hidden = true;
+    document.body.appendChild(toast);
+  }
+  toast.textContent = text || '';
+  toast.hidden = false;
+  toast.classList.add('retro-toast--show');
+  if (__toastTimer) clearTimeout(__toastTimer);
+  __toastTimer = setTimeout(() => {
+    toast.classList.remove('retro-toast--show');
+    setTimeout(() => {
+      toast.hidden = true;
+    }, 220);
+  }, durationMs);
 }
 
 

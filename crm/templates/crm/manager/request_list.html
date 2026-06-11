@@ -2,11 +2,14 @@
 {% load crm_tags %}
 {% block title %}Заявки{% endblock %}
 {% block content %}
-<h1 class="page-title">Заявки</h1>
-<table>
+<div class="page-title-row">
+  <h1 class="page-title">Заявки</h1>
+  {% include 'crm/snippets/page_tour_launch.html' with tour_id='request_list' %}
+</div>
+<table class="request-list-table">
     <thead>
     <tr>
-        <th>Дата</th><th>Название</th><th>Тип</th><th>Статус</th><th>Ответственный</th><th>Действия</th>
+        <th>Дата</th><th>Название</th><th>Тип</th><th>Статус</th><th>Ответственный</th><th class="request-list-take-col">Действия</th>
     </tr>
     </thead>
     <tbody>
@@ -17,7 +20,7 @@
             <td>{{ r.get_project_type_display }}</td>
             <td>{{ r.get_status_display }}</td>
             <td>{% if r.manager %}{{ r.manager|user_display }}{% else %}<span style="color: var(--muted);">Не назначен</span>{% endif %}</td>
-            <td>
+            <td class="request-list-take-col">
                 {% if not r.manager and r.status != 'done' %}
                 <form method="post" action="{% url 'crm:manager_request_detail' r.pk %}" style="display: inline;">
                     {% csrf_token %}

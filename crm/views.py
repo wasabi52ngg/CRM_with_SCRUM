@@ -118,6 +118,16 @@ def _due_date_to_json(d):
     return str(d)[:10]
 
 
+def _clamp_story_points(value, default: int = 0) -> int:
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return default
+    if n <= 0:
+        return 0
+    return max(1, min(10, n))
+
+
 def _get_user_company_ids(user: User) -> list[int]:
     """
     Вспомогательная функция: возвращает список id компаний, в которых состоит пользователь.
@@ -539,7 +549,6 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
 
         assignee = None
         if assignee_id:
-            # Исполнитель должен быть в списке разработчиков компании проекта (как в форме)
             developer_user_ids = CompanyMembership.objects.filter(
                 company=project.company,
                 is_approved=True,
@@ -548,11 +557,10 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
             if int(assignee_id) in developer_user_ids:
                 assignee = get_object_or_404(User, pk=assignee_id)
 
-        try:
-            story_points = int(story_points_raw)
-        except Exception:
-            story_points = 0
-        story_points = max(0, min(100, story_points))
+        story_points = _clamp_story_points(story_points_raw)
+        priority = request.POST.get("priority") or Task.Priority.MEDIUM
+        if priority not in dict(Task.Priority.choices):
+            priority = Task.Priority.MEDIUM
 
         if title and task_type in dict(Task.TaskType.choices):
             task = Task.objects.create(
@@ -560,6 +568,7 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
                 title=title,
                 description=description,
                 task_type=task_type,
+                priority=priority,
                 created_by=request.user,
                 assignee=assignee,
                 due_date=due_date,
@@ -594,7 +603,7 @@ class DeveloperOpenTasksView(LoginRequiredMixin, ListView):
                 status=Task.Status.TODO,
                 assignee__isnull=True,
             )
-            .select_related("project")
+            .select_related("project", "created_by")
         )
         if company_ids:
             qs = qs.filter(project__company_id__in=company_ids)
@@ -1760,13 +1769,8 @@ class ScrumApiView(LoginRequiredMixin, View):
                     )
                     if aid in dev_ids:
                         assignee = get_object_or_404(User, pk=aid)
-            story_points = 0
             sp_raw = payload.get("story_points")
-            if sp_raw not in (None, ""):
-                try:
-                    story_points = max(0, min(100, int(sp_raw)))
-                except (TypeError, ValueError):
-                    story_points = 0
+            story_points = _clamp_story_points(sp_raw) if sp_raw not in (None, "") else 0
             child = Task.objects.create(
                 project=project,
                 sprint=parent.sprint,
@@ -1902,8 +1906,7 @@ class KanbanCreateTaskApiView(LoginRequiredMixin, View):
         task_type = payload.get("task_type") or "fullstack"
         assignee_id = payload.get("assignee") or None
         due_date = _parse_due_date(payload.get("due_date"))
-        story_points = int(payload.get("story_points") or 0)
-        story_points = max(0, min(100, story_points))
+        story_points = _clamp_story_points(payload.get("story_points"))
         sprint_id = payload.get("sprint") or payload.get("sprint_id") or None
 
         if not project_id or not title:
@@ -2226,7 +2229,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 "status": "Статус",
                 "assignee": "Исполнитель",
                 "due_date": "Дедлайн",
-                "story_points": "Оценка (баллы)",
+                "story_points": "Оценка трудоёмкости (баллы)",
                 "title": "Название",
                 "priority": "Приоритет",
                 "epic": "Эпик",
@@ -2452,7 +2455,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                     )
             if story_points_raw is not None:
                 old_sp = task.story_points
-                sp = max(0, min(100, int(story_points_raw)))
+                sp = _clamp_story_points(story_points_raw)
                 task.story_points = sp
                 changed = True
                 if old_sp != sp:

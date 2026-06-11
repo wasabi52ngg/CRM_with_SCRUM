@@ -1,19 +1,47 @@
 {% extends 'crm/base.html' %}
+{% load crm_tags %}
 {% block title %}Свободные задачи{% endblock %}
 {% block content %}
 <h1 class="page-title">Свободные задачи для вас</h1>
 <ul class="dev-open-tasks">
     {% for t in object_list %}
         <li class="dev-open-tasks__item">
-            <a class="dev-open-tasks__link" href="{% url 'crm:kanban_board' t.project_id %}?task={{ t.pk }}">{{ t.title }}</a>
-            <span class="muted">[{{ t.get_task_type_display }}] · {{ t.project.name }}</span>
+            <div class="dev-open-tasks__main">
+                <div class="dev-open-tasks__head">
+                    <a class="dev-open-tasks__link" href="{% url 'crm:kanban_board' t.project_id %}?task={{ t.pk }}">{{ t.title }}</a>
+                    <span class="task-badge task-badge--prio task-badge--prio-{{ t.priority }}" title="Приоритет">{{ t.get_priority_display }}</span>
+                </div>
+                <div class="dev-open-tasks__meta muted">
+                    <span>[{{ t.get_task_type_display }}]</span>
+                    <span>·</span>
+                    <span>{{ t.project.name }}</span>
+                    {% if t.story_points %}
+                    <span>·</span>
+                    <span>Трудоёмкость: {{ t.story_points }} б.</span>
+                    {% endif %}
+                    {% if t.due_date %}
+                    <span>·</span>
+                    <span>до {{ t.due_date|date:"d.m.Y" }}</span>
+                    {% endif %}
+                </div>
+                {% if t.created_by %}
+                <div class="dev-open-tasks__author muted">
+                    Постановщик: {{ t.created_by|user_display }}
+                </div>
+                {% endif %}
+                {% if t.description %}
+                <div class="dev-open-tasks__desc">{{ t.description|truncatewords:40 }}</div>
+                {% else %}
+                <div class="dev-open-tasks__desc dev-open-tasks__desc--empty muted">Постановщик не оставил описания</div>
+                {% endif %}
+            </div>
             <form method="post" action="{% url 'crm:dev_take_task' t.pk %}" class="dev-open-tasks__take">
                 {% csrf_token %}
                 <button type="submit" class="btn">Взять</button>
             </form>
         </li>
     {% empty %}
-        <li>Нет доступных задач</li>
+        <li class="dev-open-tasks__empty">Нет доступных задач</li>
     {% endfor %}
- </ul>
+</ul>
 {% endblock %}

@@ -493,7 +493,7 @@ function initKanbanTaskPanel() {
       if (assigneeEl) assigneeEl.textContent = t.assignee || '—';
       if (createdByEl) createdByEl.textContent = t.created_by || '—';
       if (dueEl) dueEl.textContent = t.due_date || '—';
-      if (spEl) spEl.textContent = String(t.story_points ?? 0);
+      if (spEl) spEl.textContent = `${t.story_points ?? 0} б.`;
       const sprintEl = document.getElementById('tp-sprint');
       const statusEl = document.getElementById('tp-status');
       const assigneeSelect = document.getElementById('tp-assignee-select');
@@ -667,7 +667,7 @@ function initKanbanTaskPanel() {
     let storyPoints = 0;
     if (stSp && stSp.value !== '') {
       const n = parseInt(stSp.value, 10);
-      if (Number.isFinite(n)) storyPoints = Math.max(0, Math.min(100, n));
+      if (Number.isFinite(n)) storyPoints = Math.max(0, Math.min(10, n));
     }
     const assigneeRaw = stAs && stAs.value ? stAs.value : '';
     const body = {
@@ -772,8 +772,9 @@ function initKanbanTaskPanel() {
         saveTaskField('due_date', inputEl.value || null);
         valueEl.textContent = inputEl.value || '—';
       } else if (field === 'story_points') {
-        saveTaskField('story_points', parseInt(inputEl.value, 10) || 0);
-        valueEl.textContent = inputEl.value || '0';
+        const spVal = Math.max(0, Math.min(10, parseInt(inputEl.value, 10) || 0));
+        saveTaskField('story_points', spVal);
+        valueEl.textContent = spVal ? `${spVal} б.` : '0';
       }
     };
     inputEl.addEventListener('change', finishEdit);
@@ -1750,6 +1751,7 @@ function initKanbanExtras() {
       const status = statusInput ? statusInput.value : 'todo';
       const title = (document.getElementById('task-create-title')?.value || '').trim();
       const description = (document.getElementById('task-create-description')?.value || '').trim();
+      const priority = document.getElementById('task-create-priority')?.value || 'medium';
       const taskType = document.getElementById('task-create-type')?.value || 'fullstack';
       const assignee = document.getElementById('task-create-assignee')?.value || null;
       const dueDate = document.getElementById('task-create-due')?.value || null;
@@ -1767,10 +1769,11 @@ function initKanbanExtras() {
           status,
           title,
           description,
+          priority,
           task_type: taskType,
           assignee: assignee || undefined,
           due_date: dueDate || undefined,
-          story_points: sp,
+          story_points: Math.max(0, Math.min(10, sp || 0)),
           sprint: sprintForCreate,
         }),
       })

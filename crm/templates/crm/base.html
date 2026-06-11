@@ -8,6 +8,7 @@
     <title>{% block title %}CRM{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
     <link rel="stylesheet" href="{% static 'crm/css/base_extra.css' %}">
+    <link rel="stylesheet" href="{% static 'crm/css/page-tour.css' %}">
     {% block head %}{% endblock %}
  </head>
 <body>
@@ -107,6 +108,9 @@
 </main>
 
 <script src="{% static 'crm/js/app.js' %}"></script>
+{% if user.is_authenticated %}
+<script src="{% static 'crm/js/page-tour.js' %}"></script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

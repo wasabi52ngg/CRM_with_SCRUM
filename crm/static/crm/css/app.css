@@ -1007,6 +1007,109 @@ body.kanban-drawer-lock {
   font-family: ui-monospace, monospace;
 }
 
+.glossary-card__ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* Docs tabs */
+.glossary-hero {
+  margin-bottom: 20px;
+}
+
+.docs-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+  padding-bottom: 0;
+}
+
+.docs-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+  margin-bottom: -1px;
+}
+
+.docs-tab:hover {
+  color: var(--text);
+}
+
+.docs-tab--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.docs-section--hidden {
+  display: none;
+}
+
+/* Role blocks */
+.docs-role-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px 24px;
+  margin-bottom: 24px;
+}
+
+.docs-role-block--owner { border-left: 4px solid #f59e0b; }
+.docs-role-block--manager { border-left: 4px solid var(--primary); }
+.docs-role-block--developer { border-left: 4px solid #10b981; }
+.docs-role-block--neutral { border-left: 4px solid var(--border); }
+
+.docs-role-block__title {
+  margin: 0 0 14px;
+}
+
+.docs-role-chip {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.docs-role-chip--owner   { background: #fef3c7; color: #92400e; }
+.docs-role-chip--manager { background: rgba(99,102,241,.12); color: var(--primary); }
+.docs-role-chip--developer { background: #d1fae5; color: #065f46; }
+
+.docs-role-block h3 {
+  font-size: 14px;
+  font-weight: 650;
+  margin: 18px 0 8px;
+  color: var(--text);
+}
+
+.docs-ol, .docs-ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.docs-ol li + li,
+.docs-ul li + li {
+  margin-top: 4px;
+}
+
+.docs-role-block > p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0 0 4px;
+}
+
 .kanban-config-table thead th {
   vertical-align: top;
 }
@@ -1202,6 +1305,104 @@ body.kanban-drawer-lock {
 .task-badge--prio-critical {
   background: rgba(220, 38, 38, 0.1);
   border-color: rgba(220, 38, 38, 0.3);
+}
+
+.task-badge--prio-low {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.dev-open-tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dev-open-tasks__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.dev-open-tasks__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dev-open-tasks__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.dev-open-tasks__link {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.dev-open-tasks__link:hover {
+  color: var(--accent);
+}
+
+.dev-open-tasks__meta {
+  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.dev-open-tasks__author {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.dev-open-tasks__desc {
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+}
+
+.dev-open-tasks__desc--empty {
+  font-style: italic;
+}
+
+.dev-open-tasks__take {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.dev-open-tasks__empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .dev-open-tasks__item {
+    flex-direction: column;
+  }
+
+  .dev-open-tasks__take {
+    width: 100%;
+  }
+
+  .dev-open-tasks__take .btn {
+    width: 100%;
+  }
 }
 
 .task__meta--foot {

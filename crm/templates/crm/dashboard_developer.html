@@ -221,10 +221,17 @@
             <div class="task-card-header">
                 <h3 class="task-card-title">{{ task.title }}</h3>
                 <span class="task-badge">{{ task.get_task_type_display }}</span>
+                <span class="task-badge task-badge--prio task-badge--prio-{{ task.priority }}" title="Приоритет">{{ task.get_priority_display }}</span>
+                {% if task.story_points %}
+                <span class="task-badge" title="Оценка трудоёмкости">{{ task.story_points }} б.</span>
+                {% endif %}
             </div>
             <div class="task-meta">
                 Проект: {{ task.project.name }}
             </div>
+            {% if task.description %}
+            <p class="task-card-desc muted">{{ task.description|truncatewords:20 }}</p>
+            {% endif %}
         </a>
         {% endfor %}
     </div>

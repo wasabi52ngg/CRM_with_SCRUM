@@ -1,131 +1,477 @@
 {% extends "crm/base.html" %}
-{% block title %}Справочник: Scrum и канбан — CRM{% endblock %}
+{% load company_tags %}
+{% block title %}Документация — CRM{% endblock %}
 {% block content %}
 <div class="glossary-page">
-  <h1>Справочник терминов</h1>
-  <p class="glossary-page__intro">
-    Краткие пояснения ролей и понятий, которые встречаются в проекте, на доске и в отчётах.
-    Если что-то непонятно в настройках — загляните сюда.
-  </p>
 
-  <div class="glossary-grid">
-    <article class="glossary-card" id="term-product-owner">
-      <h2 class="glossary-card__h">Владелец продукта</h2>
-      <p class="glossary-card__term-en">Product Owner, PO</p>
-      <p class="glossary-card__p">
-        Отвечает за ценность продукта для бизнеса и пользователей: формулирует цели, расставляет приоритеты в бэклоге,
-        принимает решения «что делать дальше». В этом сервисе PO указывается в настройках проекта для прозрачности команды.
-      </p>
-      <p class="glossary-card__p">
-        <strong>Что может:</strong> задавать направление и приоритеты (в реальной команде — утверждать бэклог и критерии приёмки).
-        В CRM поле информационное: кто «голос» по продукту на доске и в отчётах.
-      </p>
-    </article>
+  <header class="glossary-hero">
+    <h1>Документация системы</h1>
+    <p class="glossary-page__intro">
+      Руководство пользователя, описание ролей и объектов системы, а также справочник терминов Scrum/Канбан.
+      Используйте оглавление или вкладки ниже.
+    </p>
+  </header>
 
-    <article class="glossary-card" id="term-scrum-master">
-      <h2 class="glossary-card__h">Мастер процесса</h2>
-      <p class="glossary-card__term-en">Scrum Master, SM</p>
-      <p class="glossary-card__p">
-        Помогает команде работать по Scrum: убирает препятствия, фасилитирует церемонии (планирование, дейли, ретро),
-        следит за тем, чтобы процесс был понятен и соблюдался — без управления задачами вместо команды.
-      </p>
-      <p class="glossary-card__p">
-        <strong>Что может:</strong> координировать процесс, защищать команду от хаоса, улучшать взаимодействие.
-        В CRM поле показывает, к кому обращаться по процессу; права в системе задаются ролью (менеджер / разработчик), а не этим полем.
-      </p>
-    </article>
+  <nav class="docs-tabs" role="tablist" aria-label="Разделы документации">
+    <button class="docs-tab docs-tab--active" data-tab="guide" role="tab" aria-selected="true">Руководство пользователя</button>
+    <button class="docs-tab" data-tab="objects" role="tab" aria-selected="false">Объекты системы</button>
+    <button class="docs-tab" data-tab="glossary" role="tab" aria-selected="false">Справочник терминов</button>
+  </nav>
 
-    <article class="glossary-card" id="term-sprint">
-      <h2 class="glossary-card__h">Спринт</h2>
-      <p class="glossary-card__term-en">Sprint</p>
-      <p class="glossary-card__p">
-        Короткий фиксированный период (например 1–2 недели), в течение которого команда берёт на себя ограниченный набор задач
-        и стремится завершить инкремент. На доске активный спринт задаёт контекст колонок и фильтров.
-      </p>
-    </article>
+  <!-- ======================== РУКОВОДСТВО ПОЛЬЗОВАТЕЛЯ ======================== -->
+  <section class="docs-section" id="tab-guide">
 
-    <article class="glossary-card" id="term-backlog">
-      <h2 class="glossary-card__h">Бэклог</h2>
-      <p class="glossary-card__term-en">Product backlog</p>
-      <p class="glossary-card__p">
-        Упорядоченный список всего, что может понадобиться продукту. Верх списка — то, что планируют делать раньше.
-        Задачи без спринта в сервисе попадают в бэклог доски.
-      </p>
-    </article>
+    {% if user|is_owner_in_company %}
+    <div class="docs-role-block docs-role-block--owner">
+      <h2 class="docs-role-block__title">
+        <span class="docs-role-chip docs-role-chip--owner">Владелец компании</span>
+      </h2>
+      <p>Вы управляете компанией в полном объёме: принимаете новых сотрудников, настраиваете проекты и видите все заявки.</p>
 
-    <article class="glossary-card" id="term-epic">
-      <h2 class="glossary-card__h">Эпик</h2>
-      <p class="glossary-card__term-en">Epic</p>
-      <p class="glossary-card__p">
-        Крупная цель или тема, на которую «навешивают» много задач (например «Личный кабинет» или «Интеграция с оплатой»).
-        Эпик помогает видеть прогресс по направлению и фильтровать доску по одной крупной инициативе.
-      </p>
-    </article>
+      <h3>Первые шаги</h3>
+      <ol class="docs-ol">
+        <li>После регистрации компании вы оказываетесь на <strong>странице управления</strong> — ссылка «Управление» в шапке.</li>
+        <li>Скопируйте <strong>код приглашения</strong> (раздел «Сотрудники») и передайте менеджерам и разработчикам для регистрации.</li>
+        <li>После того, как сотрудники зарегистрируются, они появятся в списке «Ожидают подтверждения» — назначьте им роль (менеджер и/или разработчик) и подтвердите.</li>
+        <li>Скопируйте или обновите <strong>публичную ссылку</strong> для приёма заявок от клиентов (там же, в управлении).</li>
+      </ol>
 
-    <article class="glossary-card" id="term-dod">
-      <h2 class="glossary-card__h">Критерии готовности</h2>
-      <p class="glossary-card__term-en">Definition of Done, DoD</p>
-      <p class="glossary-card__p">
-        Общий чеклист: задача считается завершённой только если выполнены все пункты (код, тесты, ревью, документация и т.д.).
-        В проекте DoD задаётся в настройках и может показываться в панели планирования.
-      </p>
-    </article>
+      <h3>Работа с заявками и проектами</h3>
+      <ul class="docs-ul">
+        <li>Раздел <strong>«Заявки»</strong> показывает все обращения клиентов вашей компании.</li>
+        <li>Вы можете взять заявку в работу сами или дождаться, пока менеджер заберёт её.</li>
+        <li>Как только заявка переводится в статус «В работе», система автоматически создаёт <strong>проект</strong>, привязанный к заявке.</li>
+        <li>В проекте можно назначить <strong>Product Owner</strong> и <strong>Scrum Master</strong>, задать Definition of Done и префикс ключей задач.</li>
+      </ul>
 
-    <article class="glossary-card" id="term-story-points">
-      <h2 class="glossary-card__h">Баллы / оценка</h2>
-      <p class="glossary-card__term-en">Story points</p>
-      <p class="glossary-card__p">
-        Относительная оценка объёма и риска задачи (не «часы»). Команда согласует шкалу и использует баллы для планирования спринта и velocity.
-      </p>
-    </article>
+      <h3>Дашборд</h3>
+      <p>На дашборде вы видите общую картину: активные проекты, незакрытые заявки и последние уведомления.
+        Для перехода к конкретному проекту нажмите на его название.</p>
+    </div>
+    {% endif %}
 
-    <article class="glossary-card" id="term-wip">
-      <h2 class="glossary-card__h">WIP</h2>
-      <p class="glossary-card__term-en">Work In Progress limit</p>
-      <p class="glossary-card__p">
-        Лимит одновременно находящихся в колонке карточек (кроме завершённых по смыслу политики).
-        <strong>0</strong> в настройках колонки означает «без лимита». Помогает не перегружать этап и видеть узкие места.
-      </p>
-    </article>
+    {% if user|is_manager_in_company %}
+    <div class="docs-role-block docs-role-block--manager">
+      <h2 class="docs-role-block__title">
+        <span class="docs-role-chip docs-role-chip--manager">Менеджер</span>
+      </h2>
+      <p>Вы работаете с клиентами и ведёте проекты от заявки до завершения.</p>
 
-    <article class="glossary-card" id="term-column-policy">
-      <h2 class="glossary-card__h">Политика колонки</h2>
-      <p class="glossary-card__term-en">Column policy</p>
-      <p class="glossary-card__p">
-        Короткое правило для команды: что значит колонка, кто переводит карточки дальше, какие условия «готово» на этом шаге.
-        Отображается как подсказка рядом с настройками канбана.
-      </p>
-    </article>
+      <h3>Жизненный цикл заявки</h3>
+      <ol class="docs-ol">
+        <li><strong>Новая</strong> — клиент оставил запрос; кнопка «Взять заявку» появится в списке и на карточке.</li>
+        <li><strong>Обсуждение</strong> — используйте чат на карточке заявки для уточнения требований.</li>
+        <li><strong>В работе</strong> — система создаёт проект; вы можете перейти к нему по ссылке внутри заявки.
+          Ведите диаграмму этапов (чекпоинты) — клиент видит статус в личном кабинете.</li>
+        <li><strong>Завершено</strong> — кнопка «Завершить заявку» доступна ответственному и владельцу.
+          После завершения клиент получит возможность оставить отзыв.</li>
+      </ol>
 
-    <article class="glossary-card" id="term-retrospective">
-      <h2 class="glossary-card__h">Ретроспектива</h2>
-      <p class="glossary-card__term-en">Retrospective</p>
-      <p class="glossary-card__p">
-        Встреча в конце спринта: что прошло хорошо, что улучшить, какие действия взять в следующий спринт.
-        В отчётах ретро привязана к выбранному спринту.
-      </p>
-    </article>
+      <h3>Доска задач (Канбан)</h3>
+      <ol class="docs-ol">
+        <li>Откройте проект → нажмите <strong>«Доска»</strong>.</li>
+        <li>Слева — <strong>Беклог</strong>: все задачи без спринта. Перетащите карточку на доску или назначьте её в спринт через панель задачи.</li>
+        <li>Выберите область: <em>Весь проект</em>, <em>Активный спринт</em> или конкретный спринт.</li>
+        <li>Чтобы создать задачу прямо в колонке — нажмите «+» под заголовком колонки.</li>
+        <li>Для открытия детали задачи — нажмите на карточку. Боковая панель позволяет добавить комментарий, чеклист, изменить исполнителя, дату и т.д.</li>
+        <li>Перетащите карточку в другую колонку, чтобы изменить статус.</li>
+      </ol>
 
-    <article class="glossary-card" id="term-retro-actions">
-      <h2 class="glossary-card__h">Действия после ретро</h2>
-      <p class="glossary-card__term-en">Action items</p>
-      <p class="glossary-card__p">
-        Конкретные шаги с ответственными: не общие пожелания, а «кто что сделает до следующей ретро».
-        Удобный формат: одна строка — одно действие; можно указать имя или роль и срок.
-      </p>
-      <p class="glossary-card__p">
-        Пример: «Настроить CI для develop — Иван до пятницы», «Чеклист в PR — Мария».
-      </p>
-    </article>
+      <h3>Управление спринтами</h3>
+      <ol class="docs-ol">
+        <li>Кнопка <strong>«Планирование»</strong> на доске (видна менеджерам и владельцам).</li>
+        <li>Создайте спринт, укажите название и цель; задайте даты начала и окончания.</li>
+        <li>Выберите спринт → нажмите «Сделать активным» — он появится в шапке доски.</li>
+        <li>После завершения нажмите «Завершить» — задачи, не попавшие в «Готово», предложит перенести в следующий спринт.</li>
+      </ol>
 
-    <article class="glossary-card" id="term-issue-prefix">
-      <h2 class="glossary-card__h">Префикс ключа задачи</h2>
-      <p class="glossary-card__term-en">Issue key prefix</p>
-      <p class="glossary-card__p">
-        Короткий код проекта для номеров задач (например <code>PRJ</code> для ключей вида PRJ-12). Задаётся в настройках проекта
-        и помогает отличать задачи разных продуктов в переписке и интеграциях.
-      </p>
-    </article>
-  </div>
+      <h3>Отчёты и ретроспектива</h3>
+      <p>Страница <strong>«Отчёты»</strong> (ссылка на доске или в проекте):</p>
+      <ul class="docs-ul">
+        <li>Диаграмма сгорания (burndown) по выбранному спринту.</li>
+        <li>Velocity — скорость команды по спринтам.</li>
+        <li>Ретроспектива: поля «Что прошло хорошо», «Что улучшить», «Action items».</li>
+      </ul>
+
+      <h3>Эпики</h3>
+      <p>В панели планирования → вкладка «Эпики» можно создавать крупные темы работ.
+        Задача в боковой панели привязывается к эпику через поле «Эпик». На доске отображается цветная метка.
+        Фильтрация по эпику доступна в блоке «Фильтры» над доской.</p>
+
+      <h3>Фильтры доски</h3>
+      <p>Раскрывающийся блок «Фильтры» позволяет отобрать задачи по:</p>
+      <ul class="docs-ul">
+        <li>Исполнителю — кнопки «Мои» / «Без исполнителя» или выбор из списка.</li>
+        <li>Типу работ (frontend, backend, QA…).</li>
+        <li>Эпику.</li>
+        <li>Пресетам: «Просрочено», «Критические».</li>
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if user|is_developer_in_company %}
+    <div class="docs-role-block docs-role-block--developer">
+      <h2 class="docs-role-block__title">
+        <span class="docs-role-chip docs-role-chip--developer">Разработчик</span>
+      </h2>
+      <p>Вы берёте задачи в работу, работаете с доской и отмечаете прогресс.</p>
+
+      <h3>Первые шаги</h3>
+      <ol class="docs-ol">
+        <li>Зарегистрируйтесь, выбрав вариант «Сотрудник компании» и введя код приглашения от владельца.</li>
+        <li>Дождитесь подтверждения (владелец назначит вам роль). До подтверждения вы увидите экран «Ожидайте одобрения».</li>
+        <li>После одобрения в профиле укажите <strong>специализацию</strong> (frontend, backend, QA и т.д.) — это нужно для подбора подходящих задач.</li>
+      </ol>
+
+      <h3>Получение задач</h3>
+      <ul class="docs-ul">
+        <li>Раздел <strong>«Задачи»</strong> (навигация) — список открытых задач, подходящих под вашу специализацию.</li>
+        <li>Нажмите «Взять задачу» — задача назначится на вас и вы перейдёте на доску проекта.</li>
+        <li>Менеджер также может назначить вас через панель задачи на доске.</li>
+      </ul>
+
+      <h3>Работа с задачей</h3>
+      <ol class="docs-ol">
+        <li>Откройте карточку задачи кликом по ней на доске — откроется боковая панель.</li>
+        <li>Оставляйте комментарии, добавляйте чеклисты (подзадачи через кнопку «+» в панели).</li>
+        <li>Когда задача готова к проверке — перетащите карточку в колонку <em>На ревью</em>.</li>
+        <li>После ревью: <em>Готово</em>.</li>
+      </ol>
+
+      <h3>Дашборд</h3>
+      <p>На дашборде показаны ваши текущие задачи, задачи доступные к взятию и ваши проекты.</p>
+    </div>
+    {% endif %}
+
+    {% if not user|is_manager_in_company and not user|is_developer_in_company and not user|is_owner_in_company %}
+    <div class="docs-role-block docs-role-block--neutral">
+      <p class="muted">Здесь будут инструкции в зависимости от вашей роли.
+        Если вы сотрудник, дождитесь подтверждения владельца компании.</p>
+    </div>
+    {% endif %}
+
+  </section>
+
+  <!-- ======================== ОБЪЕКТЫ СИСТЕМЫ ======================== -->
+  <section class="docs-section docs-section--hidden" id="tab-objects">
+
+    <div class="glossary-grid">
+
+      <article class="glossary-card" id="obj-company">
+        <h2 class="glossary-card__h">Компания</h2>
+        <p class="glossary-card__p">
+          Основная единица организации. К компании привязаны сотрудники, заявки, проекты.
+          У компании есть <strong>публичная ссылка</strong> (или токен) для формы клиентских заявок —
+          передайте её клиентам или разместите на сайте.
+        </p>
+        <p class="glossary-card__p">
+          <strong>Страница:</strong> «Управление» в навигации (видна владельцу).
+        </p>
+      </article>
+
+      <article class="glossary-card" id="obj-membership">
+        <h2 class="glossary-card__h">Роль сотрудника</h2>
+        <p class="glossary-card__p">
+          Каждый сотрудник может иметь одну или несколько ролей в компании:
+        </p>
+        <ul class="glossary-card__ul">
+          <li><strong>Владелец</strong> — полный доступ: управление компанией, заявки, проекты, задачи.</li>
+          <li><strong>Менеджер</strong> — работает с заявками и проектами, управляет спринтами и задачами.</li>
+          <li><strong>Разработчик</strong> — работает с задачами на доске.</li>
+        </ul>
+        <p class="glossary-card__p">
+          Разрешены комбинации (например, менеджер и разработчик одновременно).
+          Роль назначает владелец при подтверждении сотрудника.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="obj-request">
+        <h2 class="glossary-card__h">Заявка</h2>
+        <p class="glossary-card__p">
+          Запрос клиента на разработку. Содержит тип проекта (сайт, бот, мобильное приложение),
+          контактные данные и описание задачи.
+        </p>
+        <p class="glossary-card__p"><strong>Статусы заявки:</strong></p>
+        <ul class="glossary-card__ul">
+          <li><em>Новая</em> — только поступила, ответственного нет.</li>
+          <li><em>Обсуждение</em> — менеджер взял и уточняет требования.</li>
+          <li><em>В работе</em> — создан проект, ведётся разработка.</li>
+          <li><em>Завершено</em> — проект сдан, клиент может оставить отзыв.</li>
+        </ul>
+        <p class="glossary-card__p">
+          <strong>Чекпоинты</strong> — этапы обработки заявки на визуальной схеме. Видны клиенту.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="obj-project">
+        <h2 class="glossary-card__h">Проект</h2>
+        <p class="glossary-card__p">
+          Создаётся автоматически при переводе заявки в статус «В работе».
+          Содержит все задачи, спринты, эпики и настройки доски.
+        </p>
+        <ul class="glossary-card__ul">
+          <li><strong>Product Owner</strong> — «голос» бизнеса, расставляет приоритеты.</li>
+          <li><strong>Scrum Master</strong> — следит за процессом, помогает команде.</li>
+          <li><strong>Definition of Done</strong> — чеклист готовности задачи.</li>
+          <li><strong>Префикс ключа</strong> — короткий код для нумерации задач (PRJ-1, PRJ-2…).</li>
+        </ul>
+      </article>
+
+      <article class="glossary-card" id="obj-task">
+        <h2 class="glossary-card__h">Задача</h2>
+        <p class="glossary-card__p">
+          Единица работы на канбан-доске. У задачи есть:
+        </p>
+        <ul class="glossary-card__ul">
+          <li><strong>Тип работы</strong> — frontend, backend, QA, DevOps и т.д.</li>
+          <li><strong>Вид</strong> — история, баг, задача, подзадача.</li>
+          <li><strong>Приоритет</strong> — низкий, средний, высокий, критический.</li>
+          <li><strong>Story points</strong> — относительная оценка объёма.</li>
+          <li><strong>Исполнитель, дата, эпик, спринт</strong>.</li>
+          <li><strong>Чеклист</strong> — шаги внутри задачи.</li>
+          <li><strong>Комментарии</strong> — обсуждение команды.</li>
+          <li><strong>Связи</strong> — задача блокирует / связана с / дублирует другую.</li>
+        </ul>
+      </article>
+
+      <article class="glossary-card" id="obj-kanban">
+        <h2 class="glossary-card__h">Канбан-доска</h2>
+        <p class="glossary-card__p">
+          Визуальная доска с колонками статусов: «К выполнению» → «В работе» → «На ревью» → «Готово».
+          Колонки можно переименовать, скрыть, задать WIP-лимит и политику.
+        </p>
+        <p class="glossary-card__p">
+          Слева — беклог (задачи без спринта). Переключение области: весь проект или конкретный спринт.
+          Два вида: карточки (Канбан) и список.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="obj-sprint">
+        <h2 class="glossary-card__h">Спринт</h2>
+        <p class="glossary-card__p">
+          Ограниченный период работы (обычно 1–2 недели). Создаётся в панели планирования на доске.
+          Только один спринт может быть активным одновременно.
+        </p>
+        <p class="glossary-card__p">
+          При завершении спринта незакрытые задачи предлагается перенести в следующий или вернуть в беклог.
+          В отчётах видна диаграмма сгорания и velocity по спринтам.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="obj-epic">
+        <h2 class="glossary-card__h">Эпик</h2>
+        <p class="glossary-card__p">
+          Крупная тема или цель, объединяющая несколько задач (например «Личный кабинет», «Интеграция с API оплаты»).
+          Задачи привязываются к эпику через боковую панель. На карточке показывается цветная метка эпика.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="obj-notification">
+        <h2 class="glossary-card__h">Уведомления</h2>
+        <p class="glossary-card__p">
+          Колокольчик в правом верхнем углу. Уведомления приходят при:
+        </p>
+        <ul class="glossary-card__ul">
+          <li>Назначении задачи на вас.</li>
+          <li>Новом комментарии к задаче, которую вы отслеживаете.</li>
+          <li>Изменении статуса задачи.</li>
+          <li>Запуске / завершении спринта (менеджеру).</li>
+          <li>Новой заявке от клиента (менеджеру).</li>
+          <li>Новом сообщении в чате заявки.</li>
+          <li>Запросе нового сотрудника (владельцу).</li>
+        </ul>
+      </article>
+
+      <article class="glossary-card" id="obj-review">
+        <h2 class="glossary-card__h">Отзыв клиента</h2>
+        <p class="glossary-card__p">
+          После того как заявка завершена, клиент может поставить оценку (1–5 звёзд) и написать текстовый отзыв.
+          Отзывы публично видны на странице компании. Один отзыв — на одну заявку.
+        </p>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ======================== СПРАВОЧНИК ТЕРМИНОВ ======================== -->
+  <section class="docs-section docs-section--hidden" id="tab-glossary">
+    <div class="glossary-grid">
+
+      <article class="glossary-card" id="term-product-owner">
+        <h2 class="glossary-card__h">Владелец продукта</h2>
+        <p class="glossary-card__term-en">Product Owner, PO</p>
+        <p class="glossary-card__p">
+          Отвечает за ценность продукта для бизнеса: формулирует цели, расставляет приоритеты в бэклоге,
+          принимает решения «что делать дальше».
+          В системе PO указывается в настройках проекта для прозрачности команды.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-scrum-master">
+        <h2 class="glossary-card__h">Мастер процесса</h2>
+        <p class="glossary-card__term-en">Scrum Master, SM</p>
+        <p class="glossary-card__p">
+          Помогает команде работать по Scrum: убирает препятствия, фасилитирует церемонии
+          (планирование, дейли, ретро), следит за процессом.
+          В системе поле показывает, к кому обращаться по вопросам процесса.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-sprint">
+        <h2 class="glossary-card__h">Спринт</h2>
+        <p class="glossary-card__term-en">Sprint</p>
+        <p class="glossary-card__p">
+          Короткий фиксированный период (1–2 недели), в течение которого команда берёт
+          ограниченный набор задач и стремится завершить инкремент.
+          На доске активный спринт задаёт контекст колонок и фильтров.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-backlog">
+        <h2 class="glossary-card__h">Беклог</h2>
+        <p class="glossary-card__term-en">Product backlog</p>
+        <p class="glossary-card__p">
+          Упорядоченный список всего, что может понадобиться продукту.
+          Верх списка — то, что планируют делать раньше.
+          Задачи без спринта в системе попадают в беклог доски.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-epic">
+        <h2 class="glossary-card__h">Эпик</h2>
+        <p class="glossary-card__term-en">Epic</p>
+        <p class="glossary-card__p">
+          Крупная цель или тема, на которую «навешивают» много задач
+          (например «Личный кабинет» или «Интеграция с оплатой»).
+          Помогает видеть прогресс по направлению и фильтровать доску.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-dod">
+        <h2 class="glossary-card__h">Критерии готовности</h2>
+        <p class="glossary-card__term-en">Definition of Done, DoD</p>
+        <p class="glossary-card__p">
+          Общий чеклист: задача считается завершённой только если выполнены все пункты
+          (код написан, покрыт тестами, прошло ревью и т.д.).
+          В проекте DoD задаётся в настройках.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-story-points">
+        <h2 class="glossary-card__h">Баллы / оценка</h2>
+        <p class="glossary-card__term-en">Story points</p>
+        <p class="glossary-card__p">
+          Относительная оценка объёма и сложности задачи (не «часы»).
+          Команда согласует шкалу и использует баллы для планирования спринта и отслеживания velocity.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-velocity">
+        <h2 class="glossary-card__h">Скорость команды</h2>
+        <p class="glossary-card__term-en">Velocity</p>
+        <p class="glossary-card__p">
+          Среднее количество story points, выполняемых командой за спринт.
+          Используется для планирования: сколько задач реально взять в следующую итерацию.
+          Отображается на странице «Отчёты».
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-burndown">
+        <h2 class="glossary-card__h">Диаграмма сгорания</h2>
+        <p class="glossary-card__term-en">Burndown chart</p>
+        <p class="glossary-card__p">
+          График убывания оставшихся story points по дням спринта.
+          Показывает, движется ли команда к цели или начинает отставать.
+          Идеальная линия — равномерный спуск от старта до нуля.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-wip">
+        <h2 class="glossary-card__h">WIP-лимит</h2>
+        <p class="glossary-card__term-en">Work In Progress limit</p>
+        <p class="glossary-card__p">
+          Максимальное количество карточек, одновременно находящихся в колонке.
+          <strong>0</strong> — без лимита. Помогает не перегружать этап и видеть узкие места.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-column-policy">
+        <h2 class="glossary-card__h">Политика колонки</h2>
+        <p class="glossary-card__term-en">Column policy</p>
+        <p class="glossary-card__p">
+          Короткое правило: что значит эта колонка, кто переводит карточки дальше,
+          какие условия «готово» на этом шаге.
+          Задаётся в панели планирования → «Колонки».
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-retrospective">
+        <h2 class="glossary-card__h">Ретроспектива</h2>
+        <p class="glossary-card__term-en">Retrospective</p>
+        <p class="glossary-card__p">
+          Встреча в конце спринта: что прошло хорошо, что улучшить, какие действия взять в следующий спринт.
+          В разделе «Отчёты» ретро привязана к выбранному спринту.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-retro-actions">
+        <h2 class="glossary-card__h">Действия после ретро</h2>
+        <p class="glossary-card__term-en">Action items</p>
+        <p class="glossary-card__p">
+          Конкретные шаги с ответственными — не общие пожелания, а «кто что сделает до следующей ретро».
+          Пример: «Настроить CI — Иван до пятницы».
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-issue-prefix">
+        <h2 class="glossary-card__h">Префикс ключа задачи</h2>
+        <p class="glossary-card__term-en">Issue key prefix</p>
+        <p class="glossary-card__p">
+          Короткий код проекта для нумерации задач (например <code>PRJ</code> для ключей PRJ-1, PRJ-2…).
+          Задаётся в настройках проекта.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-checkpoint">
+        <h2 class="glossary-card__h">Чекпоинт заявки</h2>
+        <p class="glossary-card__term-en">Request checkpoint</p>
+        <p class="glossary-card__p">
+          Узел на визуальной схеме этапов обработки заявки. Менеджер создаёт узлы и связи между ними,
+          отмечает выполненные. Клиент видит схему в своём кабинете.
+        </p>
+      </article>
+
+      <article class="glossary-card" id="term-story">
+        <h2 class="glossary-card__h">История</h2>
+        <p class="glossary-card__term-en">User Story</p>
+        <p class="glossary-card__p">
+          Вид задачи, описывающий ценность для пользователя («Как пользователь, я хочу…»).
+          Обычно самый распространённый тип в продуктовых командах.
+        </p>
+      </article>
+
+    </div>
+  </section>
+
 </div>
+
+<script>
+(function () {
+  var tabs = document.querySelectorAll('.docs-tab');
+  var sections = document.querySelectorAll('.docs-section');
+  function activate(id) {
+    tabs.forEach(function (t) {
+      var active = t.getAttribute('data-tab') === id;
+      t.classList.toggle('docs-tab--active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    sections.forEach(function (s) {
+      s.classList.toggle('docs-section--hidden', s.id !== 'tab-' + id);
+    });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () { activate(t.getAttribute('data-tab')); });
+  });
+})();
+</script>
 {% endblock %}

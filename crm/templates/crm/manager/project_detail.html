@@ -1,10 +1,13 @@
 {% extends 'crm/base.html' %}
 {% block title %}Проект — {{ object.name }}{% endblock %}
 {% block content %}
-<h1 class="page-title">{{ object.name }}</h1>
+<div class="page-title-row">
+  <h1 class="page-title">{{ object.name }}</h1>
+  {% include 'crm/snippets/page_tour_launch.html' with tour_id='project_detail' %}
+</div>
 <p class="muted">{{ object.description }}</p>
 
-<div class="project-progress-card">
+<div class="project-progress-card" id="project-progress-card">
   <div class="project-progress-row">
     <div>
       <div class="meta-label">Всего задач</div>
@@ -32,11 +35,11 @@
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
   <h2>Задачи</h2>
   <div style="display:flex;gap:8px;">
-    <a class="btn" href="{% url 'crm:kanban_board' object.pk %}">Доска</a>
-    <a class="btn" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты по спринтам</a>
+    <a class="btn" id="project-open-kanban" href="{% url 'crm:kanban_board' object.pk %}">Доска</a>
+    <a class="btn" id="project-open-reports" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты по спринтам</a>
   </div>
 </div>
-<table>
+<table id="project-tasks-table">
     <thead>
     <tr>
       <th>Название</th>
@@ -45,7 +48,8 @@
       <th>Постановщик</th>
       <th>Исполнитель</th>
       <th>Дедлайн</th>
-      <th>Важность</th>
+      <th>Приоритет</th>
+      <th>Трудоёмкость</th>
     </tr>
     </thead>
     <tbody>
@@ -57,7 +61,8 @@
             <td>{{ t.created_by|default:"—" }}</td>
             <td>{{ t.assignee|default:"—" }}</td>
             <td>{{ t.due_date|date:"d.m.Y"|default:"—" }}</td>
-            <td>{{ t.story_points }}</td>
+            <td>{{ t.get_priority_display }}</td>
+            <td>{% if t.story_points %}{{ t.story_points }} б.{% else %}—{% endif %}</td>
         </tr>
     {% empty %}
         <tr><td colspan="7">Пока нет задач</td></tr>
@@ -70,7 +75,7 @@
 <p class="muted" style="font-size:13px;margin:0 0 12px;">Эти поля не блокируют работу, но отображаются на доске (DoD в панели планирования) и помогают команде помнить, кто владелец продукта и кто фасилитирует процесс.
   <a href="{% url 'crm:scrum_glossary' %}">Справочник терминов</a>.
 </p>
-<form method="post" class="scrum-project-form" style="max-width:640px;">
+<form method="post" id="scrum-project-form" class="scrum-project-form" style="max-width:640px;">
   {% csrf_token %}
   <input type="hidden" name="action" value="scrum_project_save">
   <label class="muted">Префикс ключа задачи (например PRJ для PRJ-12)</label>
@@ -97,11 +102,21 @@
 </form>
 {% endif %}
 
-<h3 style="margin-top:24px;">Добавить задачу</h3>
-<form method="post">
+<h3 style="margin-top:24px;" id="project-add-task-title">Добавить задачу</h3>
+<form method="post" id="project-add-task-form">
     {% csrf_token %}
     <input type="text" name="title" placeholder="Название" required>
-    <textarea name="description" placeholder="Описание"></textarea>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Комментарий постановщика</label>
+    <textarea name="description" rows="3" placeholder="Опишите задачу: что сделать, контекст, критерии…"></textarea>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Приоритет</label>
+    <select name="priority">
+      <option value="low">Низкий</option>
+      <option value="medium" selected>Средний</option>
+      <option value="high">Высокий</option>
+      <option value="critical">Критический</option>
+    </select>
+    <label class="muted" style="display:block;margin:8px 0 4px;">Оценка трудоёмкости (баллы, 1–10)</label>
+    <input type="number" name="story_points" min="0" max="10" value="0" placeholder="0 — не оценена">
     <label class="muted" style="display:block;margin:8px 0 4px;">Исполнитель (опционально)</label>
     <select name="assignee">
       <option value="">— не назначать —</option>
@@ -113,8 +128,6 @@
     </select>
     <label class="muted" style="display:block;margin:8px 0 4px;">Дедлайн</label>
     <input type="date" name="due_date">
-    <label class="muted" style="display:block;margin:8px 0 4px;">Важность задачи (1–100)</label>
-    <input type="number" name="story_points" min="0" max="100" value="0" placeholder="0" title="Чем выше число, тем важнее задача">
     <label class="muted" style="display:block;margin:8px 0 4px;">Тип задачи</label>
     <select name="task_type" required>
         <option value="frontend">Фронтенд</option>

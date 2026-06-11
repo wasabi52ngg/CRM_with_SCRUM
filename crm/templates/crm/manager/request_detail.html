@@ -4,7 +4,10 @@
 {% block content %}
 <div class="request-layout">
   <div class="request-main">
-    <h1 class="page-title">{{ object.title }}</h1>
+    <div class="page-title-row">
+      <h1 class="page-title">{{ object.title }}</h1>
+      {% include 'crm/snippets/page_tour_launch.html' with tour_id='request_detail' %}
+    </div>
     <div class="request-meta-card">
       <div class="request-meta-row">
         <div>
@@ -142,7 +145,7 @@
       </div>
     </section>
 
-    <section class="card" style="margin-top: 16px;">
+    <section class="card request-chat-section" style="margin-top: 16px;">
       <h2 style="margin-top: 0;">Чат по заявке</h2>
       <p class="muted" style="margin-top: -6px;">
         Клиент увидит ваши сообщения в личном кабинете. Для гостей общение идёт по указанным контактам.

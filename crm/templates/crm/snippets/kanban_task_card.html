@@ -17,11 +17,11 @@
       <span class="task-badge task-badge--type" title="Тип работы">{{ t.get_task_type_display }}</span>
       <span class="task-badge task-badge--item" title="Элемент Scrum">{{ t.get_work_item_type_display }}</span>
       {% if t.priority != 'medium' %}
-      <span class="task-badge task-badge--prio task-badge--prio-{{ t.priority }}">{{ t.get_priority_display }}</span>
+      <span class="task-badge task-badge--prio task-badge--prio-{{ t.priority }}" title="Приоритет">{{ t.get_priority_display }}</span>
       {% endif %}
     </div>
     <div class="meta task__meta">
-      <span class="task-sp" title="Оценка в баллах"><strong>б.</strong> {{ t.story_points }}</span>
+      <span class="task-sp" title="Оценка трудоёмкости"><strong>б.</strong> {{ t.story_points }}</span>
       {% with sublbl=t|subtask_label %}
       {% if sublbl %}
       <span class="task-sub" title="Подзадачи: сколько в статусе «Готово» из всех дочерних">Подзадачи {{ sublbl }}</span>

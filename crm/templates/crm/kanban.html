@@ -39,6 +39,7 @@
       <button type="button" class="cmd-btn cmd-btn--primary" id="kanban-open-planning">Планирование</button>
       {% endif %}
       <a class="cmd-btn" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты</a>
+      {% include 'crm/snippets/page_tour_launch.html' with tour_id='kanban' %}
       <div class="cmd-views" role="group" aria-label="Вид">
         <button type="button" class="kanban-view-btn kanban-view-btn--active" data-view="kanban" title="Канбан">⊞</button>
         <button type="button" class="kanban-view-btn" data-view="list" title="Список">≡</button>
@@ -392,9 +393,9 @@
       <input type="date" id="tp-due-input" class="tp-edit-input" style="display:none;">
     </div>
     <div class="task-panel__row task-panel__row--editable" data-field="story_points">
-      <span class="muted">Оценка (баллы)</span>
+      <span class="muted">Оценка трудоёмкости (баллы)</span>
       <span id="tp-sp" class="tp-value">0</span>
-      <input type="number" id="tp-sp-input" class="tp-edit-input" min="0" max="100" style="display:none;">
+      <input type="number" id="tp-sp-input" class="tp-edit-input" min="0" max="10" style="display:none;">
     </div>
     <div class="task-panel__subtasks" id="tp-subtasks-section" style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(0,0,0,0.08);">
       <div class="task-panel__toolbar task-panel__toolbar--subtasks">
@@ -403,8 +404,8 @@
       </div>
       <div id="tp-subtask-add-form" class="tp-cp-add-form tp-cp-add-form--hidden">
         <input type="text" id="tp-subtask-title" placeholder="Название подзадачи" autocomplete="off">
-        <div class="muted" style="font-size:12px;margin:6px 0 4px;">Баллы (0–100), необязательно</div>
-        <input type="number" id="tp-subtask-sp" min="0" max="100" value="0" class="tp-edit-input" style="display:block;width:100%;margin-bottom:8px;">
+        <div class="muted" style="font-size:12px;margin:6px 0 4px;">Трудоёмкость (баллы, 1–10), необязательно</div>
+        <input type="number" id="tp-subtask-sp" min="0" max="10" value="0" class="tp-edit-input" style="display:block;width:100%;margin-bottom:8px;">
         <div class="muted" style="font-size:12px;margin:0 0 4px;">Исполнитель, необязательно</div>
         <select id="tp-subtask-assignee" class="tp-edit-select" style="display:block;width:100%;margin-bottom:8px;">
           <option value="">— не назначать —</option>
@@ -473,8 +474,21 @@
         <input type="text" id="task-create-title" name="title" required placeholder="Краткое описание задачи">
       </div>
       <div class="modal__field">
-        <label for="task-create-description">Описание</label>
-        <textarea id="task-create-description" name="description" rows="3" placeholder="Подробности"></textarea>
+        <label for="task-create-description">Комментарий постановщика</label>
+        <textarea id="task-create-description" name="description" rows="3" placeholder="Опишите задачу: что сделать, контекст, критерии…"></textarea>
+      </div>
+      <div class="modal__field">
+        <label for="task-create-priority">Приоритет</label>
+        <select id="task-create-priority" name="priority">
+          <option value="low">Низкий</option>
+          <option value="medium" selected>Средний</option>
+          <option value="high">Высокий</option>
+          <option value="critical">Критический</option>
+        </select>
+      </div>
+      <div class="modal__field">
+        <label for="task-create-sp">Оценка трудоёмкости (баллы, 1–10)</label>
+        <input type="number" id="task-create-sp" name="story_points" min="0" max="10" value="0" placeholder="0 — не оценена">
       </div>
       <div class="modal__field">
         <label for="task-create-type">Тип задачи</label>
@@ -500,10 +514,6 @@
       <div class="modal__field">
         <label for="task-create-due">Дедлайн</label>
         <input type="date" id="task-create-due" name="due_date">
-      </div>
-      <div class="modal__field">
-        <label for="task-create-sp">Оценка сложности, баллы (0–100)</label>
-        <input type="number" id="task-create-sp" name="story_points" min="0" max="100" value="0">
       </div>
       <div class="modal__actions">
         <button type="submit" class="btn">Создать</button>

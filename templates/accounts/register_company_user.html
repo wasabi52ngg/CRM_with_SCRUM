@@ -22,6 +22,7 @@
         {% endif %}
 
         {% for field in form %}
+        {% if field.name != 'personal_data_consent' %}
         <div class="input-box">
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
             {{ field }}
@@ -38,7 +39,10 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
         {% endfor %}
+
+        {% include 'crm/snippets/personal_data_consent.html' with field=form.personal_data_consent %}
 
         <button type="submit" class="btn">Зарегистрироваться</button>
         <p>Уже есть аккаунт? <a href="{% url 'accounts:login' %}" style="color: var(--primary);">Войти</a></p>

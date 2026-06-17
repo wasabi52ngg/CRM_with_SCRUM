@@ -28,6 +28,7 @@
         {% endif %}
 
         {% for field in form %}
+        {% if field.name != 'personal_data_consent' %}
         <div class="input-box" {% if field.name == 'company_code' %}id="company-code-field" style="display: none;"{% endif %}>
             {% if field.label == "Телефон" %}
             <label for="{{ field.id_for_label }}">{{ field.label }}</label>
@@ -66,7 +67,10 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
         {% endfor %}
+
+        {% include 'crm/snippets/personal_data_consent.html' with field=form.personal_data_consent %}
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {

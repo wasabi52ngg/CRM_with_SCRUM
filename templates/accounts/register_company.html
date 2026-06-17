@@ -167,6 +167,8 @@
             {% endif %}
         </div>
 
+        {% include 'crm/snippets/personal_data_consent.html' with field=form.personal_data_consent %}
+
         <button type="submit" class="btn">Создать компанию</button>
         <p>Уже есть аккаунт? <a href="{% url 'accounts:login' %}" style="color: var(--primary);">Войти</a></p>
     </form>

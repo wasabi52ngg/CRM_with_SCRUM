@@ -117,6 +117,12 @@
     {% block content %}{% endblock %}
 </main>
 
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <a href="{% url 'crm:privacy_policy' %}">Политика обработки персональных данных</a>
+  </div>
+</footer>
+
 <script src="{% static 'crm/js/app.js' %}"></script>
 {% if user.is_authenticated %}
 <script src="{% static 'crm/js/page-tour.js' %}"></script>

@@ -3,6 +3,7 @@ from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, Pass
 from django import forms
 from django.utils.text import slugify
 from .CustomWidgets import CustomClearableFileInput
+from .consent import PersonalDataConsentMixin, mark_personal_data_consent
 from crm.models import Company, CompanyMembership
 from crm.notification_helpers import notify_employee_join_pending
 
@@ -36,7 +37,7 @@ class LoginUserForm(AuthenticationForm):
         fields = ['username', 'password']
 
 
-class RegisterUserForm(UserCreationForm):
+class RegisterUserForm(PersonalDataConsentMixin, UserCreationForm):
     """
     Форма регистрации пользователя.
     Пользователь выбирает: сотрудник или клиент.
@@ -111,6 +112,7 @@ class RegisterUserForm(UserCreationForm):
         
         if commit:
             user.save()
+            mark_personal_data_consent(user)
             if user_type == 'employee' and company_code:
                 company = Company.objects.get(join_code=company_code)
                 CompanyMembership.objects.create(
@@ -125,7 +127,7 @@ class RegisterUserForm(UserCreationForm):
         return user
 
 
-class CompanyRegisterForm(UserCreationForm):
+class CompanyRegisterForm(PersonalDataConsentMixin, UserCreationForm):
     """
     Регистрация компании и первого пользователя‑владельца.
     Это основной вход в систему для IT‑компаний (аналог создания организации в Jira).
@@ -215,6 +217,7 @@ class CompanyRegisterForm(UserCreationForm):
         if commit:
             company.save()
             user.save()
+            mark_personal_data_consent(user)
             CompanyMembership.objects.create(
                 company=company,
                 user=user,
@@ -229,7 +232,7 @@ class CompanyRegisterForm(UserCreationForm):
         return user
 
 
-class CompanyUserRegisterForm(UserCreationForm):
+class CompanyUserRegisterForm(PersonalDataConsentMixin, UserCreationForm):
     """
     Регистрация сотрудника в уже существующей компании по секретному коду.
     """
@@ -286,6 +289,7 @@ class CompanyUserRegisterForm(UserCreationForm):
 
         if commit:
             user.save()
+            mark_personal_data_consent(user)
             CompanyMembership.objects.create(
                 company=company,
                 user=user,

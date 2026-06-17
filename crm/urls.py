@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     PublicRequestChooseCompanyView,
     PublicRequestView,
+    PrivacyPolicyView,
     ManagerRequestListView,
     ManagerRequestDetailView,
     ManagerProjectDetailView,
@@ -33,6 +34,7 @@ app_name = "crm"
 
 urlpatterns = [
     path("", LandingView.as_view(), name="landing"),
+    path("privacy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
     path("request/", PublicRequestChooseCompanyView.as_view(), name="public_request_choose_company"),
     path("request/<slug:company_slug>/", PublicRequestView.as_view(), name="public_request_by_slug"),
     path("r/<str:token>/", PublicRequestView.as_view(), name="public_request_by_token"),

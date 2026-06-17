@@ -45,6 +45,7 @@ class PublicPagesTests(TestCase):
                 "title": "Нужен сайт",
                 "description": "Корпоративный сайт",
                 "contact_email": "new@client.com",
+                "personal_data_consent": "1",
             },
         )
         self.assertEqual(response.status_code, 200)

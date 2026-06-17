@@ -1,0 +1,25 @@
+{# Согласие для HTML-форм без Django Form (публичная заявка и т.п.) #}
+<div class="pd-consent input-box{% if consent_error %} pd-consent--invalid{% endif %}">
+  <label class="pd-consent__label" for="id_personal_data_consent">
+    <input
+      type="checkbox"
+      name="personal_data_consent"
+      id="id_personal_data_consent"
+      value="1"
+      {% if consent_checked %}checked{% endif %}
+      required
+    >
+    <span class="pd-consent__text">
+      Я даю своё <strong>согласие</strong> на обработку моих персональных данных
+      (адрес электронной почты, контакт в Telegram, сведения из описания заявки)
+      в целях рассмотрения заявки и обратной связи, в соответствии с
+      <a href="{% url 'crm:privacy_policy' %}" target="_blank" rel="noopener noreferrer">Политикой обработки персональных данных</a>
+      и Федеральным законом от 27.07.2006 №&nbsp;152-ФЗ «О персональных данных».
+    </span>
+  </label>
+  {% if consent_error %}
+  <div class="field-errors">
+    <ul><li>{{ consent_error }}</li></ul>
+  </div>
+  {% endif %}
+</div>

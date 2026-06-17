@@ -312,6 +312,21 @@ class PublicRequestView(View):
     def post(self, request: HttpRequest, company_slug: str | None = None, token: str | None = None) -> HttpResponse:
         company = self.get_company(company_slug=company_slug, token=token)
         data = request.POST
+        if not data.get("personal_data_consent"):
+            from accounts.consent import CONSENT_REQUIRED_MESSAGE
+
+            show_register_prompt = (
+                not request.user.is_authenticated
+                and not request.session.get("register_prompt_dismissed")
+            )
+            ctx = {
+                "company": company,
+                "show_register_prompt": show_register_prompt,
+                "consent_error": CONSENT_REQUIRED_MESSAGE,
+                "consent_checked": False,
+                "form_data": data,
+            }
+            return render(request, "crm/public_request.html", ctx)
         client = request.user if request.user.is_authenticated else None
         req = ClientRequest.objects.create(
             company=company,
@@ -762,6 +777,23 @@ class LandingView(View):
         return render(request, "crm/landing.html")
 
 
+class PrivacyPolicyView(TemplateView):
+    """Политика обработки персональных данных (152-ФЗ)."""
+
+    template_name = "crm/privacy_policy.html"
+
+    def get_context_data(self, **kwargs):
+        from django.conf import settings
+
+        ctx = super().get_context_data(**kwargs)
+        ctx.update({
+            "operator_name": settings.SITE_OPERATOR_NAME,
+            "operator_email": settings.SITE_OPERATOR_EMAIL,
+            "operator_address": settings.SITE_OPERATOR_ADDRESS,
+        })
+        return ctx
+
+
 class CompanyListView(LoginRequiredMixin, ListView):
     """
     Список компаний, в которых состоит текущий пользователь.
@@ -1143,6 +1175,20 @@ class ClientCreateRequestView(ClientRequiredMixin, View):
         if not companies.filter(pk=company.pk).exists():
             return redirect("crm:client_request_create")
         data = request.POST
+        if not data.get("personal_data_consent"):
+            from accounts.consent import CONSENT_REQUIRED_MESSAGE
+
+            user_companies_ids = list(
+                Company.objects.filter(client_requests__client=request.user)
+                .distinct()
+                .values_list("id", flat=True)
+            )
+            ctx = {
+                "companies": companies,
+                "user_companies_ids": user_companies_ids,
+                "consent_error": CONSENT_REQUIRED_MESSAGE,
+            }
+            return render(request, self.template_name, ctx)
         req = ClientRequest.objects.create(
             company=company,
             client=request.user,

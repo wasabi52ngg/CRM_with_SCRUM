@@ -268,7 +268,9 @@
                 <label for="description">Описание проекта</label>
                 <textarea name="description" id="description" rows="6" placeholder="Опишите детали вашего проекта, требования, сроки и другую важную информацию..."></textarea>
             </div>
-            
+
+            {% include 'crm/snippets/personal_data_consent_plain.html' %}
+
             <button type="submit" class="form-submit">Отправить заявку →</button>
         </form>
         

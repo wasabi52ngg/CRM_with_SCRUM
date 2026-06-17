@@ -58,6 +58,13 @@ class User(AbstractUser):
         verbose_name="Время создания"
     )
 
+    personal_data_consent_at = models.DateTimeField(
+        verbose_name='Согласие на обработку ПДн',
+        null=True,
+        blank=True,
+        help_text='Дата и время получения согласия на обработку персональных данных (152-ФЗ)',
+    )
+
     def is_manager(self) -> bool:
         return self.role == self.Role.MANAGER
 

@@ -151,6 +151,11 @@ AUTH_USER_MODEL = 'accounts.User'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 
+# Оператор персональных данных (152-ФЗ) — для политики и согласий
+SITE_OPERATOR_NAME = os.environ.get('SITE_OPERATOR_NAME', 'IT CRM')
+SITE_OPERATOR_EMAIL = os.environ.get('SITE_OPERATOR_EMAIL', 'privacy@itcrm.local')
+SITE_OPERATOR_ADDRESS = os.environ.get('SITE_OPERATOR_ADDRESS', '')
+
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
     'accounts.authentication.EmailAuthBackend',  # Авторизация по email

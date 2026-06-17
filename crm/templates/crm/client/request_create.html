@@ -97,6 +97,7 @@
                 <label for="description">Описание проекта</label>
                 <textarea name="description" id="description" placeholder="Опишите детали проекта..."></textarea>
             </div>
+            {% include 'crm/snippets/personal_data_consent_plain.html' %}
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Отправить заявку</button>
                 <a href="{% url 'crm:client_requests' %}" class="btn btn-secondary">Отмена</a>

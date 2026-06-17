@@ -6,6 +6,7 @@
   <h1 class="page-title">Заявки</h1>
   {% include 'crm/snippets/page_tour_launch.html' with tour_id='request_list' %}
 </div>
+<div class="table-scroll">
 <table class="request-list-table">
     <thead>
     <tr>
@@ -39,5 +40,6 @@
     {% endfor %}
     </tbody>
  </table>
+</div>
 {% endblock %}
 

@@ -39,6 +39,7 @@
     <a class="btn" id="project-open-reports" href="{% url 'crm:scrum_reports' object.pk %}">Отчёты по спринтам</a>
   </div>
 </div>
+<div class="table-scroll">
 <table id="project-tasks-table">
     <thead>
     <tr>
@@ -69,6 +70,7 @@
     {% endfor %}
     </tbody>
  </table>
+</div>
 
 {% if can_manage_scrum %}
 <h3 style="margin-top:20px;">Роли в Scrum и критерии готовности</h3>

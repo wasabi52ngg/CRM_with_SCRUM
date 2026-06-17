@@ -1,0 +1,332 @@
+/* Адаптация под телефоны и планшеты */
+
+.site-main {
+  padding-top: 90px;
+}
+
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 16px;
+}
+
+.table-scroll > table {
+  width: 100%;
+  min-width: 520px;
+}
+
+body.mobile-nav-open {
+  overflow: hidden;
+}
+
+/* ——— Планшеты и телефоны ——— */
+@media (max-width: 900px) {
+  body {
+    background-attachment: scroll;
+  }
+
+  .site-main {
+    width: 100%;
+    padding-top: 72px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .container {
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .page-title {
+    font-size: 22px;
+    margin-top: 16px;
+  }
+
+  .auth-container {
+    margin: 28px auto;
+    padding: 24px 16px;
+    max-width: 100%;
+  }
+
+  /* Канбан: горизонтальная прокрутка колонок */
+  .kanban-board-area {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .kanban {
+    grid-auto-columns: minmax(260px, 1fr);
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .kanban-command-bar {
+    gap: 8px;
+  }
+
+  .cmd-select {
+    min-width: 0;
+    max-width: 100%;
+    flex: 1 1 140px;
+  }
+
+  .kanban-filters-card__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kanban-filters-card__row .kf-control,
+  .kanban-filters-card__row .cmd-select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .kf-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Панели и модалки на весь экран */
+  .kanban-drawer__panel {
+    top: 12px;
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .kanban-task-drawer__panel {
+    width: calc(100vw - 20px);
+    max-width: none;
+    max-height: calc(100vh - 24px);
+  }
+
+  /* Заявка: таймлайн в одну колонку */
+  .timeline-card {
+    grid-template-columns: 1fr;
+    padding: 14px 16px;
+  }
+
+  .cp-timeline.cp-diagram {
+    min-height: 280px;
+  }
+
+  .cp-diagram__viewport {
+    min-height: 260px;
+    height: 300px;
+  }
+
+  .cp-editor {
+    grid-column: 1;
+  }
+
+  .timeline-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .request-meta-row {
+    gap: 16px;
+  }
+
+  .request-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .request-actions .btn,
+  .request-actions button,
+  .request-actions a.btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Чат */
+  .request-chat-form,
+  .tp-chat-form {
+    flex-wrap: wrap;
+  }
+
+  .request-chat-form input[type="text"],
+  .tp-chat-form input[type="text"] {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .profile-shell {
+    padding: 0 4px;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+  }
+
+  .profile-actions .btn-primary-wide {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .stat-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* ——— Телефоны: компактная шапка и выезжающее меню ——— */
+@media (max-width: 860px) {
+  .header-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--text);
+    cursor: pointer;
+    flex-shrink: 0;
+    order: 0;
+  }
+
+  .header-menu-toggle:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+
+  .header-flex {
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 8px 10px;
+  }
+
+  .site-header .logo {
+    order: 1;
+    flex: 1;
+    min-width: 0;
+    font-size: 1.05rem;
+  }
+
+  .header-actions {
+    order: 2;
+    flex-shrink: 0;
+    gap: 6px;
+  }
+
+  .site-header .header-actions .nav-link {
+    padding: 8px 10px;
+    font-size: 13px;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-nav-buttons {
+    position: fixed;
+    top: 66px;
+    left: 0;
+    right: 0;
+    z-index: 98;
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 12px;
+    margin: 0;
+    max-height: calc(100vh - 66px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+    order: 10;
+    flex: none;
+    justify-content: flex-start;
+  }
+
+  .site-header--nav-open .header-nav-buttons {
+    display: flex;
+  }
+
+  .nav-btn {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .nav-btn--mobile-only {
+    display: inline-flex;
+  }
+
+  .header-nav-backdrop {
+    display: none;
+    position: fixed;
+    inset: 66px 0 0;
+    z-index: 97;
+    background: rgba(15, 23, 42, 0.25);
+  }
+
+  .site-header--nav-open .header-nav-backdrop {
+    display: block;
+  }
+
+  .header-notify-dropdown {
+    right: -8px;
+    width: min(340px, calc(100vw - 24px));
+  }
+}
+
+@media (min-width: 861px) {
+  .header-menu-toggle {
+    display: none;
+  }
+
+  .header-nav-backdrop {
+    display: none !important;
+  }
+
+  .nav-btn--mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-header .header-actions .nav-link.logout-link {
+    padding: 8px;
+    font-size: 0;
+    max-width: none;
+  }
+
+  .site-header .header-actions .nav-link.logout-link::before {
+    content: "⎋";
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .kanban-page__h1 {
+    font-size: 1.15rem;
+  }
+
+  .kanban-command-bar .cmd-btn {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+
+  button,
+  .btn,
+  .nav-btn,
+  .header-notify-btn {
+    min-height: 40px;
+  }
+}

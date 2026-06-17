@@ -9,13 +9,19 @@
     <link rel="stylesheet" href="{% static 'crm/css/app.css' %}">
     <link rel="stylesheet" href="{% static 'crm/css/base_extra.css' %}">
     <link rel="stylesheet" href="{% static 'crm/css/page-tour.css' %}">
+    <link rel="stylesheet" href="{% static 'crm/css/mobile.css' %}">
     {% block head %}{% endblock %}
  </head>
 <body>
 <header class="site-header">
   <div class="header-flex">
+    <button type="button" class="header-menu-toggle" id="header-menu-toggle" aria-label="Открыть меню" aria-expanded="false" aria-controls="header-mobile-nav">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16"/>
+      </svg>
+    </button>
     <a class="logo" href="{% if user.is_authenticated %}{% url 'crm:dashboard' %}{% else %}{% url 'crm:landing' %}{% endif %}">IT CRM</a>
-    <div class="header-nav-buttons">
+    <nav class="header-nav-buttons" id="header-mobile-nav">
       {% if user.is_authenticated %}
         {% if user|is_owner_in_company %}
           {% with owned_company=user|get_owned_company %}
@@ -67,8 +73,11 @@
           <span class="nav-btn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
           <span>Главная</span>
         </a>
+        <a href="{% url 'accounts:login' %}" class="nav-btn nav-btn--mobile-only {% if request.resolver_match.url_name == 'login' %} active{% endif %}">Вход</a>
+        <a href="{% url 'accounts:register' %}" class="nav-btn nav-btn--mobile-only">Регистрация</a>
+        <a href="{% url 'accounts:register_company' %}" class="nav-btn nav-btn--mobile-only">Регистрация компании</a>
       {% endif %}
-    </div>
+    </nav>
     <div class="header-actions">
       {% if user.is_authenticated %}
       {% if user|can_see_notification_bell %}
@@ -90,13 +99,14 @@
       <a href="{% url 'accounts:logout' %}" class="nav-link logout-link">Выйти</a>
       {% else %}
       <a href="{% url 'accounts:login' %}" class="nav-link">Вход</a>
-      <a href="{% url 'accounts:register' %}" class="nav-link">Регистрация</a>
-      <a href="{% url 'accounts:register_company' %}" class="nav-link">Регистрация компании</a>
+      <a href="{% url 'accounts:register' %}" class="nav-link hide-on-mobile">Регистрация</a>
+      <a href="{% url 'accounts:register_company' %}" class="nav-link hide-on-mobile">Регистрация компании</a>
       {% endif %}
     </div>
   </div>
+  <div class="header-nav-backdrop" id="header-nav-backdrop" hidden></div>
 </header>
-<main class="container" style="padding-top:90px">
+<main class="container site-main">
     {% if messages %}
     <ul class="site-messages" role="status">
       {% for message in messages %}

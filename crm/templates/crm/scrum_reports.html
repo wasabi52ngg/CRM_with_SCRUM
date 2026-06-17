@@ -67,6 +67,7 @@
   <h2>Диаграмма сгорания ({{ active_sprint.name }})</h2>
   {% if burndown_labels %}
   <p class="muted">Оставшиеся баллы по дням (обновляется при изменении задач спринта).</p>
+  <div class="table-scroll">
   <table>
     <thead>
       <tr><th>Дата</th><th>Осталось баллов (факт)</th><th>Идеально (линейно)</th></tr>
@@ -81,6 +82,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="muted">Укажите даты начала и окончания у активного спринта.</p>
   {% endif %}
@@ -92,6 +94,7 @@
 <section class="scrum-report-block" style="margin-top:24px;">
   <h2>Скорость команды (завершённые спринты)</h2>
   {% if velocity %}
+  <div class="table-scroll">
   <table>
     <thead><tr><th>Спринт</th><th>Завершён</th><th>Баллов доведено до «Готово»</th></tr></thead>
     <tbody>
@@ -104,6 +107,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="muted">Нет завершённых спринтов.</p>
   {% endif %}

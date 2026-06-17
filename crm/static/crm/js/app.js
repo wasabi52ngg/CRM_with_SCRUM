@@ -106,7 +106,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   initNotifications();
+  initMobileNav();
 });
+
+function initMobileNav() {
+  const header = document.querySelector('.site-header');
+  const toggle = document.getElementById('header-menu-toggle');
+  const nav = document.getElementById('header-mobile-nav');
+  const backdrop = document.getElementById('header-nav-backdrop');
+  if (!header || !toggle || !nav) return;
+
+  function setOpen(open) {
+    header.classList.toggle('site-header--nav-open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+    if (backdrop) backdrop.hidden = !open;
+    document.body.classList.toggle('mobile-nav-open', open);
+  }
+
+  toggle.addEventListener('click', () => {
+    setOpen(!header.classList.contains('site-header--nav-open'));
+  });
+
+  if (backdrop) {
+    backdrop.addEventListener('click', () => setOpen(false));
+  }
+
+  nav.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => setOpen(false));
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') setOpen(false);
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 860) setOpen(false);
+  });
+}
 
 function initNotifications() {
   const btn = document.getElementById('header-notify-btn');

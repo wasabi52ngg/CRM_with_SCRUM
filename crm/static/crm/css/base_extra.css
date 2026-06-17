@@ -410,6 +410,15 @@ footer {
   font-weight: 400;
 }
 
+/* Кнопка мобильного меню (видна только в mobile.css) */
+.header-menu-toggle {
+  display: none;
+}
+
+.header-nav-backdrop {
+  display: none;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .styles_list__z_6uf,

@@ -51,7 +51,7 @@
       {% user_avatar m.author 40 "request-msg__avatar" %}
       <div class="request-msg__body">
         <div class="request-msg__meta"><strong>{{ m.author|user_display }}</strong> <span class="muted">{{ m.created_at|date:"d.m.Y H:i" }}</span></div>
-        <div class="request-msg__text">{{ m.text }}</div>
+        {% include "crm/snippets/chat_message_content.html" with m=m %}
       </div>
     </div>
   {% empty %}
@@ -59,9 +59,12 @@
   {% endfor %}
 </div>
 
-<form method="post" style="margin-top:10px;">
+<form method="post" enctype="multipart/form-data" style="margin-top:10px;">
   {% csrf_token %}
   <textarea name="text" rows="3" placeholder="Напишите сообщение менеджеру"></textarea>
+  <div style="margin-top:8px;">
+    <input type="file" name="attachment" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">
+  </div>
   <br>
   <button type="submit" class="btn">Отправить</button>
 </form>

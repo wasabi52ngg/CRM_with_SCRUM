@@ -9,11 +9,9 @@
     const companyCards = Array.from(companiesGrid.querySelectorAll('.company-card'));
     let isAscending = false; // false = по убыванию (по умолчанию), true = по возрастанию
     
-    // Сортировка - только 2 состояния
     sortButton.addEventListener('click', () => {
         isAscending = !isAscending; // Переключаем между убыванием и возрастанием
         
-        // Обновляем иконку
         const arrow = sortButton.querySelector('.sort-arrow');
         if (arrow) {
             if (isAscending) {
@@ -31,7 +29,6 @@
     function filterAndSort() {
         const searchTerm = searchInput.value.toLowerCase().trim();
         
-        // Фильтрация
         let visible = companyCards.filter(card => {
             const name = card.dataset.name || '';
             const industry = card.dataset.industry || '';
@@ -39,7 +36,6 @@
             return name.includes(searchTerm) || industry.includes(searchTerm);
         });
         
-        // Сортировка - только по названию, 2 направления
         visible.sort((a, b) => {
             const nameA = a.dataset.name || '';
             const nameB = b.dataset.name || '';
@@ -50,7 +46,6 @@
             }
         });
         
-        // Показываем/скрываем карточки
         companyCards.forEach(card => {
             if (visible.includes(card)) {
                 card.style.display = '';
@@ -59,7 +54,6 @@
             }
         });
         
-        // Показываем сообщение "не найдено"
         if (visible.length === 0) {
             noResults.classList.add('show');
             companiesGrid.style.display = 'none';
@@ -67,7 +61,6 @@
             noResults.classList.remove('show');
             companiesGrid.style.display = 'grid';
             
-            // Переставляем видимые карточки в правильном порядке
             visible.forEach(card => {
                 companiesGrid.appendChild(card);
             });

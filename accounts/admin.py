@@ -25,5 +25,3 @@ class UserAdmin(DjangoUserAdmin):
     )
     search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('username',)
-
-# Register your models here.

@@ -33,11 +33,9 @@ app_name = "crm"
 
 urlpatterns = [
     path("", LandingView.as_view(), name="landing"),
-    # Публичные заявки клиентов: компания может отдавать ссылку по слагу или токену
     path("request/", PublicRequestChooseCompanyView.as_view(), name="public_request_choose_company"),
     path("request/<slug:company_slug>/", PublicRequestView.as_view(), name="public_request_by_slug"),
     path("r/<str:token>/", PublicRequestView.as_view(), name="public_request_by_token"),
-    # Client portal
     path("client/requests/", ClientRequestListView.as_view(), name="client_requests"),
     path("client/requests/new/", ClientCreateRequestView.as_view(), name="client_request_create"),
     path("client/requests/<int:pk>/", ClientRequestDetailView.as_view(), name="client_request_detail"),
@@ -45,7 +43,6 @@ urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("help/scrum/", ScrumGlossaryView.as_view(), name="scrum_glossary"),
     path("notifications/api/", NotificationsApiView.as_view(), name="notifications_api"),
-    # Manager area
     path("manager/requests/", ManagerRequestListView.as_view(), name="manager_request_list"),
     path("manager/requests/<int:pk>/", ManagerRequestDetailView.as_view(), name="manager_request_detail"),
     path(
@@ -60,10 +57,8 @@ urlpatterns = [
     path("scrum/api/", ScrumApiView.as_view(), name="scrum_api"),
     path("kanban/move/", KanbanMoveApiView.as_view(), name="kanban_move"),
     path("kanban/create/", KanbanCreateTaskApiView.as_view(), name="kanban_create_task"),
-    # Developer area
     path("dev/open/", DeveloperOpenTasksView.as_view(), name="dev_open_tasks"),
     path("dev/take/<int:pk>/", DeveloperTakeTaskView.as_view(), name="dev_take_task"),
-    # Companies
     path("companies/", CompanyListView.as_view(), name="company_list"),
     path("companies/<slug:slug>/reviews/", CompanyReviewsView.as_view(), name="company_reviews"),
     path("companies/<slug:slug>/", CompanyDetailView.as_view(), name="company_detail"),

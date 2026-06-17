@@ -2742,6 +2742,36 @@ body.kanban-drawer-lock {
   word-break: break-word;
 }
 
+.chat-attachment {
+  margin-top: 8px;
+}
+
+.chat-attachment__img {
+  display: block;
+  max-width: min(100%, 320px);
+  max-height: 240px;
+  border-radius: 8px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+}
+
+.chat-attachment__file {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--primary);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.chat-attachment__file:hover {
+  text-decoration: underline;
+}
+
+.tp-chat-form input[type="file"] {
+  max-width: 180px;
+  font-size: 12px;
+}
+
 .site-messages {
   list-style: none;
   margin: 0 0 16px;

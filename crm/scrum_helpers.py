@@ -43,7 +43,6 @@ def velocity_for_completed_sprints(project_id: int, limit: int = 8) -> list[dict
             {
                 "sprint_id": sp.id,
                 "name": sp.name,
-                # Возвращаем datetime, чтобы шаблон мог нормально отформатировать дату/время.
                 "completed_at": sp.completed_at if sp.completed_at else None,
                 "velocity": int(done_sp),
             }

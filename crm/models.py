@@ -3,6 +3,8 @@ from django.conf import settings
 from django.db.models import Max
 from django.utils.crypto import get_random_string
 
+from .chat_attachments import request_message_upload_to, task_comment_upload_to
+
 
 class Company(models.Model):
     """
@@ -46,7 +48,6 @@ class Company(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        # Генерируем токен для публичной формы и секретный код один раз
         if not self.public_token:
             self.public_token = get_random_string(24)
         if not self.join_code:
@@ -537,7 +538,13 @@ class TaskCheckpoint(models.Model):
 class Comment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    text = models.TextField()
+    text = models.TextField(blank=True)
+    attachment = models.FileField(
+        upload_to=task_comment_upload_to,
+        blank=True,
+        null=True,
+        verbose_name="Вложение",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
@@ -665,7 +672,13 @@ class InAppNotification(models.Model):
 class Message(models.Model):
     request = models.ForeignKey(ClientRequest, on_delete=models.CASCADE, related_name="messages")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    text = models.TextField()
+    text = models.TextField(blank=True)
+    attachment = models.FileField(
+        upload_to=request_message_upload_to,
+        blank=True,
+        null=True,
+        verbose_name="Вложение",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -703,4 +716,3 @@ class CompanyReview(models.Model):
         return f"{self.company_id} ★{self.rating} от {self.client_id}"
 
 
-# Create your models here.

@@ -1,6 +1,48 @@
-venv/
-db.sqlite3
-wget-log
-staticfiles
-evervault.com
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Virtualenv
+venv/
+.venv/
+
+# Secrets & local config
+.env
+
+# IDE
+.idea/
+
+# Django: DB, dumps, generated static, uploads
+db.sqlite3
+*.sqlite3
+data_backup.json
+staticfiles/
+media/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & downloads
+*.log
+wget-log
+
+# Not part of the application (scraped / reference)
+evervault.com/
+
+# VKR / thesis / drafts (not needed to run the project)
+*.docx
+*.doc
+*.pdf
+.diplom_extract.txt
+моя вкр
+другая вкр
+Текст технической части
+Diplom_Sharafutdinov*.docx
+ВКР_*.md
+docs/

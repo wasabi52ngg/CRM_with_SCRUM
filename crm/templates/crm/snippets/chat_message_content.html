@@ -1,0 +1,17 @@
+{% load crm_tags %}
+{% if m.text %}
+  <div class="request-msg__text">{{ m.text }}</div>
+{% endif %}
+{% if m.attachment %}
+  <div class="chat-attachment">
+    {% if m.attachment|chat_image %}
+      <a href="{{ m.attachment.url }}" target="_blank" rel="noopener noreferrer">
+        <img src="{{ m.attachment.url }}" alt="" class="chat-attachment__img">
+      </a>
+    {% else %}
+      <a href="{{ m.attachment.url }}" class="chat-attachment__file" download>
+        {{ m.attachment|file_basename }}
+      </a>
+    {% endif %}
+  </div>
+{% endif %}

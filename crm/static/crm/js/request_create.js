@@ -12,12 +12,10 @@
     const companyItems = Array.from(companiesList.querySelectorAll('.company-item'));
     let isAscending = false; // false = по убыванию (по умолчанию), true = по возрастанию
     
-    // Обработка выбора компании
     companyItems.forEach(item => {
         const radio = item.querySelector('input[type="radio"]');
         
         item.addEventListener('click', (e) => {
-            // Не срабатывает если кликнули на radio (он скрыт)
             if (e.target.type === 'radio') return;
             
             companyItems.forEach(i => i.classList.remove('selected'));
@@ -31,12 +29,10 @@
         });
     });
     
-    // Сортировка - только 2 состояния
     if (sortButton) {
         sortButton.addEventListener('click', () => {
             isAscending = !isAscending; // Переключаем между убыванием и возрастанием
             
-            // Обновляем иконку
             const arrow = sortButton.querySelector('.sort-arrow');
             if (arrow) {
                 if (isAscending) {
@@ -63,12 +59,10 @@
             
             let matches = true;
             
-            // Поиск
             if (searchTerm && !name.includes(searchTerm) && !industry.includes(searchTerm)) {
                 matches = false;
             }
             
-            // Фильтр по компаниям, куда уже отправлял
             if (filterUserCompanies && !isUserCompany) {
                 matches = false;
             }
@@ -76,7 +70,6 @@
             return matches;
         });
         
-        // Сортировка - только по названию, 2 направления
         visible.sort((a, b) => {
             const nameA = a.dataset.name || '';
             const nameB = b.dataset.name || '';
@@ -87,7 +80,6 @@
             }
         });
         
-        // Показываем/скрываем карточки
         companyItems.forEach(item => {
             if (visible.includes(item)) {
                 item.style.display = '';
@@ -96,12 +88,10 @@
             }
         });
         
-        // Переставляем видимые элементы в правильном порядке
         visible.forEach(item => {
             companiesList.appendChild(item);
         });
         
-        // Показываем сообщение "не найдено"
         if (visible.length === 0) {
             if (noResults) {
                 noResults.classList.add('show');
@@ -127,6 +117,5 @@
         filterCheckbox.addEventListener('change', filterAndSearch);
     }
     
-    // Инициализация фильтрации при загрузке
     filterAndSearch();
 })();

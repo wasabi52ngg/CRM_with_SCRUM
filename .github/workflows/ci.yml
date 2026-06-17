@@ -1,0 +1,29 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: itcrm
+          POSTGRES_USER: itcrm
+          POSTGRES_PASSWORD: itcrm
+        ports:
+          - 5432:5432
+    env:
+      POSTGRES_DB: itcrm
+      POSTGRES_USER: itcrm
+      POSTGRES_PASSWORD: itcrm
+      POSTGRES_HOST: localhost
+      DJANGO_SECRET_KEY: test-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python manage.py test

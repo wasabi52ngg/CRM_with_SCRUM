@@ -22,7 +22,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='user',
             name='phone',
-            field=models.CharField(default=django.utils.timezone.now, max_length=20, validators=[accounts.validators.validate_phone_number], verbose_name='Телефон'),
+            field=models.CharField(
+                default='+7-000-000-00-00',
+                max_length=20,
+                validators=[accounts.validators.validate_phone_number],
+                verbose_name='Телефон',
+            ),
             preserve_default=False,
         ),
         migrations.AddField(

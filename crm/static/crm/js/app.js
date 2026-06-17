@@ -1,6 +1,4 @@
-// Main app initialization
 document.addEventListener('DOMContentLoaded', () => {
-  // Kanban drag & drop
   const cols = document.querySelectorAll('[data-col]');
   let dragged = null;
 
@@ -74,23 +72,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Kanban task panel (details/checkpoints/chat) — выезжающая панель как «Планирование»
   if (document.getElementById('kanban-task-drawer')) {
     initKanbanTaskPanel();
   }
 
-  // Kanban extras: create modal, filters, list view, inline edit
   if (document.querySelector('.kanban-wrap')) {
     initKanbanExtras();
   }
 
-  // Request checkpoints timeline (manager request detail)
   const timeline = document.getElementById('cp-timeline');
   if (timeline) {
     initRequestTimeline(timeline);
   }
 
-  // Matrix visual ornaments (for landing page)
   const matrix = document.querySelector('.matrix-bg');
   if (matrix) {
     for (let i = 0; i < 7; i++) {
@@ -220,6 +214,7 @@ function initKanbanTaskPanel() {
   const chatList = document.getElementById('tp-chat-list');
   const chatForm = document.getElementById('tp-chat-form');
   const chatText = document.getElementById('tp-chat-text');
+  const chatFile = document.getElementById('tp-chat-file');
   const activityList = document.getElementById('tp-activity-list');
 
   let currentTaskId = null;
@@ -373,7 +368,6 @@ function initKanbanTaskPanel() {
         item.appendChild(by);
       }
       item.addEventListener('click', () => {
-        // быстрый toggle done
         apiRequest({ action: 'checkpoint_update', id: cp.id, is_done: !cp.is_done })
           .then(resp => {
             if (!resp.ok) return;
@@ -424,9 +418,33 @@ function initKanbanTaskPanel() {
       meta.appendChild(time);
       const text = document.createElement('div');
       text.className = 'tp-msg__text';
-      text.textContent = m.text;
+      if (m.text) text.textContent = m.text;
       body.appendChild(meta);
-      body.appendChild(text);
+      if (m.text) body.appendChild(text);
+      if (m.attachment_url) {
+        const attWrap = document.createElement('div');
+        attWrap.className = 'chat-attachment';
+        if (m.attachment_is_image) {
+          const link = document.createElement('a');
+          link.href = m.attachment_url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          const img = document.createElement('img');
+          img.src = m.attachment_url;
+          img.alt = '';
+          img.className = 'chat-attachment__img';
+          link.appendChild(img);
+          attWrap.appendChild(link);
+        } else {
+          const link = document.createElement('a');
+          link.href = m.attachment_url;
+          link.className = 'chat-attachment__file';
+          link.textContent = m.attachment_name || 'Файл';
+          link.download = '';
+          attWrap.appendChild(link);
+        }
+        body.appendChild(attWrap);
+      }
       row.appendChild(avWrap);
       row.appendChild(body);
       chatList.appendChild(row);
@@ -560,7 +578,6 @@ function initKanbanTaskPanel() {
     });
   }
 
-  // click on kanban cards (ignore drag)
   document.querySelectorAll('[data-task]').forEach(card => {
     card.addEventListener('click', e => {
       if (card === window.__kanbanDragged) return;
@@ -709,7 +726,31 @@ function initKanbanTaskPanel() {
     chatForm.addEventListener('submit', e => {
       e.preventDefault();
       const text = (chatText && chatText.value || '').trim();
-      if (!text) return;
+      const file = chatFile && chatFile.files && chatFile.files[0];
+      if (!text && !file) return;
+
+      if (file) {
+        const fd = new FormData();
+        fd.append('action', 'chat_add');
+        if (text) fd.append('text', text);
+        fd.append('attachment', file);
+        fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCsrfToken() },
+          body: fd,
+        })
+          .then(r => r.json())
+          .then(resp => {
+            if (!resp.ok) return;
+            chat.push(resp.message);
+            if (chatText) chatText.value = '';
+            if (chatFile) chatFile.value = '';
+            renderChat();
+          })
+          .catch(() => {});
+        return;
+      }
+
       apiRequest({ action: 'chat_add', text })
         .then(resp => {
           if (!resp.ok) return;
@@ -1250,7 +1291,6 @@ function initRequestTimeline(root) {
     }
     applyEditMode();
 
-    // позиционируем редактор справа от выбранного чекпоинта
     if (pointElement) {
       const rootRect = root.getBoundingClientRect();
       const pointRect = pointElement.getBoundingClientRect();
@@ -1265,7 +1305,6 @@ function initRequestTimeline(root) {
         editor.style.left = 'auto';
       }
     } else {
-      // для нового чекпоинта - внизу списка
       const points = root.querySelectorAll('.cp-point');
       if (points.length > 0) {
         const lastPoint = points[points.length - 1];
@@ -1375,7 +1414,6 @@ function initRequestTimeline(root) {
       body: JSON.stringify({ action: 'reorder', ids }),
     }).catch(() => {});
 
-    // локально обновим порядок
     const map = new Map();
     checkpoints.forEach(c => map.set(c.id, c));
     const sorted = ids
@@ -1523,7 +1561,7 @@ function initKanbanExtras() {
   const configToggleBtn = document.getElementById('kanban-config-toggle');
   const configPanel = document.getElementById('kanban-config-panel');
 
-  let quickAssigneeFilter = null; // 'my' | 'unassigned' | null
+  let quickAssigneeFilter = null;
   let quickOverdueFilter = false;
 
   function updateQuickFilterButtons() {
@@ -1552,14 +1590,12 @@ function initKanbanExtras() {
       let matchA = !assigneeVal || a === assigneeVal;
       let matchT = !typeVal || t === typeVal;
 
-      // Быстрые фильтры по исполнителю
       if (quickAssigneeFilter === 'my' && currentUserId) {
         matchA = a === currentUserId;
       } else if (quickAssigneeFilter === 'unassigned') {
         matchA = !a;
       }
 
-      // Быстрый фильтр просроченных
       if (quickOverdueFilter) {
         if (due) {
           matchT = matchT && due < now;
@@ -1571,11 +1607,9 @@ function initKanbanExtras() {
       card.style.display = matchA && matchT ? '' : 'none';
     });
 
-    // Те же правила для строк в списочном представлении
     rows.forEach(row => {
       const a = row.getAttribute('data-assignee') || '';
       const t = row.getAttribute('data-task-type') || '';
-      // В списочном виде дедлайн берём из текста ячейки сложнее, поэтому учитываем только тип/исполнителя + быстрые по исполнителю
       let matchA = !assigneeVal || a === assigneeVal;
       let matchT = !typeVal || t === typeVal;
 
@@ -1585,7 +1619,6 @@ function initKanbanExtras() {
         matchA = !a;
       }
 
-      // Просроченность в табличном виде не проверяем, чтобы не разбирать дату из HTML
       row.style.display = matchA && matchT ? '' : 'none';
     });
   }
@@ -1622,7 +1655,6 @@ function initKanbanExtras() {
   if (filterAssignee) filterAssignee.addEventListener('change', () => { applyFilters(); updateCounts(); });
   if (filterType) filterType.addEventListener('change', () => { applyFilters(); updateCounts(); });
 
-  // Быстрые фильтры
   document.querySelectorAll('.kanban-quick-filter').forEach(btn => {
     btn.addEventListener('click', () => {
       const val = btn.getAttribute('data-qf');
@@ -1639,11 +1671,9 @@ function initKanbanExtras() {
     });
   });
 
-  // Инициализируем подсчёты и WIP-подсветку при загрузке.
   applyFilters();
   updateCounts();
 
-  // Применение сохранённого пресета
   if (presetSelect) {
     presetSelect.addEventListener('change', () => {
       const opt = presetSelect.selectedOptions[0];
@@ -1653,13 +1683,11 @@ function initKanbanExtras() {
       if (filterAssignee) filterAssignee.value = a;
       if (filterType) filterType.value = t;
       const currentUserId = window.__currentUserId ? String(window.__currentUserId) : '';
-      // Восстанавливаем "Мои задачи", если пресет сохранён с текущим пользователем
       if (a && currentUserId && a === currentUserId) {
         quickAssigneeFilter = 'my';
       } else {
         quickAssigneeFilter = null;
       }
-      // Пресеты сейчас не хранят отдельный флаг "просроченные", поэтому не восстанавливаем его
       quickOverdueFilter = false;
       updateQuickFilterButtons();
       applyFilters();
@@ -1667,7 +1695,6 @@ function initKanbanExtras() {
     });
   }
 
-  // Сохранение текущего фильтра как пресета
   if (savePresetBtn) {
     savePresetBtn.addEventListener('click', () => {
       const name = window.prompt('Название фильтра:');
@@ -1697,7 +1724,6 @@ function initKanbanExtras() {
     });
   }
 
-  // Тоггл панели настроек канбана
   if (configToggleBtn && configPanel) {
     configToggleBtn.addEventListener('click', () => {
       const hidden = configPanel.classList.contains('kanban-config--hidden');

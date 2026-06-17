@@ -84,13 +84,11 @@ class RegisterUserForm(UserCreationForm):
         user_type = cleaned_data.get('user_type')
         company_code = cleaned_data.get('company_code', '').strip()
         
-        # Если выбран сотрудник, код компании обязателен
         if user_type == 'employee' and not company_code:
             raise forms.ValidationError({
                 'company_code': 'Для регистрации сотрудника необходимо указать код компании'
             })
         
-        # Если указан код компании, проверяем его существование
         if company_code:
             if not Company.objects.filter(join_code=company_code).exists():
                 raise forms.ValidationError({
@@ -104,7 +102,6 @@ class RegisterUserForm(UserCreationForm):
         user_type = self.cleaned_data.get('user_type')
         company_code = self.cleaned_data.get('company_code', '').strip()
         
-        # Устанавливаем роль в зависимости от типа пользователя
         if user_type == 'employee':
             user.role = get_user_model().Role.DEVELOPER
         else:
@@ -114,7 +111,6 @@ class RegisterUserForm(UserCreationForm):
         
         if commit:
             user.save()
-            # Если сотрудник с кодом компании, создаём запрос на участие
             if user_type == 'employee' and company_code:
                 company = Company.objects.get(join_code=company_code)
                 CompanyMembership.objects.create(
@@ -135,7 +131,6 @@ class CompanyRegisterForm(UserCreationForm):
     Это основной вход в систему для IT‑компаний (аналог создания организации в Jira).
     """
 
-    # Поля пользователя
     username = forms.CharField(label='Логин')
     email = forms.EmailField(label='E-mail')
     first_name = forms.CharField(label='Имя')
@@ -145,7 +140,6 @@ class CompanyRegisterForm(UserCreationForm):
     password1 = forms.CharField(label='Пароль', widget=forms.PasswordInput())
     password2 = forms.CharField(label='Повторите пароль', widget=forms.PasswordInput())
 
-    # Поля компании
     company_name = forms.CharField(label='Название компании')
     company_description = forms.CharField(
         label='Описание компании',
@@ -181,27 +175,21 @@ class CompanyRegisterForm(UserCreationForm):
 
     def clean_company_name(self):
         company_name = self.cleaned_data['company_name']
-        # Сначала транслитерируем кириллицу в латиницу, затем создаем slug
         transliterated = transliterate_to_latin(company_name)
         base_slug = slugify(transliterated)
         
-        # Если после транслитерации и slugify получилась пустая строка, используем fallback
         if not base_slug:
-            # Пробуем создать slug из первых букв/цифр
             base_slug = slugify(company_name.replace(' ', '-').lower()[:20])
             if not base_slug:
-                # Если все еще пусто, используем просто "company" + случайное число
                 import random
                 base_slug = f"company-{random.randint(1000, 9999)}"
         
-        # Проверяем уникальность slug
         slug = base_slug
         counter = 1
         while Company.objects.filter(slug=slug).exists():
             slug = f"{base_slug}-{counter}"
             counter += 1
         
-        # Сохраняем сгенерированный slug для использования в save()
         self._generated_slug = slug
         return company_name
 
@@ -236,8 +224,6 @@ class CompanyRegisterForm(UserCreationForm):
                 is_approved=True,  # Владелец автоматически подтверждён
             )
         else:
-            # В дипломном проекте commit=False практически не используется,
-            # но для корректности оставляем вариант без сохранения.
             self._company_instance = company
 
         return user
@@ -295,7 +281,6 @@ class CompanyUserRegisterForm(UserCreationForm):
         UserModel = get_user_model()
         user = super().save(commit=False)
         user.role = UserModel.Role.DEVELOPER
-        # developer_type можно оставить NONE по умолчанию, пусть выбирает в профиле
 
         company = Company.objects.get(join_code=self.cleaned_data['company_code'])
 
@@ -345,7 +330,6 @@ class ProfileUserForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         UserModel = get_user_model()
-        # Профиль разработчика показываем только разработчикам (по роли или по участию в компании)
         if self.instance:
             is_dev = (
                 self.instance.role == UserModel.Role.DEVELOPER

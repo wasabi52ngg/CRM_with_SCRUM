@@ -2,6 +2,7 @@ from django import template
 from django.contrib.auth.models import AbstractBaseUser
 
 from crm.models import Task
+from crm.chat_attachments import is_chat_image
 
 register = template.Library()
 
@@ -34,6 +35,18 @@ def get_item(dictionary, key):
     if val is None and key is not None:
         val = dictionary.get(str(key))
     return val
+
+
+@register.filter
+def chat_image(file_field) -> bool:
+    return is_chat_image(file_field)
+
+
+@register.filter
+def file_basename(file_field) -> str:
+    if not file_field:
+        return ""
+    return file_field.name.rsplit("/", 1)[-1]
 
 
 @register.filter

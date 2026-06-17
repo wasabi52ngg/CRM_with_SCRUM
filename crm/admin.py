@@ -129,4 +129,3 @@ class InAppNotificationAdmin(admin.ModelAdmin):
     search_fields = ("title", "body", "user__username")
     readonly_fields = ("created_at",)
 
-# Register your models here.

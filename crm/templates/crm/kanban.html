@@ -446,9 +446,10 @@
     <div class="task-tabpane" data-tabpane="chat">
       <div id="tp-chat-extra" class="tp-chat-extra" style="margin-bottom:10px;font-size:13px;"></div>
       <div id="tp-chat-list" class="tp-chat"></div>
-      <form id="tp-chat-form" class="tp-chat-form">
+      <form id="tp-chat-form" class="tp-chat-form" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="text" id="tp-chat-text" placeholder="Сообщение..." autocomplete="off">
+        <input type="file" id="tp-chat-file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt">
         <button type="submit">Отправить</button>
       </form>
     </div>

@@ -260,6 +260,17 @@ function initKanbanTaskPanel() {
   let chat = [];
   let activity = [];
   let subtasks = [];
+  let canEditTask = true;
+
+  function applyTaskEditPermissions(canEdit) {
+    canEditTask = canEdit;
+    if (cpAddBtn) cpAddBtn.style.display = canEdit ? '' : 'none';
+    if (subtaskAddBtn) subtaskAddBtn.style.display = canEdit ? '' : 'none';
+    document.querySelectorAll('.task-panel__row--editable').forEach(row => {
+      row.style.pointerEvents = canEdit ? '' : 'none';
+      row.style.opacity = canEdit ? '' : '0.65';
+    });
+  }
 
   const subtasksList = document.getElementById('tp-subtasks-list');
   const subtaskAddBtn = document.getElementById('tp-subtask-add');
@@ -545,6 +556,7 @@ function initKanbanTaskPanel() {
       if (deleteTaskBtn) {
         deleteTaskBtn.style.display = resp.can_delete ? 'inline-block' : 'none';
       }
+      applyTaskEditPermissions(resp.can_edit_task !== false);
       if (assigneeEl) assigneeEl.textContent = t.assignee || '—';
       if (createdByEl) createdByEl.textContent = t.created_by || '—';
       if (dueEl) dueEl.textContent = t.due_date || '—';
@@ -800,7 +812,7 @@ function initKanbanTaskPanel() {
   }
 
   function saveTaskField(field, value) {
-    if (!apiUrl || !currentTaskId) return;
+    if (!apiUrl || !currentTaskId || !canEditTask) return;
     const payload = { action: 'task_update' };
     payload[field] = value;
     apiRequest(payload).then(resp => {
@@ -892,12 +904,14 @@ function initRequestTimeline(root) {
   }
 
   const isDiagram = root.classList.contains('cp-diagram');
+  const canEdit = root.getAttribute('data-can-edit') !== 'false';
   const editor = document.getElementById('cp-editor');
   const form = document.getElementById('cp-editor-form');
   const addBtn = document.getElementById('cp-add-btn');
   const deleteBtn = document.getElementById('cp-delete-btn');
   const closeBtn = document.getElementById('cp-editor-close');
   const editToggle = document.getElementById('cp-edit-toggle');
+  if (editToggle && !canEdit) editToggle.style.display = 'none';
 
   let isEditMode = false;
   let selectedEdgeId = null;
@@ -1095,6 +1109,7 @@ function initRequestTimeline(root) {
       });
 
       node.addEventListener('mousedown', (e) => {
+        if (!canEdit) return;
         if (e.button !== 0 || e.target.closest('a, button')) return;
         e.stopPropagation();
         const dragStartX = e.clientX;
@@ -1222,7 +1237,7 @@ function initRequestTimeline(root) {
       const item = document.createElement('div');
       item.className = 'cp-point' + (index === 0 ? ' cp-point--first' : '');
       item.setAttribute('data-id', cp.id);
-      item.setAttribute('draggable', 'true');
+      item.setAttribute('draggable', canEdit ? 'true' : 'false');
       item.setAttribute('data-index', index);
       const dot = document.createElement('div');
       dot.className = 'cp-dot' + (cp.is_done ? ' cp-dot--done' : '');
@@ -1288,6 +1303,7 @@ function initRequestTimeline(root) {
 
   function openEditor(cp, pointElement) {
     if (!editor) return;
+    if (!cp && !canEdit) return;
     document.getElementById('cp-edge-editor') && document.getElementById('cp-edge-editor').classList.add('cp-editor--hidden');
     editor.classList.remove('cp-editor--hidden');
     const idEl = document.getElementById('cp-id');
@@ -1321,8 +1337,9 @@ function initRequestTimeline(root) {
     }
 
     isEditMode = !cp;
-    if (cp && !isEditMode) {
+    if (!canEdit || (cp && !isEditMode)) {
       setFieldsDisabled(true);
+      isEditMode = false;
     } else {
       setFieldsDisabled(false);
     }
@@ -1382,6 +1399,7 @@ function initRequestTimeline(root) {
   }
 
   function updateFromForm() {
+    if (!canEdit) return;
     const id = parseInt(document.getElementById('cp-id').value || '0', 10);
     const title = document.getElementById('cp-title').value.trim();
     const comment = document.getElementById('cp-comment').value.trim();

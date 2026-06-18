@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from crm.models import ClientRequest
+from crm.models import ClientRequest, Task
 from crm.test_helpers import (
     TEST_PASSWORD,
     add_membership,
@@ -61,8 +61,12 @@ class AuthenticatedPagesTests(TestCase):
         self.developer = make_user("dev", role=User.Role.DEVELOPER)
         add_membership(self.company, self.manager, is_manager=True)
         add_membership(self.company, self.developer, is_developer=True)
-        self.request_obj = make_request(self.company, title="Alpha request")
-        self.project = make_project(self.company, name="Alpha project")
+        self.request_obj = make_request(self.company, title="Alpha request", manager=self.manager)
+        self.project = make_project(
+            self.company,
+            name="Alpha project",
+            client_request=self.request_obj,
+        )
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("crm:dashboard"))
@@ -110,3 +114,62 @@ class AuthenticatedPagesTests(TestCase):
         response = self.client.get(reverse("crm:notifications_api"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["ok"], True)
+
+
+class AccessControlTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.company = make_company("beta", "Beta Dev")
+        self.owner = make_user("owner", role=User.Role.MANAGER)
+        self.manager_a = make_user("mgra", role=User.Role.MANAGER)
+        self.manager_b = make_user("mgrb", role=User.Role.MANAGER)
+        self.developer = make_user("dev2", role=User.Role.DEVELOPER)
+        add_membership(self.company, self.owner, is_manager=True, is_owner=True)
+        add_membership(self.company, self.manager_a, is_manager=True)
+        add_membership(self.company, self.manager_b, is_manager=True)
+        add_membership(self.company, self.developer, is_developer=True)
+        self.request_obj = make_request(self.company, title="Beta request", manager=self.manager_a)
+        self.project = make_project(
+            self.company,
+            name="Beta project",
+            client_request=self.request_obj,
+        )
+
+    def test_manager_not_responsible_cannot_open_kanban(self):
+        self.client.login(username="mgrb", password=TEST_PASSWORD)
+        response = self.client.get(reverse("crm:kanban_board", kwargs={"pk": self.project.pk}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_manager_responsible_can_open_kanban(self):
+        self.client.login(username="mgra", password=TEST_PASSWORD)
+        response = self.client.get(reverse("crm:kanban_board", kwargs={"pk": self.project.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_owner_can_open_kanban(self):
+        self.client.login(username="owner", password=TEST_PASSWORD)
+        response = self.client.get(reverse("crm:kanban_board", kwargs={"pk": self.project.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_developer_without_tasks_cannot_open_kanban(self):
+        self.client.login(username="dev2", password=TEST_PASSWORD)
+        response = self.client.get(reverse("crm:kanban_board", kwargs={"pk": self.project.pk}))
+        self.assertEqual(response.status_code, 302)
+
+    def test_developer_with_assigned_task_can_open_kanban(self):
+        Task.objects.create(
+            project=self.project,
+            title="Dev task",
+            assignee=self.developer,
+            task_type="fullstack",
+        )
+        self.client.login(username="dev2", password=TEST_PASSWORD)
+        response = self.client.get(reverse("crm:kanban_board", kwargs={"pk": self.project.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_manager_not_responsible_sees_request_without_project_link(self):
+        self.client.login(username="mgrb", password=TEST_PASSWORD)
+        response = self.client.get(
+            reverse("crm:manager_request_detail", kwargs={"pk": self.request_obj.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context["can_access_project"])

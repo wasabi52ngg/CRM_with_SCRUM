@@ -61,9 +61,13 @@
         <p style="color: var(--muted); font-size: 14px;">Вы можете только просматривать эту заявку</p>
       </div>
       {% endif %}
-      {% if object.project %}
+      {% if object.project and can_access_project %}
       <div class="request-project-link">
         <a class="btn" href="{% url 'crm:manager_project_detail' object.project.pk %}">Перейти к проекту</a>
+      </div>
+      {% elif object.project %}
+      <div class="request-project-link">
+        <p class="muted tiny">Проект создан. Доступ к доске есть только у ответственного менеджера.</p>
       </div>
       {% endif %}
     </div>
@@ -75,7 +79,9 @@
           <p class="muted">Ведите историю работы по заявке — каждый шаг в виде чекпоинта на линии.</p>
         </div>
         <div>
+          {% if can_edit_request_checkpoints %}
           <button type="button" class="btn-ghost" id="cp-add-btn">Добавить чекпоинт</button>
+          {% endif %}
         </div>
       </div>
 
@@ -87,6 +93,7 @@
         class="cp-timeline cp-diagram"
         data-request-id="{{ object.id }}"
         data-api-url="{% url 'crm:manager_request_checkpoints_api' object.id %}"
+        data-can-edit="{{ can_edit_request_checkpoints|yesno:'true,false' }}"
       >
         <!-- JS дорисует точки -->
       </div>

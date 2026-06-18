@@ -185,6 +185,57 @@ def _is_user_developer_in_company(user: User, company_id: int | None = None) -> 
     return qs.filter(is_developer=True).exists() or qs.filter(is_owner=True).exists()
 
 
+def _is_company_owner(user: User, company_id: int) -> bool:
+    if not user.is_authenticated:
+        return False
+    return user.company_memberships.filter(
+        company_id=company_id,
+        is_approved=True,
+        is_owner=True,
+    ).exists()
+
+
+def _manager_can_access_project(user: User, project: Project) -> bool:
+    """
+    Менеджер видит проект и доску только если он ответственен за связанную заявку
+    или является владельцем компании. Проект без заявки доступен любому менеджеру компании.
+    """
+    if not user.is_authenticated or not project.company_id:
+        return False
+    if _is_company_owner(user, project.company_id):
+        return True
+    if project.client_request_id:
+        return project.client_request.manager_id == user.id
+    return _is_user_manager_in_company(user, project.company_id)
+
+
+def _developer_participates_in_project(user: User, project: Project) -> bool:
+    """Разработчик участвует в проекте, если на него назначена хотя бы одна задача."""
+    if not user.is_authenticated:
+        return False
+    return Task.objects.filter(project=project, assignee=user).exists()
+
+
+def _can_access_project(user: User, project: Project) -> bool:
+    if _manager_can_access_project(user, project):
+        return True
+    if _is_user_developer_in_company(user, project.company_id):
+        return _developer_participates_in_project(user, project)
+    return False
+
+
+def _can_edit_task(user: User, task: Task) -> bool:
+    return _can_manage_project_scrum(user, task.project) or task.assignee_id == user.id
+
+
+def _can_edit_request_checkpoints(user: User, client_request: ClientRequest) -> bool:
+    if not _is_user_manager_in_company(user, client_request.company_id):
+        return False
+    if _is_company_owner(user, client_request.company_id):
+        return True
+    return client_request.manager_id == user.id
+
+
 def _can_access_internal_docs(user: User) -> bool:
     """Справочник Scrum и внутренние уведомления — не для клиентов портала."""
     if not user.is_authenticated:
@@ -208,12 +259,7 @@ def _can_use_notifications_api(user: User) -> bool:
 def _can_access_task_panel(user: User, task: Task) -> bool:
     if not user.is_authenticated:
         return False
-    project = task.project
-    return (
-        _is_user_manager_in_company(user, project.company_id)
-        or (project.client_request and project.client_request.manager == user)
-        or _is_user_developer_in_company(user, project.company_id)
-    )
+    return _can_access_project(user, task.project)
 
 
 def _is_project_product_owner(user: User, project: Project) -> bool:
@@ -228,28 +274,18 @@ def _can_manage_project_sprints(user: User, project: Project) -> bool:
     """
     Управление спринтами и ретроспективой:
     - Scrum Master проекта
-    - менеджер/владелец компании
-    - менеджер, создавший проект из клиентской заявки
+    - ответственный менеджер / владелец компании
     """
-    return (
-        _is_user_manager_in_company(user, project.company_id)
-        or (project.client_request and project.client_request.manager == user)
-        or _is_project_scrum_master(user, project)
-    )
+    return _manager_can_access_project(user, project) or _is_project_scrum_master(user, project)
 
 
 def _can_manage_project_epics(user: User, project: Project) -> bool:
     """
     Управление эпиками и бэклогом:
     - Product Owner проекта
-    - менеджер/владелец компании
-    - менеджер, создавший проект из клиентской заявки
+    - ответственный менеджер / владелец компании
     """
-    return (
-        _is_user_manager_in_company(user, project.company_id)
-        or (project.client_request and project.client_request.manager == user)
-        or _is_project_product_owner(user, project)
-    )
+    return _manager_can_access_project(user, project) or _is_project_product_owner(user, project)
 
 
 def _can_manage_project_scrum(user: User, project: Project) -> bool:
@@ -415,6 +451,13 @@ class ManagerRequestDetailView(LoginRequiredMixin, DetailView):
             (ctx["is_responsible"] or ctx["is_owner"])
             and client_request.status == ClientRequest.Status.IN_PROGRESS
         )
+        ctx["can_edit_request_checkpoints"] = _can_edit_request_checkpoints(
+            self.request.user, client_request
+        )
+        linked_project = Project.objects.filter(client_request_id=client_request.pk).first()
+        ctx["can_access_project"] = bool(
+            linked_project and _can_access_project(self.request.user, linked_project)
+        )
         ctx["chat_messages"] = client_request.messages.select_related("author").order_by("created_at")
         return ctx
 
@@ -497,12 +540,7 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         obj = self.get_object()
-        has_access = (
-            _is_user_manager_in_company(request.user, obj.company_id) or
-            (obj.client_request and obj.client_request.manager == request.user) or
-            _is_user_developer_in_company(request.user, obj.company_id)
-        )
-        if not has_access:
+        if not _can_access_project(request.user, obj):
             return redirect("crm:dashboard")
         return super().dispatch(request, *args, **kwargs)
 
@@ -596,6 +634,8 @@ class ManagerProjectDetailView(LoginRequiredMixin, DetailView):
             priority = Task.Priority.MEDIUM
 
         if title and task_type in dict(Task.TaskType.choices):
+            if not _manager_can_access_project(request.user, project):
+                return redirect("crm:manager_project_detail", pk=project.pk)
             task = Task.objects.create(
                 project=project,
                 title=title,
@@ -1210,12 +1250,7 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
     
     def dispatch(self, request, *args, **kwargs):
         obj = self.get_object()
-        has_access = (
-            _is_user_manager_in_company(request.user, obj.company_id) or
-            (obj.client_request and obj.client_request.manager == request.user) or
-            _is_user_developer_in_company(request.user, obj.company_id)
-        )
-        if not has_access:
+        if not _can_access_project(request.user, obj):
             return redirect("crm:dashboard")
         return super().dispatch(request, *args, **kwargs)
 
@@ -1372,7 +1407,7 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
         ctx["can_manage_sprints"] = _can_manage_project_sprints(self.request.user, project)
         ctx["can_manage_epics"] = _can_manage_project_epics(self.request.user, project)
         ctx["can_manage_scrum"] = _can_manage_project_scrum(self.request.user, project)
-        ctx["can_edit_kanban"] = _is_user_manager_in_company(self.request.user, project.company_id)
+        ctx["can_edit_kanban"] = _manager_can_access_project(self.request.user, project)
 
         board_qs = column_qs
         ctx["todo"] = board_qs.filter(status=Task.Status.TODO)
@@ -1412,7 +1447,7 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
 
         action = request.POST.get("action")
 
-        if not _is_user_manager_in_company(request.user, project.company_id):
+        if not _manager_can_access_project(request.user, project):
             return redirect("crm:kanban_board", pk=project.pk)
 
         if action == "update_kanban_columns":
@@ -1472,12 +1507,7 @@ class ScrumReportsView(LoginRequiredMixin, DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         obj = self.get_object()
-        has_access = (
-            _is_user_manager_in_company(request.user, obj.company_id)
-            or (obj.client_request and obj.client_request.manager == request.user)
-            or _is_user_developer_in_company(request.user, obj.company_id)
-        )
-        if not has_access:
+        if not _can_access_project(request.user, obj):
             return redirect("crm:dashboard")
         return super().dispatch(request, *args, **kwargs)
 
@@ -1580,7 +1610,7 @@ class ScrumApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": "project_id_required"}, status=400)
         project = get_object_or_404(Project, pk=project_id)
 
-        if not (_can_manage_project_scrum(request.user, project) or _is_user_developer_in_company(request.user, project.company_id)):
+        if not _can_access_project(request.user, project):
             return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
         def require_process() -> bool:
@@ -1763,6 +1793,8 @@ class ScrumApiView(LoginRequiredMixin, View):
             tid = int(payload.get("parent_task_id") or 0)
             title = (payload.get("title") or "").strip()
             parent = get_object_or_404(Task, pk=tid, project=project)
+            if not _can_edit_task(request.user, parent):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             if not title:
                 return JsonResponse({"ok": False, "error": "title_required"}, status=400)
             last_order = (
@@ -1838,6 +1870,9 @@ class KanbanMoveApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": "bad_status"}, status=400)
 
         task = get_object_or_404(Task, pk=task_id)
+
+        if not _can_access_project(request.user, task.project):
+            return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
         if not _can_manage_project_scrum(request.user, task.project) and task.assignee_id != request.user.id:
             return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
@@ -2045,6 +2080,18 @@ class RequestCheckpointApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": False, "error": "invalid_json"}, status=400)
 
         action = payload.get("action")
+
+        if action in (
+            "create",
+            "update",
+            "delete",
+            "reorder",
+            "position",
+            "edge_create",
+            "edge_delete",
+        ):
+            if not _can_edit_request_checkpoints(request.user, client_request):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
 
         if action == "create":
             title = (payload.get("title") or "").strip()
@@ -2323,6 +2370,7 @@ class TaskPanelApiView(LoginRequiredMixin, View):
                 {
                     "ok": True,
                     "can_delete": _can_manage_project_scrum(request.user, task.project),
+                    "can_edit_task": _can_edit_task(request.user, task),
                     "task": {
                         "id": task.id,
                         "issue_key": task.issue_key,
@@ -2618,6 +2666,8 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
 
         if action == "checkpoint_create":
+            if not _can_edit_task(request.user, task):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             title = (payload.get("title") or "").strip()
             comment = (payload.get("comment") or "").strip()
             if not title:
@@ -2645,6 +2695,8 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             )
 
         if action == "checkpoint_update":
+            if not _can_edit_task(request.user, task):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             cp_id = payload.get("id")
             cp = get_object_or_404(TaskCheckpoint, pk=cp_id, task=task)
             title = payload.get("title")
@@ -2665,12 +2717,16 @@ class TaskPanelApiView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
 
         if action == "checkpoint_delete":
+            if not _can_edit_task(request.user, task):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             cp_id = payload.get("id")
             cp = get_object_or_404(TaskCheckpoint, pk=cp_id, task=task)
             cp.delete()
             return JsonResponse({"ok": True})
 
         if action == "checkpoint_reorder":
+            if not _can_edit_task(request.user, task):
+                return JsonResponse({"ok": False, "error": "forbidden"}, status=403)
             ids = payload.get("ids") or []
             if not isinstance(ids, list):
                 return JsonResponse({"ok": False, "error": "ids_list_required"}, status=400)

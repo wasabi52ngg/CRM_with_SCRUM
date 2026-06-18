@@ -8,7 +8,7 @@
         <li class="dev-open-tasks__item">
             <div class="dev-open-tasks__main">
                 <div class="dev-open-tasks__head">
-                    <a class="dev-open-tasks__link" href="{% url 'crm:kanban_board' t.project_id %}?task={{ t.pk }}">{{ t.title }}</a>
+                    <span class="dev-open-tasks__link">{{ t.title }}</span>
                     <span class="task-badge task-badge--prio task-badge--prio-{{ t.priority }}" title="Приоритет">{{ t.get_priority_display }}</span>
                 </div>
                 <div class="dev-open-tasks__meta muted">

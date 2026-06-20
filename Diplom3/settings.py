@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -78,11 +79,22 @@ WSGI_APPLICATION = 'Diplom3.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+_running_tests = 'test' in sys.argv
+_use_pg_for_tests = os.environ.get('USE_PG_FOR_TESTS') == '1'
+
 if os.environ.get('USE_SQLITE') == '1':
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+elif _running_tests and not _use_pg_for_tests:
+    # Локально: без права CREATEDB в PostgreSQL тесты идут в память.
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
         }
     }
 else:

@@ -20,6 +20,7 @@ jobs:
       POSTGRES_PASSWORD: itcrm
       POSTGRES_HOST: localhost
       DJANGO_SECRET_KEY: test-secret
+      USE_PG_FOR_TESTS: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

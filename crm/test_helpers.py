@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 
-from crm.models import ClientRequest, Company, CompanyMembership, Project
+from crm.models import ClientRequest, Company, CompanyMembership, Project, Task
 
 User = get_user_model()
 TEST_PHONE = "+7-900-123-45-67"
@@ -45,3 +45,13 @@ def make_request(company, title="Test request", **kwargs):
 
 def make_project(company, name="Test project", **kwargs):
     return Project.objects.create(company=company, name=name, **kwargs)
+
+
+def make_task(project, title="Test task", **kwargs):
+    defaults = {
+        "project": project,
+        "title": title,
+        "task_type": Task.TaskType.FULLSTACK,
+    }
+    defaults.update(kwargs)
+    return Task.objects.create(**defaults)

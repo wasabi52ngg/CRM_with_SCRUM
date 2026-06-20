@@ -2026,13 +2026,26 @@ body.kanban-drawer-lock {
 .tp-item__top {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
   font-size: 13px;
 }
 
+.tp-item__top > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
 .tp-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
   font-size: 11px;
-  padding: 2px 8px;
+  line-height: 1;
+  padding: 4px 10px;
+  min-height: 22px;
   border-radius: 999px;
   border: 1px solid var(--border);
   color: var(--muted);

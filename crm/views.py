@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from accounts.mixins import ManagerRequiredMixin, DeveloperRequiredMixin, LoginRequiredMixin, ClientRequiredMixin
 from accounts.models import User
+from .forms import ClientRequestForm
 from .models import (
     Company,
     CompanyMembership,
@@ -342,37 +343,35 @@ class PublicRequestView(View):
             not request.user.is_authenticated
             and not request.session.get("register_prompt_dismissed")
         )
-        ctx = {"company": company, "show_register_prompt": show_register_prompt}
+        ctx = {
+            "company": company,
+            "show_register_prompt": show_register_prompt,
+            "form": ClientRequestForm(),
+        }
         return render(request, "crm/public_request.html", ctx)
 
     def post(self, request: HttpRequest, company_slug: str | None = None, token: str | None = None) -> HttpResponse:
         company = self.get_company(company_slug=company_slug, token=token)
-        data = request.POST
-        if not data.get("personal_data_consent"):
-            from accounts.consent import CONSENT_REQUIRED_MESSAGE
-
+        form = ClientRequestForm(request.POST)
+        if not form.is_valid():
             show_register_prompt = (
                 not request.user.is_authenticated
                 and not request.session.get("register_prompt_dismissed")
             )
-            ctx = {
-                "company": company,
-                "show_register_prompt": show_register_prompt,
-                "consent_error": CONSENT_REQUIRED_MESSAGE,
-                "consent_checked": False,
-                "form_data": data,
-            }
-            return render(request, "crm/public_request.html", ctx)
+            return render(
+                request,
+                "crm/public_request.html",
+                {
+                    "company": company,
+                    "show_register_prompt": show_register_prompt,
+                    "form": form,
+                },
+            )
         client = request.user if request.user.is_authenticated else None
-        req = ClientRequest.objects.create(
-            company=company,
-            project_type=data.get("project_type"),
-            title=data.get("title", ""),
-            description=data.get("description", ""),
-            contact_email=data.get("contact_email", ""),
-            contact_telegram=data.get("contact_telegram", ""),
-            client=client,
-        )
+        req = form.save(commit=False)
+        req.company = company
+        req.client = client
+        req.save()
         notify_new_client_request_company_managers(req)
         # Для анонимных: сохраняем id заявки в сессии, чтобы показать её в «Мои заявки» после регистрации
         if not request.user.is_authenticated:
@@ -1203,6 +1202,9 @@ class ClientCreateRequestView(ClientRequiredMixin, View):
         ctx = {
             "companies": companies,
             "user_companies_ids": user_companies_ids,
+            "form": ClientRequestForm(
+                initial={"contact_email": request.user.email or ""}
+            ),
         }
         return render(request, self.template_name, ctx)
 
@@ -1214,30 +1216,26 @@ class ClientCreateRequestView(ClientRequiredMixin, View):
         company = get_object_or_404(Company, pk=company_id)
         if not companies.filter(pk=company.pk).exists():
             return redirect("crm:client_request_create")
-        data = request.POST
-        if not data.get("personal_data_consent"):
-            from accounts.consent import CONSENT_REQUIRED_MESSAGE
-
-            user_companies_ids = list(
-                Company.objects.filter(client_requests__client=request.user)
-                .distinct()
-                .values_list("id", flat=True)
-            )
-            ctx = {
-                "companies": companies,
-                "user_companies_ids": user_companies_ids,
-                "consent_error": CONSENT_REQUIRED_MESSAGE,
-            }
-            return render(request, self.template_name, ctx)
-        req = ClientRequest.objects.create(
-            company=company,
-            client=request.user,
-            project_type=data.get("project_type"),
-            title=data.get("title", ""),
-            description=data.get("description", ""),
-            contact_email=data.get("contact_email", ""),
-            contact_telegram=data.get("contact_telegram", ""),
+        form = ClientRequestForm(request.POST)
+        user_companies_ids = list(
+            Company.objects.filter(client_requests__client=request.user)
+            .distinct()
+            .values_list("id", flat=True)
         )
+        if not form.is_valid():
+            return render(
+                request,
+                self.template_name,
+                {
+                    "companies": companies,
+                    "user_companies_ids": user_companies_ids,
+                    "form": form,
+                },
+            )
+        req = form.save(commit=False)
+        req.company = company
+        req.client = request.user
+        req.save()
         notify_new_client_request_company_managers(req)
         return redirect("crm:client_request_detail", pk=req.pk)
 
@@ -1253,6 +1251,20 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
         if not _can_access_project(request.user, obj):
             return redirect("crm:dashboard")
         return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        epic_raw = (request.GET.get("epic") or "").strip()
+        if epic_raw and epic_raw != "none":
+            valid = epic_raw.isdigit() and self.object.epics.filter(pk=int(epic_raw)).exists()
+            if not valid:
+                query = request.GET.copy()
+                query.pop("epic", None)
+                url = reverse("crm:kanban_board", kwargs={"pk": self.object.pk})
+                if query:
+                    url = f"{url}?{query.urlencode()}"
+                return redirect(url)
+        return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -1300,11 +1312,16 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
                 pass
 
         epic_raw = (self.request.GET.get("epic") or "").strip()
+        epic_filter_mode = "all"
         epic_filter_id = None
-        if epic_raw.isdigit():
+        if epic_raw == "none":
+            epic_filter_mode = "none"
+        elif epic_raw.isdigit():
             e_try = int(epic_raw)
             if project.epics.filter(pk=e_try).exists():
+                epic_filter_mode = "id"
                 epic_filter_id = e_try
+        ctx["epic_filter_mode"] = epic_filter_mode
         ctx["epic_filter_id"] = epic_filter_id
 
         ctx["epics"] = project.epics.all().order_by("order", "id")
@@ -1349,7 +1366,9 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
 
         # В колонках канбана только задачи, взятые в спринт. Без спринта — только боковой беклог.
         column_qs = base_qs.exclude(sprint__isnull=True)
-        if epic_filter_id:
+        if epic_filter_mode == "none":
+            column_qs = column_qs.filter(epic_id__isnull=True)
+        elif epic_filter_id:
             column_qs = column_qs.filter(epic_id=epic_filter_id)
 
         columns = []
@@ -1390,7 +1409,11 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
             ctx["board_mode_title"] = "Доска"
             ctx["board_mode_hint"] = f"В колонках: {col_total}."
 
-        if epic_filter_id:
+        if epic_filter_mode == "none":
+            ctx["board_mode_epic_note"] = (
+                "Фильтр «Без эпика» — только задачи, не привязанные к эпику."
+            )
+        elif epic_filter_id:
             ep = project.epics.filter(pk=epic_filter_id).first()
             ctx["board_mode_epic_note"] = (
                 f"Фильтр по эпику «{ep.title}» — в беклоге и на доске только связанные задачи."
@@ -1417,7 +1440,9 @@ class KanbanBoardView(LoginRequiredMixin, DetailView):
 
         # Беклог: верхнеуровневые задачи без спринта.
         backlog_qs = project.tasks.filter(sprint__isnull=True, parent__isnull=True)
-        if epic_filter_id:
+        if epic_filter_mode == "none":
+            backlog_qs = backlog_qs.filter(epic_id__isnull=True)
+        elif epic_filter_id:
             backlog_qs = backlog_qs.filter(epic_id=epic_filter_id)
         ctx["backlog"] = (
             backlog_qs.select_related("assignee", "epic")

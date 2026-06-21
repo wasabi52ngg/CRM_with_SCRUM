@@ -1,8 +1,49 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import CompanyMembership
+from accounts.consent import PersonalDataConsentMixin
+from .models import ClientRequest, CompanyMembership
 
+
+class ClientRequestForm(PersonalDataConsentMixin, forms.ModelForm):
+    """Поля заявки клиента с ограничениями длины как в модели и согласием на ПДн."""
+
+    class Meta:
+        model = ClientRequest
+        fields = ("project_type", "title", "contact_email", "contact_telegram", "description")
+        widgets = {
+            "project_type": forms.Select(),
+            "title": forms.TextInput(
+                attrs={
+                    "placeholder": "Краткое описание проекта",
+                    "maxlength": "255",
+                }
+            ),
+            "contact_email": forms.EmailInput(attrs={"placeholder": "your@email.com"}),
+            "contact_telegram": forms.TextInput(
+                attrs={
+                    "placeholder": "@username",
+                    "maxlength": "64",
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "rows": 6,
+                    "placeholder": (
+                        "Опишите детали вашего проекта, требования, сроки "
+                        "и другую важную информацию..."
+                    ),
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["project_type"].empty_label = "Выберите тип проекта"
+        self.fields["title"].required = True
+        self.fields["contact_email"].required = True
+        self.fields["contact_telegram"].required = False
+        self.fields["description"].required = False
 
 class CompanyMemberApproveForm(forms.Form):
     """

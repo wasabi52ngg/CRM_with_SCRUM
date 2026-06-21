@@ -72,8 +72,9 @@
         </div>
         <span class="cmd-bar__grow"></span>
         <label class="kf-label muted" for="kanban-filter-epic">Эпик</label>
-        <select id="kanban-filter-epic" class="kf-control kf-control--narrow" title="Показать только задачи эпика">
-          <option value="">Все эпики</option>
+        <select id="kanban-filter-epic" class="kf-control kf-control--narrow" title="Фильтр задач по эпику">
+          <option value="" {% if epic_filter_mode == "all" %}selected{% endif %}>Все задачи</option>
+          <option value="none" {% if epic_filter_mode == "none" %}selected{% endif %}>Без эпика</option>
           {% for e in epics %}
             <option value="{{ e.id }}" {% if epic_filter_id == e.id %}selected{% endif %}>{{ e.title }}</option>
           {% endfor %}

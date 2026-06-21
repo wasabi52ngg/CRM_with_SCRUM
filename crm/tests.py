@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from crm.models import ClientRequest, InAppNotification, Project, RequestCheckpoint, Task
+from crm.models import ClientRequest, Epic, InAppNotification, Project, RequestCheckpoint, RequestCheckpointEdge, Task
 from crm.test_helpers import (
     TEST_PASSWORD,
     add_membership,
@@ -195,6 +195,39 @@ class PublicRequestValidationTests(TestCase):
         self.assertTemplateUsed(response, "crm/public_request.html")
         self.assertFalse(ClientRequest.objects.filter(title="Без согласия").exists())
 
+    def test_public_request_rejects_title_too_long(self):
+        response = self.client.post(
+            reverse("crm:public_request_by_slug", kwargs={"company_slug": "valid-co"}),
+            {
+                "project_type": ClientRequest.ProjectType.WEBSITE,
+                "title": "x" * 256,
+                "description": "Тест",
+                "contact_email": "long-title@test.com",
+                "personal_data_consent": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "crm/public_request.html")
+        self.assertFalse(ClientRequest.objects.filter(contact_email="long-title@test.com").exists())
+        self.assertIn("title", response.context["form"].errors)
+
+    def test_public_request_rejects_telegram_too_long(self):
+        response = self.client.post(
+            reverse("crm:public_request_by_slug", kwargs={"company_slug": "valid-co"}),
+            {
+                "project_type": ClientRequest.ProjectType.WEBSITE,
+                "title": "Нормальный заголовок",
+                "description": "Тест",
+                "contact_email": "long-tg@test.com",
+                "contact_telegram": "@" + "a" * 64,
+                "personal_data_consent": "1",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "crm/public_request.html")
+        self.assertFalse(ClientRequest.objects.filter(contact_email="long-tg@test.com").exists())
+        self.assertIn("contact_telegram", response.context["form"].errors)
+
     def test_privacy_policy_page_opens(self):
         response = self.client.get(reverse("crm:privacy_policy"))
         self.assertEqual(response.status_code, 200)
@@ -311,6 +344,56 @@ class KanbanApiTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
 
+class KanbanEpicFilterTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.company = make_company("epic-co", "Epic Co")
+        self.manager = make_user("epic_mgr", role=User.Role.MANAGER)
+        add_membership(self.company, self.manager, is_manager=True)
+        self.request_obj = make_request(self.company, title="Epic request", manager=self.manager)
+        self.project = make_project(self.company, name="Epic project", client_request=self.request_obj)
+        self.epic = Epic.objects.create(project=self.project, title="Auth epic", order=1)
+        self.task_with_epic = make_task(
+            self.project,
+            title="Task in epic",
+            epic=self.epic,
+            status=Task.Status.TODO,
+        )
+        self.task_without_epic = make_task(
+            self.project,
+            title="Task without epic",
+            status=Task.Status.TODO,
+        )
+        self.client.login(username="epic_mgr", password=TEST_PASSWORD)
+        self.kanban_url = reverse("crm:kanban_board", kwargs={"pk": self.project.pk})
+
+    def test_kanban_shows_all_tasks_without_epic_filter(self):
+        response = self.client.get(self.kanban_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Task in epic")
+        self.assertContains(response, "Task without epic")
+        self.assertEqual(response.context["epic_filter_mode"], "all")
+
+    def test_kanban_epic_none_shows_only_tasks_without_epic(self):
+        response = self.client.get(f"{self.kanban_url}?epic=none")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Task in epic")
+        self.assertContains(response, "Task without epic")
+        self.assertEqual(response.context["epic_filter_mode"], "none")
+
+    def test_kanban_epic_id_shows_only_matching_tasks(self):
+        response = self.client.get(f"{self.kanban_url}?epic={self.epic.pk}")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Task in epic")
+        self.assertNotContains(response, "Task without epic")
+        self.assertEqual(response.context["epic_filter_id"], self.epic.pk)
+
+    def test_kanban_invalid_epic_param_redirects_to_all_tasks(self):
+        response = self.client.get(f"{self.kanban_url}?epic=99999")
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("epic=", response.url)
+
+
 class TaskPanelApiTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -400,6 +483,37 @@ class RequestCheckpointApiTests(TestCase):
         self.assertTrue(
             RequestCheckpoint.objects.filter(request=self.request_obj, title="Согласование ТЗ").exists()
         )
+
+    def test_request_checkpoint_edge_create_and_delete_via_api(self):
+        import json
+
+        self.client.login(username="cp_mgr", password=TEST_PASSWORD)
+        cp1 = RequestCheckpoint.objects.create(
+            request=self.request_obj, title="Этап A", order=1, x=0, y=0
+        )
+        cp2 = RequestCheckpoint.objects.create(
+            request=self.request_obj, title="Этап B", order=2, x=240, y=0
+        )
+        create_resp = self.client.post(
+            reverse("crm:manager_request_checkpoints_api", kwargs={"pk": self.request_obj.pk}),
+            data=json.dumps({"action": "edge_create", "source_id": cp1.id, "target_id": cp2.id}),
+            content_type="application/json",
+        )
+        self.assertEqual(create_resp.status_code, 200)
+        edge_id = create_resp.json()["edge"]["id"]
+        self.assertTrue(
+            RequestCheckpointEdge.objects.filter(
+                request=self.request_obj, source=cp1, target=cp2
+            ).exists()
+        )
+        delete_resp = self.client.post(
+            reverse("crm:manager_request_checkpoints_api", kwargs={"pk": self.request_obj.pk}),
+            data=json.dumps({"action": "edge_delete", "id": edge_id}),
+            content_type="application/json",
+        )
+        self.assertEqual(delete_resp.status_code, 200)
+        self.assertTrue(delete_resp.json()["ok"])
+        self.assertFalse(RequestCheckpointEdge.objects.filter(pk=edge_id).exists())
 
 
 class NotificationWorkflowTests(TestCase):

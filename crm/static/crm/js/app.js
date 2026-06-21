@@ -1223,7 +1223,80 @@ function initRequestTimeline(root) {
     const tgt = checkpoints.find(c => c.id === edge.target_id);
     el.querySelector('.cp-edge-editor__text').textContent =
       `Связь: «${src ? src.title : '?'}» → «${tgt ? tgt.title : '?'}»`;
-    el.querySelector('.cp-edge-editor__delete').dataset.edgeId = edge.id;
+    const deleteBtn = el.querySelector('.cp-edge-editor__delete');
+    if (deleteBtn) {
+      deleteBtn.dataset.edgeId = edge.id;
+      deleteBtn.style.display = canEdit ? '' : 'none';
+    }
+  }
+
+  function checkpointTitle(cpId) {
+    const cp = checkpoints.find(c => c.id === cpId);
+    return cp ? (cp.title || 'Этап') : '?';
+  }
+
+  function deleteEdgeById(edgeId, options = {}) {
+    const numericId = parseInt(edgeId, 10);
+    if (!numericId || !canEdit) return Promise.resolve(false);
+    return fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ action: 'edge_delete', id: numericId }),
+    })
+      .then(r => r.json())
+      .then(resp => {
+        if (!resp.ok) return false;
+        edges = edges.filter(e => e.id !== numericId);
+        render();
+        if (options.refreshEditorForCheckpointId) {
+          const cp = findCheckpoint(options.refreshEditorForCheckpointId);
+          const node = root.querySelector(`[data-id="${options.refreshEditorForCheckpointId}"]`);
+          if (cp) openEditor(cp, node);
+        }
+        if (selectedEdgeId === numericId) {
+          selectedEdgeId = null;
+          document.getElementById('cp-edge-editor')?.classList.add('cp-editor--hidden');
+        }
+        return true;
+      })
+      .catch(() => false);
+  }
+
+  function renderEdgeListForCheckpoint(cpId) {
+    const listBlock = document.getElementById('cp-edge-list-block');
+    const listEl = document.getElementById('cp-edge-list');
+    if (!listBlock || !listEl) return;
+    const related = edges.filter(e => e.source_id === cpId || e.target_id === cpId);
+    if (!related.length) {
+      listBlock.style.display = 'none';
+      listEl.innerHTML = '';
+      return;
+    }
+    listBlock.style.display = 'block';
+    listEl.innerHTML = '';
+    related.forEach(edge => {
+      const li = document.createElement('li');
+      li.className = 'cp-edge-list__item';
+      const label = document.createElement('span');
+      label.className = 'cp-edge-list__label';
+      if (edge.source_id === cpId) {
+        label.textContent = `→ ${checkpointTitle(edge.target_id)}`;
+      } else {
+        label.textContent = `← ${checkpointTitle(edge.source_id)}`;
+      }
+      li.appendChild(label);
+      if (canEdit) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-ghost cp-edge-list__delete';
+        btn.textContent = 'Удалить';
+        btn.addEventListener('click', () => {
+          deleteEdgeById(edge.id, { refreshEditorForCheckpointId: cpId });
+        });
+        li.appendChild(btn);
+      }
+      listEl.appendChild(li);
+    });
   }
 
   function renderLegacy() {
@@ -1319,7 +1392,7 @@ function initRequestTimeline(root) {
     const addEdgeBlock = document.getElementById('cp-add-edge-block');
     const edgeTargetSelect = document.getElementById('cp-edge-target');
     if (isDiagram && addEdgeBlock && edgeTargetSelect) {
-      if (cp && checkpoints.length > 1) {
+      if (cp && checkpoints.length > 1 && canEdit) {
         addEdgeBlock.style.display = 'block';
         edgeTargetSelect.innerHTML = '<option value="">— выберите этап —</option>';
         const existingTargets = new Set(edges.filter(e => e.source_id === cp.id).map(e => e.target_id));
@@ -1334,6 +1407,12 @@ function initRequestTimeline(root) {
       } else {
         addEdgeBlock.style.display = 'none';
       }
+    }
+    if (isDiagram && cp) {
+      renderEdgeListForCheckpoint(cp.id);
+    } else {
+      const listBlock = document.getElementById('cp-edge-list-block');
+      if (listBlock) listBlock.style.display = 'none';
     }
 
     isEditMode = !cp;
@@ -1548,20 +1627,7 @@ function initRequestTimeline(root) {
     edgeDeleteBtn.addEventListener('click', () => {
       const edgeId = edgeDeleteBtn.dataset.edgeId;
       if (!edgeId) return;
-      fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-        body: JSON.stringify({ action: 'edge_delete', id: parseInt(edgeId, 10) }),
-      })
-        .then(r => r.json())
-        .then(resp => {
-          if (resp.ok) {
-            edges = edges.filter(e => e.id !== parseInt(edgeId, 10));
-            render();
-            document.getElementById('cp-edge-editor').classList.add('cp-editor--hidden');
-          }
-        })
-        .catch(() => {});
+      deleteEdgeById(edgeId);
     });
   }
 

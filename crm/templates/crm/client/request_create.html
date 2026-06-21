@@ -73,31 +73,57 @@
         
         <div class="form-fields">
             <div class="form-group">
-                <label for="project_type">Тип проекта</label>
-                <select name="project_type" id="project_type" required>
-                    <option value="">— Выберите тип —</option>
-                    <option value="website">Сайт</option>
-                    <option value="bot">Бот (Telegram и др.)</option>
-                    <option value="mobile">Мобильное приложение</option>
-                </select>
+                <label for="{{ form.project_type.id_for_label }}">Тип проекта</label>
+                {{ form.project_type }}
+                {% if form.project_type.errors %}
+                <ul class="field-errors">{% for error in form.project_type.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
             </div>
             <div class="form-group">
-                <label for="title">Заголовок заявки</label>
-                <input type="text" name="title" id="title" required placeholder="Краткое описание проекта">
+                <label for="{{ form.title.id_for_label }}">Заголовок заявки</label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                <ul class="field-errors">{% for error in form.title.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
             </div>
             <div class="form-group">
-                <label for="contact_email">Email для связи</label>
-                <input type="email" name="contact_email" id="contact_email" value="{{ user.email|default:'' }}" required>
+                <label for="{{ form.contact_email.id_for_label }}">Email для связи</label>
+                {{ form.contact_email }}
+                {% if form.contact_email.errors %}
+                <ul class="field-errors">{% for error in form.contact_email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
             </div>
             <div class="form-group">
-                <label for="contact_telegram">Telegram (необязательно)</label>
-                <input type="text" name="contact_telegram" id="contact_telegram" placeholder="@username">
+                <label for="{{ form.contact_telegram.id_for_label }}">Telegram (необязательно)</label>
+                {{ form.contact_telegram }}
+                {% if form.contact_telegram.errors %}
+                <ul class="field-errors">{% for error in form.contact_telegram.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
             </div>
             <div class="form-group">
-                <label for="description">Описание проекта</label>
-                <textarea name="description" id="description" placeholder="Опишите детали проекта..."></textarea>
+                <label for="{{ form.description.id_for_label }}">Описание проекта</label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                <ul class="field-errors">{% for error in form.description.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
             </div>
-            {% include 'crm/snippets/personal_data_consent_plain.html' %}
+            <div class="pd-consent input-box{% if form.personal_data_consent.errors %} pd-consent--invalid{% endif %}">
+              <label class="pd-consent__label" for="{{ form.personal_data_consent.id_for_label }}">
+                {{ form.personal_data_consent }}
+                <span class="pd-consent__text">
+                  Я даю своё <strong>согласие</strong> на обработку моих персональных данных
+                  (адрес электронной почты, контакт в Telegram, сведения из описания заявки)
+                  в целях рассмотрения заявки и обратной связи, в соответствии с
+                  <a href="{% url 'crm:privacy_policy' %}" target="_blank" rel="noopener noreferrer">Политикой обработки персональных данных</a>
+                  и Федеральным законом от 27.07.2006 №&nbsp;152-ФЗ «О персональных данных».
+                </span>
+              </label>
+              {% if form.personal_data_consent.errors %}
+              <div class="field-errors">
+                <ul>{% for error in form.personal_data_consent.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+              </div>
+              {% endif %}
+            </div>
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Отправить заявку</button>
                 <a href="{% url 'crm:client_requests' %}" class="btn btn-secondary">Отмена</a>

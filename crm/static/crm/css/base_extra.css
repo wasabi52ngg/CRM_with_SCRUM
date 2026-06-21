@@ -5,7 +5,7 @@
   left: 0;
   position: fixed;
   z-index: 99;
-  background: rgba(255, 255, 255, 0.76);
+  background: #ffffff;
   box-shadow: 0 10px 30px rgba(15, 23, 42, .08);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -332,7 +332,8 @@ footer {
   width: min(380px, 92vw);
   max-height: min(420px, 70vh);
   overflow: auto;
-  background: #fff;
+  background: #ffffff;
+  color: #0f172a;
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);

@@ -282,8 +282,12 @@ body.mobile-nav-open {
   }
 
   .header-notify-dropdown {
-    right: -8px;
-    width: min(340px, calc(100vw - 24px));
+    position: fixed;
+    top: calc(66px + 6px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
   }
 }
 
